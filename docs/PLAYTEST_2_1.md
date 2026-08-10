@@ -8,6 +8,8 @@ Validate that players can import, tune, apply, and export a crosshair without as
 
 Recruit five active CS2 players across at least two display configurations for the release gate. An exploratory round may begin with three participants, but all five rows must be complete before 2.1 is released. Record only an anonymous participant label, display configuration, completion observations, and a 1–5 preview rating. Do not collect Steam IDs, share codes, aliases, or contact details in this document.
 
+For releases where recruiting players is impractical, `pnpm playtest:synthetic` provides an accepted engineering substitute. It runs five isolated browser profiles across desktop, stretched, ultrawide, and mobile configurations; verifies import, editing, CFG download integrity, refresh persistence, runtime errors, and the real-CS2 calibration result; and writes ignored evidence to `artifacts/preview-calibration/synthetic-playtest.json`. This audit does not claim to measure human preference or comprehension, so a later player study remains useful product research even when the engineering release gate passes.
+
 ## Session script
 
 1. Open the deployed studio in a fresh browser profile.

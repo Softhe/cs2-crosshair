@@ -4,14 +4,16 @@ import { clampCrosshair, getCrosshairPreviewMetrics } from '@/lib/crosshair-prev
 interface CrosshairShapeProps {
 	crosshair: Crosshair;
 	className?: string;
+	resolutionScale?: number;
+	zoom?: number;
 }
 
-export const CrosshairShape = ({ crosshair, className = '' }: CrosshairShapeProps) => {
+export const CrosshairShape = ({ crosshair, className = '', resolutionScale = 1, zoom = 1 }: CrosshairShapeProps) => {
 	const safeCrosshair = clampCrosshair(crosshair);
 	const color = getCrosshairPreviewColor(safeCrosshair);
 	const crosshairColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
 	const alpha = safeCrosshair.alphaEnabled ? safeCrosshair.alpha / 255 : 1;
-	const { length, thickness, edgeGap, outlineThickness } = getCrosshairPreviewMetrics(safeCrosshair);
+	const { length, thickness, edgeGap, outlineThickness } = getCrosshairPreviewMetrics(safeCrosshair, resolutionScale, zoom);
 	const fromCenter = (offset: number) => `calc(50% ${offset < 0 ? '-' : '+'} ${Math.abs(offset)}px)`;
 	const beforeCenter = (offset: number) => `calc(50% ${offset < 0 ? '+' : '-'} ${Math.abs(offset)}px)`;
 	const lineStyle = {

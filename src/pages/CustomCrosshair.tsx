@@ -18,6 +18,7 @@ import { StudioPreviewPanel } from '@/components/studio/StudioPreviewPanel';
 import { FirstRunGuide } from '@/components/studio/FirstRunGuide';
 import { useToast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { PALETTE_OPTIONS, useStudioPreferences } from '@/hooks/use-studio-preferences';
 import { copyToClipboard } from '@/lib/clipboard';
 import {
 	crosshairToConVars,
@@ -60,26 +61,6 @@ const DEFAULT_CROSSHAIR: Crosshair = {
 const CrosshairHistory = lazy(() => import('@/components/CrosshairHistory').then(({ CrosshairHistory: Component }) => ({ default: Component })));
 
 const DOT_CROSSHAIR_CODE = 'CSGO-zDZH2-jXXvr-yFaQu-OjXPS-G8sdA';
-const PALETTE_STORAGE_KEY = 'cs2_studio_palette';
-const GUIDE_STORAGE_KEY = 'cs2_studio_guide_dismissed';
-
-type StudioPalette = 'tactical' | 'cs2' | 'crimson';
-
-const PALETTE_OPTIONS: Array<{ name: string; value: StudioPalette; colors: [string, string]; description: string }> = [
-	{ name: 'Tactical', value: 'tactical', colors: ['#1dbd9f', '#25bfe1'], description: 'Deep petrol surfaces with teal and sea-glass highlights.' },
-	{ name: 'CS2', value: 'cs2', colors: ['#e88632', '#6f91a8'], description: 'Counter-Strike-inspired gunmetal, warm orange, sand, and steel blue.' },
-	{ name: 'Crimson', value: 'crimson', colors: ['#943b58', '#c18a95'], description: 'Calm wine red with dusty rose highlights on deep merlot surfaces.' }
-];
-
-const getStoredPalette = (): StudioPalette => {
-	try {
-		const stored = localStorage.getItem(PALETTE_STORAGE_KEY);
-		return PALETTE_OPTIONS.some(({ value }) => value === stored) ? stored as StudioPalette : 'tactical';
-	} catch {
-		return 'tactical';
-	}
-};
-
 const PRESETS: StudioPreset[] = [
 	{ name: 'Small static', description: 'Compact cyan crosshair with a slight negative gap.', crosshair: DEFAULT_CROSSHAIR },
 	{
@@ -111,11 +92,8 @@ const CustomCrosshair = () => {
 	const [importError, setImportError] = useState(() => initialUrlCode && !validateShareCode(initialUrlCode).valid ? validateShareCode(initialUrlCode).error || '' : '');
 	const [aliasName, setAliasName] = useState('');
 	const [customColorOpen, setCustomColorOpen] = useState(false);
-	const [palette, setPalette] = useState<StudioPalette>(getStoredPalette);
+	const { palette, setPalette, showGuide, dismissGuide } = useStudioPreferences();
 	const [historyKey, setHistoryKey] = useState(0);
-	const [showGuide, setShowGuide] = useState(() => {
-		try { return localStorage.getItem(GUIDE_STORAGE_KEY) !== 'true'; } catch { return true; }
-	});
 	const desktopStudioLayout = useMediaQuery('(min-width: 1280px)');
 	const narrowStudioLayout = useMediaQuery('(max-width: 767px)');
 	const ultrawideStudioLayout = useMediaQuery('(min-width: 1600px)');
@@ -153,19 +131,6 @@ const CustomCrosshair = () => {
 		});
 		setHistoryKey((current) => current + 1);
 	}, []);
-
-	useEffect(() => {
-		const root = document.documentElement;
-		root.dataset.palette = palette;
-		try {
-			localStorage.setItem(PALETTE_STORAGE_KEY, palette);
-		} catch {
-			// The selected palette still applies when storage is unavailable.
-		}
-		return () => {
-			delete root.dataset.palette;
-		};
-	}, [palette]);
 
 	useEffect(() => { trackStudioEvent('studio_loaded'); }, []);
 
@@ -329,12 +294,6 @@ const CustomCrosshair = () => {
 		setAliasName(alias || '');
 		trackStudioEvent('history_loaded');
 		toast({ title: 'Crosshair loaded', description: 'Loaded from your saved crosshairs.' });
-	};
-
-	const dismissGuide = () => {
-		setShowGuide(false);
-		try { localStorage.setItem(GUIDE_STORAGE_KEY, 'true'); } catch { /* The guide can reappear if storage is unavailable. */ }
-		trackStudioEvent('guide_dismissed');
 	};
 
 	return (

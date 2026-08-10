@@ -23,6 +23,6 @@ describe('StudioFeedback', () => {
 		expect(preview).toHaveTextContent('excludes crosshair codes');
 		const issueLink = screen.getByRole('link', { name: 'Open GitHub issue' });
 		expect(issueLink).toHaveAttribute('target', '_blank');
-		expect(issueLink.getAttribute('href')).toMatch(/^https:\/\/github\.com\/Softhe\/delli-crosshair-shine\/issues\/new\?/);
+		expect(issueLink.getAttribute('href')).toMatch(/^https:\/\/github\.com\/Softhe\/cs2-crosshair\/issues\/new\?/);
 	});
 });

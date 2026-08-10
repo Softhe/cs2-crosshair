@@ -1,43 +1,79 @@
 # CS2 Crosshair Studio
 
-CS2 Crosshair Studio is a private, browser-based workspace for importing, editing, previewing, sharing, and exporting Counter-Strike 2 crosshairs. The application is built with React, TypeScript, Vite, and Tailwind CSS and is published at [delli.cc](https://delli.cc/).
+[CS2 Crosshair Studio](https://delli.cc/) is a private, browser-based workspace for creating, editing, previewing, saving, and sharing Counter-Strike 2 crosshairs.
+
+![CS2 Crosshair Studio](public/og-image.jpg)
+
+Everything runs locally in your browser. Crosshair codes, settings, aliases, drafts, history, favorites, and feedback choices are not sent to a server.
+
+## How it works
+
+1. Paste a CS2 `CSGO-...` share code or start from a preset.
+2. Tune the crosshair while watching the preview update immediately.
+3. Copy a command, code, or share link, or download a ready-to-use `.cfg` file.
+
+[Open the studio](https://delli.cc/) · [Report an issue](https://github.com/Softhe/cs2-crosshair/issues/new/choose)
 
 ## Features
 
-- Import and validate CS2 `CSGO-...` crosshair share codes.
-- Start from a preset and edit length, gap, thickness, color, opacity, outline, center dot, and T style.
-- Preview changes immediately and generate a new share code from the edited values.
-- Copy a console command, share code, or canonical share link, or download a `.cfg` file.
-- Optionally generate a safe config filename and console alias.
-- Keep up to 20 recently loaded or exported crosshairs and 50 favorites in browser storage.
-- Search and rename saved crosshairs, or export/import a local JSON backup.
-- Restore the latest draft after a refresh and reset it when needed.
-- Use `Ctrl+Enter` or `Cmd+Enter` to copy the current console command.
-- On mobile, keep export actions within reach while preview and optional autoexec details stay collapsible.
-- Report bugs and suggest improvements through the project's [GitHub Issues](https://github.com/Softhe/delli-crosshair-shine/issues/new/choose) page.
-- Give one-tap ease feedback that stays only in the current browser.
+### Create and customize
 
-All decoding, editing, persistence, and file generation happen in the browser. The live preview is an approximation; resolution and in-game rendering can produce small visual differences.
+- Import and validate CS2 crosshair share codes, including one-click clipboard paste.
+- Start from Small static, Dot, High visibility, or Classic green presets.
+- Adjust style, length, gap, thickness, color, opacity, outline and outline thickness, center dot, and T style.
+- Choose a preset color or use the custom color picker.
+- Reset the workspace to a known default at any time.
+- Follow a dismissible first-run guide that stays dismissed on the current device.
 
-## Routes and links
+### Preview and personalize
 
-| Route | Purpose |
+- See changes immediately in a browser-rendered crosshair preview.
+- Switch between Tactical, CS2, and Crimson palettes; the selection persists locally.
+- Use layouts tailored for mobile, desktop, and ultrawide screens.
+- Keep copy and download actions within reach through mobile quick actions.
+
+### Export and share
+
+- Copy the generated CS2 console command with a button or `Ctrl+Enter` / `Cmd+Enter`.
+- Copy the current share code or a canonical `delli.cc` share link.
+- Download a ready-to-use `.cfg` file with a safe generated filename.
+- Add an optional alias and copy the matching autoexec command for quick switching.
+- Inspect the generated CS2 console variables before exporting.
+
+### Save locally
+
+- Restore the latest draft after a refresh.
+- Keep up to 20 recently imported or exported crosshairs and up to 50 favorites.
+- Search the local library by name or share-code fragment.
+- Rename, reload, copy, favorite, and remove saved entries.
+- Export the local library as JSON and restore it from a backup.
+
+### Privacy-conscious feedback
+
+- Record an optional ease rating only in the current browser.
+- Review coarse diagnostics and an optional note before explicitly opening a prefilled GitHub issue.
+- Never include crosshair codes, settings, aliases, URLs, or local history in the generated issue.
+
+## Preview accuracy
+
+The live preview is a close browser approximation. Resolution, aspect ratio, display scaling, and CS2 rendering can produce small visual differences. Generated share codes, console commands, and config files use the actual crosshair settings rather than measurements from the preview.
+
+## Supported links
+
+| URL | Behavior |
 | --- | --- |
-| `/` | Unified studio. With no URL code, it restores the local draft or opens the default crosshair. |
+| `/` | Opens the studio and restores the local draft or default crosshair. |
 | `/?code=CSGO-...` | Canonical share link. |
 | `/?crosshair=CSGO-...` | Supported compatibility query. |
-| `/custom` | Compatibility route that redirects to `/` while preserving its query string and hash. |
-| `/CSGO-...` | Legacy path-based share link. Valid codes still open in the studio. |
-| Any other path | Not-found page. |
+| `/custom` | Redirects to `/` while preserving the query string and hash. |
+| `/CSGO-...` | Opens a valid legacy path-based share link. |
+| Any other path | Shows the not-found page. |
 
-Use query-based share links for new links. On GitHub Pages, a legacy path can be served through `404.html`, so the app can load it even though the initial document response may retain a 404 status.
+Use query-based links for anything new. The legacy path format remains available for existing shared URLs.
 
 ## Development
 
-Requirements:
-
-- Node.js 20 or newer
-- pnpm 11.9.0 (the version pinned in `package.json`)
+Requirements: Node.js 20 or newer and pnpm 11.9.0.
 
 ```sh
 corepack enable
@@ -45,49 +81,34 @@ pnpm install
 pnpm dev
 ```
 
-Vite prints the local development URL, normally `http://localhost:5173` or the next available port.
-
-Useful commands:
+Essential commands:
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Start the Vite development server. |
-| `pnpm lint` | Run ESLint. |
-| `pnpm typecheck` | Type-check the application and Vite configuration. |
-| `pnpm test` | Run the Vitest unit and component suite once. |
-| `pnpm test:watch` | Run Vitest in watch mode. |
-| `pnpm test:utils` | Verify share-code and preview utility invariants. |
-| `pnpm test:e2e` | Build the site, then run the Playwright smoke tests at desktop and mobile widths. |
-| `pnpm capture:preview` | Capture browser-side preview references for the CS2 calibration matrix. |
-| `pnpm report:preview` | Build the side-by-side browser/CS2 calibration report. |
-| `pnpm verify:release-readiness` | Verify real CS2 references and the five-player 2.1 playtest evidence. |
-| `pnpm build` | Build `dist/`, prepare compatibility pages, and verify the production artifacts. |
-| `pnpm preview` | Serve the production build locally. |
-| `pnpm verify:build` | Verify the files and metadata in an existing `dist/`. |
+| `pnpm dev` | Start the local Vite development server. |
+| `pnpm check` | Run linting, type checks, utility checks, unit/component tests, and a verified production build. |
+| `pnpm test:e2e` | Build the site and run Playwright smoke tests at desktop and mobile widths. |
+| `pnpm test:watch` | Run the Vitest suite in watch mode. |
+| `pnpm verify:release-readiness` | Verify CS2 reference and 2.1 playtest evidence. |
 | `pnpm smoke:production` | Probe the deployed `https://delli.cc` routes and metadata. |
-| `pnpm check` | Run the required local release gate. |
 
-## Project structure
+The application uses React, TypeScript, Vite, Tailwind CSS, Vitest, and Playwright.
 
-```text
-src/pages/                 Route-level studio and not-found pages
-src/components/            Preview, history, FAQ, and reusable UI
-src/lib/                   Share-code, output, URL, storage, and preview logic
-src/**/*.test.{ts,tsx}     Unit and component tests
-e2e/                       Production-browser smoke tests
-scripts/                   Utility checks and static-page preparation
-public/                    Metadata, icons, crawler files, and CNAME
-.github/workflows/         Continuous integration and GitHub Pages deployment
-```
+## Project documentation
 
-See [Architecture](docs/ARCHITECTURE.md), [Testing](docs/TESTING.md), and [Release and deployment](docs/RELEASE.md) for the maintained project documentation. Preview changes must follow [Preview calibration](docs/PREVIEW_CALIBRATION.md); players supplying the real reference images should use the exact [CS2 screenshot guide](docs/CS2_SCREENSHOT_GUIDE.md). User validation should follow the [2.1 playtest](docs/PLAYTEST_2_1.md).
+- [Architecture](docs/ARCHITECTURE.md)
+- [Testing](docs/TESTING.md)
+- [Maintenance baseline](docs/MAINTENANCE.md)
+- [Release and deployment](docs/RELEASE.md)
+- [Preview calibration](docs/PREVIEW_CALIBRATION.md)
+- [CS2 screenshot guide](docs/CS2_SCREENSHOT_GUIDE.md)
+- [2.1 playtest](docs/PLAYTEST_2_1.md)
+- [Changelog](CHANGELOG.md)
 
 ## Deployment
 
-Pull requests and pushes to `main` run the main gate and Playwright smoke suite. A push to `main` also deploys the verified `dist/` artifact to GitHub Pages and probes the live site afterward. The build includes the `delli.cc` custom-domain declaration, crawler metadata, optimized `og-image.jpg`, `/custom` compatibility files, and a `404.html` app fallback for legacy share-code paths.
-
-Run `pnpm check` and `pnpm test:e2e` before merging. After deployment, follow the production smoke checklist in [docs/RELEASE.md](docs/RELEASE.md).
+Pull requests and pushes to `main` run the release gate and browser smoke suite. Pushes to `main` deploy the verified build to GitHub Pages, retain the `delli.cc` custom domain, and probe the production routes after deployment. See the [release guide](docs/RELEASE.md) for the maintained checklist and compatibility contract.
 
 ## License
 
-Built by delli.cc. No separate open-source license is declared in this repository.
+Built by [delli.cc](https://delli.cc/). No separate open-source license is declared in this repository.

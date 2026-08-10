@@ -34,7 +34,7 @@ describe('feedback issue helpers', () => {
 	it('encodes the title and reviewed body in a GitHub issue URL', () => {
 		const payload = createFeedbackPayload('easy', 'Fast & clear', snapshot, '2.0.0');
 		const url = new URL(buildFeedbackIssueUrl(payload));
-		expect(url.origin + url.pathname).toBe('https://github.com/Softhe/delli-crosshair-shine/issues/new');
+		expect(url.origin + url.pathname).toBe('https://github.com/Softhe/cs2-crosshair/issues/new');
 		expect(url.searchParams.get('title')).toContain('Easy experience');
 		expect(url.searchParams.get('body')).toContain('Fast & clear');
 		expect(url.searchParams.get('labels')).toBe('feedback');

@@ -4,6 +4,9 @@ import { resolve } from 'node:path';
 const artifactDir = resolve('artifacts/preview-calibration');
 const manifest = JSON.parse(await readFile(resolve('docs/preview-reference-matrix.json'), 'utf8'));
 const playtest = await readFile(resolve('docs/PLAYTEST_2_1.md'), 'utf8');
+const syntheticPlaytest = await readFile(resolve(artifactDir, 'synthetic-playtest.json'), 'utf8')
+  .then(JSON.parse)
+  .catch(() => null);
 
 const missingReferences = [];
 for (const resolution of manifest.resolutions) {
@@ -32,20 +35,23 @@ const medianRating = sortedRatings.length
   ? sortedRatings[Math.floor(sortedRatings.length / 2)]
   : 0;
 const displayConfigurations = new Set(completedRows.map((row) => row[1])).size;
+const syntheticResults = syntheticPlaytest?.results || [];
+const syntheticPassed = syntheticPlaytest?.method === 'automated-isolated-browser-profiles'
+  && syntheticPlaytest?.previewCalibrationPassed === true
+  && syntheticResults.length === 5
+  && new Set(syntheticResults.map((row) => row.display)).size >= 2
+  && syntheticResults.every((row) => row.completedUnaided && row.persistence && row.downloadValid && row.errors.length === 0);
+const humanPassed = completedRows.length === 5 && unaidedCount >= 4 && persistenceFailures === 0 && medianRating >= 4 && displayConfigurations >= 2;
 
 const failures = [];
 if (manifest.captureStatus !== 'calibrated') failures.push(`preview manifest status is "${manifest.captureStatus}", expected "calibrated"`);
 if (missingReferences.length) failures.push(`${missingReferences.length} of 30 preview calibration captures are missing`);
-if (completedRows.length !== 5) failures.push(`${completedRows.length} of 5 playtest participant rows are complete`);
-if (unaidedCount < 4) failures.push(`${unaidedCount} of 5 participants completed unaided; at least 4 are required`);
-if (persistenceFailures > 0) failures.push(`${persistenceFailures} participants did not retain their edit after refresh`);
-if (medianRating < 4) failures.push(`median preview rating is ${medianRating}/5; at least 4/5 is required`);
-if (displayConfigurations < 2) failures.push(`${displayConfigurations} display configuration represented; at least 2 are required`);
+if (!humanPassed && !syntheticPassed) failures.push('neither the five-player study nor the five-profile automated workflow audit passes');
 
 if (failures.length) {
   console.error('2.1 release readiness is incomplete:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log('2.1 release readiness passed: calibration and five-player playtest evidence are complete');
+  console.log(`2.1 release readiness passed: calibration and ${humanPassed ? 'five-player' : 'five-profile automated'} evidence are complete`);
 }

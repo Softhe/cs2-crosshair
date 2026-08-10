@@ -32,7 +32,10 @@ pnpm preview
 pnpm test:e2e
 pnpm smoke:production
 pnpm verify:release-readiness
+pnpm deps:check
 ```
+
+`deps:check` is an informational maintenance report: finding available updates is expected to produce a non-zero exit code and does not fail CI. Major-version migrations are reviewed separately.
 
 The release-readiness command is separate from `pnpm check`: it fails until real CS2 captures and five anonymized player sessions have been supplied.
 

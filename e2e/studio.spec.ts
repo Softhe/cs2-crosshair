@@ -33,7 +33,7 @@ test('loads the unified studio without runtime or layout failures', async ({ pag
   await expect(page.getByRole('heading', { name: 'Local crosshair library' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Recent (0)' })).toBeVisible();
   await expect(page.getByText('Codes you load or export are saved only in this browser.')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Report an issue' })).toHaveAttribute('href', 'https://github.com/Softhe/delli-crosshair-shine/issues/new/choose');
+  await expect(page.getByRole('link', { name: 'Report an issue' })).toHaveAttribute('href', 'https://github.com/Softhe/cs2-crosshair/issues/new/choose');
 
   const sliderStack = controlCenter.getByTestId('slider-stack');
   const sliderNames = ['Length', 'Thickness', 'Gap', 'Outline thickness', 'Alpha'];
@@ -115,7 +115,7 @@ test('guides first-time users once and records optional feedback locally', async
   await page.getByRole('button', { name: 'Review GitHub issue' }).click();
   await expect(page.getByTestId('feedback-issue-preview')).toContainText('Fast and clear');
   const issueHref = await page.getByRole('link', { name: 'Open GitHub issue' }).getAttribute('href');
-  expect(issueHref).toContain('github.com/Softhe/delli-crosshair-shine/issues/new');
+  expect(issueHref).toContain('github.com/Softhe/cs2-crosshair/issues/new');
   expect(decodeURIComponent(issueHref || '')).not.toContain('CSGO-');
   const metrics = await page.evaluate(() => sessionStorage.getItem('cs2_studio_session_metrics') || '');
   expect(metrics).toContain('feedback_easy');

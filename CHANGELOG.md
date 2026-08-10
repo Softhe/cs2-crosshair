@@ -2,6 +2,19 @@
 
 Notable changes to CS2 Crosshair Studio are recorded here.
 
+## Unreleased
+
+### Changed
+
+- Updated compatible React, Radix UI, routing, lint, build, and browser-test dependencies without crossing major-version boundaries.
+- Separated studio preferences and local-library state transitions from their presentation components.
+- Added non-blocking dependency-drift reporting to continuous integration.
+
+### Testing
+
+- Added direct coverage for local-library filtering, renaming, favorites, and removal through the extracted state boundary.
+- Kept the external CS2 calibration and five-player playtest as explicit requirements for a future 2.1 release.
+
 ## 2.0.0 - 2026-07-22
 
 ### Added

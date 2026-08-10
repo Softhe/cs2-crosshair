@@ -25,6 +25,8 @@ flowchart LR
 - `src/components/studio/` contains focused import, customization, preview, autoexec, and mobile-action surfaces.
 - `src/components/CustomCrosshairPreview.tsx` and `CrosshairShape.tsx` render the approximation shown in the editor.
 - `src/components/CrosshairHistory.tsx` presents searchable, renameable recent exports and favorites from local storage, with JSON backup controls.
+- `src/hooks/use-studio-preferences.ts` owns palette and first-run-guide persistence.
+- `src/hooks/use-crosshair-library.ts` owns local-library filtering and state transitions while the storage module remains the persistence authority.
 
 The older `CS2ConfigGenerator` and its separate preview were removed. New work should target the unified studio and its supporting modules.
 

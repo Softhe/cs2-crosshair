@@ -11,7 +11,7 @@ export interface FeedbackPayload {
 	performance?: { lcp?: number; cls?: number };
 }
 
-const REPOSITORY_ISSUES_URL = 'https://github.com/Softhe/delli-crosshair-shine/issues/new';
+const REPOSITORY_ISSUES_URL = 'https://github.com/Softhe/cs2-crosshair/issues/new';
 const MAX_NOTES_LENGTH = 1200;
 const ALLOWED_EVENTS: StudioEventName[] = [
 	'studio_loaded',
