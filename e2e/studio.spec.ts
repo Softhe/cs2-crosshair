@@ -397,7 +397,7 @@ test('searches, renames, and backs up the local library', async ({ page }) => {
     await nameInput.press(character === ' ' ? 'Space' : character);
     await expect(nameInput).toBeFocused();
   }
-  await nameInput.press('Tab');
+  await nameInput.press('Enter');
   await expect(nameInput).toHaveValue(customName);
   await expect(nameInput).toHaveAttribute('title', customName);
 

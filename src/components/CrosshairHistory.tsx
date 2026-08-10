@@ -151,7 +151,11 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 								className="h-9 w-full min-w-0 border-white/10 bg-background/50 text-sm font-semibold text-neon-cyan"
 								onClick={(event) => event.stopPropagation()}
 								onBlur={(event) => commitAliasValue(item, event.currentTarget.value)}
-								onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+								onKeyDown={(event) => {
+									if (event.key !== 'Enter') return;
+									event.preventDefault();
+									commitAliasValue(item, event.currentTarget.value);
+								}}
 							/>
 							<div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground flex items-center gap-1">
 								<Clock className="w-3 h-3" />
