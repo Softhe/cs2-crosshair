@@ -17,8 +17,19 @@ for (const resolution of resolutions) {
   for (const scenario of scenarios) {
     await page.goto(scenario.shareCode ? `${baseUrl}/?code=${scenario.shareCode}` : baseUrl);
     if (scenario.button) await page.getByRole('button', { name: scenario.button, exact: true }).click();
-    await page.getByTestId('preview-workspace').screenshot({
+    await page.getByLabel('Preview resolution').selectOption(resolution.id);
+    await page.getByRole('button', { name: 'Exact', exact: true }).click();
+    const stage = page.getByTestId('crosshair-stage');
+    const box = await stage.boundingBox();
+    if (!box || box.width < 96 || box.height < 96) throw new Error(`Preview stage is too small for ${scenario.id}-${resolution.id}`);
+    await page.screenshot({
       path: resolve(outputDir, `${scenario.id}-${resolution.id}-browser.png`),
+      clip: {
+        x: Math.floor(box.x + box.width / 2) - 48,
+        y: Math.floor(box.y + box.height / 2) - 48,
+        width: 96,
+        height: 96,
+      },
     });
   }
 }

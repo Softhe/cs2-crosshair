@@ -98,6 +98,7 @@ The application uses React, TypeScript, Vite, Tailwind CSS, Vitest, and Playwrig
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Testing](docs/TESTING.md)
+- [Maintenance baseline](docs/MAINTENANCE.md)
 - [Release and deployment](docs/RELEASE.md)
 - [Preview calibration](docs/PREVIEW_CALIBRATION.md)
 - [CS2 screenshot guide](docs/CS2_SCREENSHOT_GUIDE.md)

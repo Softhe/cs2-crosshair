@@ -12,7 +12,7 @@ Before merging to `main`:
 6. Verify page title, description, canonical URL, Open Graph image, favicon, crawler rules, sitemap URL, and `delli.cc` references.
 7. For preview changes, follow `PREVIEW_CALIBRATION.md` and review the browser/CS2 reference matrix.
 8. Review the JavaScript and CSS sizes printed by the build budget check; raise a budget only with a documented reason.
-9. Run `pnpm verify:release-readiness`; it must confirm all preview references and the five-player 2.1 playtest before the release is approved.
+9. Run `pnpm playtest:synthetic` (or complete the five-player study), then run `pnpm verify:release-readiness`; it must confirm all preview references and one complete usability-evidence path before the release is approved.
 
 Do not describe a change as released until the Pages deployment and production smoke test have completed.
 

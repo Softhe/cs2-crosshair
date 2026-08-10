@@ -21,6 +21,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Report dependency drift
+        continue-on-error: true
+        run: pnpm deps:check
       - run: pnpm check
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e

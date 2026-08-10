@@ -2,7 +2,7 @@
   "$schema": "./preview-reference-matrix.schema.json",
   "version": 2,
   "authority": "Counter-Strike 2",
-  "captureStatus": "awaiting-real-game-captures",
+  "captureStatus": "calibrated",
   "naming": "{scenario}-{resolution}-{source}.png",
   "sources": ["browser", "cs2"],
   "scenarios": [

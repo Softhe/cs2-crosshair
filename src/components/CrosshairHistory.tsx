@@ -1,51 +1,27 @@
-import { useRef, useState, type ChangeEvent, type MouseEvent } from 'react';
+import { useRef, type ChangeEvent, type MouseEvent } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Clock, Star, Trash2, Download, Copy, Share2, Database, Search, Upload, FileDown, FileUp } from 'lucide-react';
-import { exportAllData, getHistory, getFavorites, importAllData, removeFromHistory, renameHistoryItem, toggleFavorite, isFavorited } from '@/lib/storage';
+import { exportAllData, importAllData, isFavorited } from '@/lib/storage';
 import type { CrosshairData } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { copyToClipboard } from '@/lib/clipboard';
 import { getCurrentShareUrl } from '@/lib/share-url';
+import { useCrosshairLibrary } from '@/hooks/use-crosshair-library';
 
 interface CrosshairHistoryProps {
 	onSelectCrosshair: (shareCode: string, aliasName?: string) => void;
 }
 
 export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) => {
-	const [history, setHistory] = useState<CrosshairData[]>(getHistory());
-	const [favorites, setFavorites] = useState<CrosshairData[]>(getFavorites());
-	const [query, setQuery] = useState('');
-	const [draftAliases, setDraftAliases] = useState<Record<string, string>>({});
+	const {
+		history, favorites, filteredHistory, filteredFavorites, query, setQuery,
+		draftAliases, setDraftAlias, commitAlias, remove, toggle, refresh, resetDraftAliases,
+	} = useCrosshairLibrary();
 	const backupInputRef = useRef<HTMLInputElement>(null);
 	const { toast } = useToast();
-
-	const refreshData = () => {
-		setHistory(getHistory());
-		setFavorites(getFavorites());
-	};
-
-	const matchesQuery = (item: CrosshairData) => {
-		const normalizedQuery = query.trim().toLowerCase();
-		return !normalizedQuery || item.shareCode.toLowerCase().includes(normalizedQuery) || item.aliasName?.toLowerCase().includes(normalizedQuery);
-	};
-
-	const filteredHistory = history.filter(matchesQuery);
-	const filteredFavorites = favorites.filter(matchesQuery);
-
-	const handleRename = (item: CrosshairData) => {
-		const nextAlias = draftAliases[item.id];
-		if (nextAlias === undefined || nextAlias === (item.aliasName || '')) return;
-		renameHistoryItem(item.id, nextAlias);
-		setDraftAliases((current) => {
-			const next = { ...current };
-			delete next[item.id];
-			return next;
-		});
-		refreshData();
-	};
 
 	const handleExportBackup = () => {
 		const blob = new Blob([exportAllData()], { type: 'application/json' });
@@ -68,8 +44,8 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 		try {
 			const result = importAllData(await file.text());
 			if (!result.success) throw new Error(result.error || 'Invalid backup file');
-			setDraftAliases({});
-			refreshData();
+			resetDraftAliases();
+			refresh();
 			toast({ title: 'Backup imported', description: 'Your local history and favorites have been restored.' });
 		} catch (error) {
 			toast({ title: 'Backup import failed', description: error instanceof Error ? error.message : 'Invalid backup file', variant: 'destructive' });
@@ -77,8 +53,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 	};
 
 	const handleDelete = (id: string) => {
-		removeFromHistory(id);
-		refreshData();
+		remove(id);
 		toast({
 			title: "Removed",
 			description: "Crosshair removed from history",
@@ -87,14 +62,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 
 	const handleToggleFavorite = (crosshair: CrosshairData) => {
 		try {
-			const isFav = toggleFavorite({
-				shareCode: crosshair.shareCode,
-				aliasName: crosshair.aliasName,
-				activity: crosshair.activity,
-				settings: crosshair.settings,
-			});
-
-			refreshData();
+			const isFav = toggle(crosshair);
 			toast({
 				title: isFav ? "Added to favorites" : "Removed from favorites",
 				description: isFav ? "Crosshair saved to favorites" : "Crosshair removed from favorites",
@@ -180,8 +148,8 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 								maxLength={48}
 								className="h-8 max-w-52 border-white/10 bg-background/50 text-sm font-semibold text-neon-cyan"
 								onClick={(event) => event.stopPropagation()}
-								onChange={(event) => setDraftAliases((current) => ({ ...current, [item.id]: event.target.value }))}
-								onBlur={() => handleRename(item)}
+								onChange={(event) => setDraftAlias(item.id, event.target.value)}
+								onBlur={() => commitAlias(item)}
 								onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
 							/>
 							<span className="text-xs text-muted-foreground flex items-center gap-1">
