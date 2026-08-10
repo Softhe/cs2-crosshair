@@ -44,6 +44,11 @@ export const useCrosshairLibrary = () => {
 		});
 		refresh();
 	}, [draftAliases, refresh]);
+	const commitAliasValue = useCallback((item: CrosshairData, value: string) => {
+		if (value === (item.aliasName || '')) return;
+		renameHistoryItem(item.id, value);
+		refresh();
+	}, [refresh]);
 
 	const remove = useCallback((id: string) => {
 		removeFromHistory(id);
@@ -64,7 +69,7 @@ export const useCrosshairLibrary = () => {
 
 	return {
 		history, favorites, filteredHistory, filteredFavorites, query, setQuery,
-		draftAliases, setDraftAlias, commitAlias, remove, toggle, refresh,
+		draftAliases, setDraftAlias, commitAlias, commitAliasValue, remove, toggle, refresh,
 		resetDraftAliases,
 	};
 };

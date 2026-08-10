@@ -18,7 +18,7 @@ interface CrosshairHistoryProps {
 export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) => {
 	const {
 		history, favorites, filteredHistory, filteredFavorites, query, setQuery,
-		draftAliases, setDraftAlias, commitAlias, remove, toggle, refresh, resetDraftAliases,
+		commitAliasValue, remove, toggle, refresh, resetDraftAliases,
 	} = useCrosshairLibrary();
 	const backupInputRef = useRef<HTMLInputElement>(null);
 	const { toast } = useToast();
@@ -140,23 +140,25 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 			>
 				<div className="flex items-start justify-between gap-3">
 					<div className="flex-1 min-w-0">
-						<div className="mb-2 flex flex-wrap items-center gap-2">
+						<div className="mb-2 grid min-w-0 gap-2">
 							<Input
+								key={`${item.id}:${item.aliasName || ''}`}
 								aria-label={`Name ${item.aliasName || 'crosshair'}`}
-								value={draftAliases[item.id] ?? item.aliasName ?? ''}
+								defaultValue={item.aliasName ?? ''}
 								placeholder="Name this crosshair"
 								maxLength={48}
-								className="h-8 max-w-52 border-white/10 bg-background/50 text-sm font-semibold text-neon-cyan"
+								title={item.aliasName || 'Name this crosshair'}
+								className="h-9 w-full min-w-0 border-white/10 bg-background/50 text-sm font-semibold text-neon-cyan"
 								onClick={(event) => event.stopPropagation()}
-								onChange={(event) => setDraftAlias(item.id, event.target.value)}
-								onBlur={() => commitAlias(item)}
+								onBlur={(event) => commitAliasValue(item, event.currentTarget.value)}
 								onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
 							/>
-							<span className="text-xs text-muted-foreground flex items-center gap-1">
+							<div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground flex items-center gap-1">
 								<Clock className="w-3 h-3" />
 								{formatDate(item.timestamp)}
 							</span>
 							{item.activity && <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{item.activity === 'imported' ? <Search className="h-3 w-3" /> : <Upload className="h-3 w-3" />}{item.activity === 'imported' ? 'Loaded' : 'Exported'}</span>}
+							</div>
 						</div>
 						<code className="text-xs text-muted-foreground font-mono block truncate">
 							{item.shareCode}

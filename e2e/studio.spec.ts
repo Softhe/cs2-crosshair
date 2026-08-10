@@ -391,9 +391,15 @@ test('searches, renames, and backs up the local library', async ({ page }) => {
 
   const nameInput = historyItem.locator('input');
   await expect(nameInput).toHaveCount(1);
-  await nameInput.fill('ranked setup');
+  const customName = 'ranked setup with a deliberately long name';
+  await nameInput.click();
+  for (const character of customName) {
+    await nameInput.press(character === ' ' ? 'Space' : character);
+    await expect(nameInput).toBeFocused();
+  }
   await nameInput.press('Tab');
-  await expect(nameInput).toHaveValue('ranked setup');
+  await expect(nameInput).toHaveValue(customName);
+  await expect(nameInput).toHaveAttribute('title', customName);
 
   const search = page.getByRole('textbox', { name: 'Search saved crosshairs', exact: true });
   await search.fill('ranked');
@@ -410,9 +416,9 @@ test('searches, renames, and backs up the local library', async ({ page }) => {
   expect(backupPath).not.toBeNull();
   const backup = await readFile(backupPath!, 'utf8');
   expect(backup).toContain(code);
-  expect(backup).toContain('ranked setup');
+  expect(backup).toContain(customName);
 
-  await page.getByRole('button', { name: 'Remove ranked setup from history' }).click();
+  await page.getByRole('button', { name: `Remove ${customName} from history` }).click();
   await expect(historyItem).toHaveCount(0);
   await page.getByLabel('Import crosshair backup').setInputFiles({
     name: 'crosshair-backup.json',
@@ -420,7 +426,7 @@ test('searches, renames, and backs up the local library', async ({ page }) => {
     buffer: Buffer.from(backup),
   });
   await expect(page.getByTestId('history-item')).toBeVisible();
-  await expect(page.getByTestId('history-item').locator('input')).toHaveValue('ranked setup');
+  await expect(page.getByTestId('history-item').locator('input')).toHaveValue(customName);
 });
 
 test('pastes valid codes and exposes invalid clipboard values accessibly', async ({ page }) => {
