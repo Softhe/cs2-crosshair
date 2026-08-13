@@ -185,7 +185,8 @@ describe('CS2 Crosshair Studio', () => {
 		const importedItem = screen.getByTestId('history-item');
 		expect(importedItem).toHaveAttribute('data-activity', 'imported');
 		expect(within(importedItem).getByText('Loaded')).toBeInTheDocument();
-		expect(within(importedItem).getByText(VALID_CODE)).toBeInTheDocument();
+		expect(within(importedItem).getByRole('img', { name: 'Crosshair preview for saved crosshair' })).toBeInTheDocument();
+		expect(within(importedItem).queryByText(VALID_CODE)).not.toBeInTheDocument();
 
 		firstRender.unmount();
 		renderStudio();
@@ -199,7 +200,8 @@ describe('CS2 Crosshair Studio', () => {
 		const item = screen.getByTestId('history-item');
 		expect(item).toHaveAttribute('data-activity', 'imported');
 		expect(within(item).getByText('Loaded')).toBeInTheDocument();
-		expect(within(item).getByText(VALID_CODE)).toBeInTheDocument();
+		expect(within(item).getByRole('img', { name: 'Crosshair preview for saved crosshair' })).toBeInTheDocument();
+		expect(within(item).queryByText(VALID_CODE)).not.toBeInTheDocument();
 	});
 
 	it('gives a URL code precedence and does not restore it after an edit', async () => {

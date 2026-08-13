@@ -373,7 +373,7 @@ test('loads a saved crosshair by left-clicking its history card', async ({ page 
   await page.getByRole('button', { name: 'Classic green', exact: true }).click();
   await expect(codeInput).toHaveValue(changedCode);
 
-  await historyItem.locator('code').click();
+  await historyItem.getByRole('img', { name: /Crosshair preview/ }).click();
   await expect(codeInput).toHaveValue(savedCode);
 
   await page.getByRole('button', { name: 'Classic green', exact: true }).click();
@@ -391,6 +391,12 @@ test('searches, renames, and backs up the local library', async ({ page }) => {
 
   const nameInput = historyItem.locator('input');
   await expect(nameInput).toHaveCount(1);
+  await expect(historyItem.getByRole('img', { name: /Crosshair preview/ })).toBeVisible();
+  await expect(historyItem.locator('code')).toHaveCount(0);
+  const [nameBox, itemBox] = await Promise.all([nameInput.boundingBox(), historyItem.boundingBox()]);
+  expect(nameBox).not.toBeNull();
+  expect(itemBox).not.toBeNull();
+  expect(nameBox!.width).toBeGreaterThan(itemBox!.width * 0.8);
   const customName = 'ranked setup with a deliberately long name';
   await nameInput.click();
   for (const character of customName) {

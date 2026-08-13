@@ -10,10 +10,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { copyToClipboard } from '@/lib/clipboard';
 import { getCurrentShareUrl } from '@/lib/share-url';
 import { useCrosshairLibrary } from '@/hooks/use-crosshair-library';
+import { CrosshairShape } from '@/components/CrosshairShape';
+import { decodeCrosshairShareCode, type Crosshair } from '@/lib/cs2-sharecode';
 
 interface CrosshairHistoryProps {
 	onSelectCrosshair: (shareCode: string, aliasName?: string) => void;
 }
+
+const decodeHistoryCrosshair = (shareCode: string): Crosshair | null => {
+	try {
+		return decodeCrosshairShareCode(shareCode);
+	} catch {
+		return null;
+	}
+};
 
 export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) => {
 	const {
@@ -125,6 +135,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 
 	const CrosshairItem = ({ item, showDelete = true }: { item: CrosshairData; showDelete?: boolean }) => {
 		const isFav = isFavorited(item.shareCode);
+		const previewCrosshair = decodeHistoryCrosshair(item.shareCode);
 		const handleCardClick = (event: MouseEvent<HTMLDivElement>) => {
 			if ((event.target as HTMLElement).closest('[data-history-actions]')) return;
 			onSelectCrosshair(item.shareCode, item.aliasName);
@@ -138,8 +149,8 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 				title="Load this crosshair"
 				className="group cursor-pointer rounded-lg border border-tactical-blue/20 bg-secondary/30 p-4 transition-all duration-200 hover:border-neon-cyan/30 hover:bg-secondary/50"
 			>
-				<div className="flex items-start justify-between gap-3">
-					<div className="flex-1 min-w-0">
+				<div className="grid min-w-0 gap-3">
+					<div className="min-w-0">
 						<div className="mb-2 grid min-w-0 gap-2">
 							<Input
 								key={`${item.id}:${item.aliasName || ''}`}
@@ -164,20 +175,11 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 							{item.activity && <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{item.activity === 'imported' ? <Search className="h-3 w-3" /> : <Upload className="h-3 w-3" />}{item.activity === 'imported' ? 'Loaded' : 'Exported'}</span>}
 							</div>
 						</div>
-						<code className="text-xs text-muted-foreground font-mono block truncate">
-							{item.shareCode}
-						</code>
-						{item.settings && (
-							<div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
-								<span>Style: {item.settings.style}</span>
-								<span>•</span>
-								<span>Size: {item.settings.length}</span>
-								<span>•</span>
-								<span>Gap: {item.settings.gap}</span>
-							</div>
-						)}
+						<div className="relative h-24 w-full overflow-hidden rounded-md border border-white/10 bg-[linear-gradient(135deg,#bca27d,#74614c_65%,#39322b)]" role="img" aria-label={`Crosshair preview for ${item.aliasName || 'saved crosshair'}`}>
+							{previewCrosshair ? <CrosshairShape crosshair={previewCrosshair} zoom={3} /> : <span className="absolute inset-0 grid place-items-center text-xs text-muted-foreground">Preview unavailable</span>}
+						</div>
 					</div>
-					<div data-history-actions="" className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+					<div data-history-actions="" className="flex items-center justify-end gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
 						<Button
 							onClick={() => handleToggleFavorite(item)}
 							variant="ghost"

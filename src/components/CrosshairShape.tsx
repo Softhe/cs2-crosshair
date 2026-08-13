@@ -16,12 +16,12 @@ export const CrosshairShape = ({ crosshair, className = '', resolutionScale = 1,
 	const { length, thickness, edgeGap, outlineThickness } = getCrosshairPreviewMetrics(safeCrosshair, resolutionScale, zoom);
 	const fromCenter = (offset: number) => `calc(50% ${offset < 0 ? '-' : '+'} ${Math.abs(offset)}px)`;
 	const beforeCenter = (offset: number) => `calc(50% ${offset < 0 ? '+' : '-'} ${Math.abs(offset)}px)`;
+	const centeredStart = (size: number) => `calc(50% - ${Math.floor(size / 2)}px)`;
 	const lineStyle = {
 		backgroundColor: crosshairColor,
 		opacity: alpha,
 		position: 'absolute' as const,
 		zIndex: 10,
-		borderRadius: '0.5px',
 		...(outlineThickness > 0 && { boxShadow: `0 0 0 ${outlineThickness}px rgba(0, 0, 0, 0.8)` })
 	};
 
@@ -34,10 +34,8 @@ export const CrosshairShape = ({ crosshair, className = '', resolutionScale = 1,
 						...lineStyle,
 						width: `${thickness}px`,
 						height: `${thickness}px`,
-						borderRadius: '50%',
-						left: '50%',
-						top: '50%',
-						transform: 'translate(-50%, -50%)',
+						left: centeredStart(thickness),
+						top: centeredStart(thickness),
 						zIndex: 20
 					}}
 				/>
@@ -49,9 +47,8 @@ export const CrosshairShape = ({ crosshair, className = '', resolutionScale = 1,
 						...lineStyle,
 						width: `${thickness}px`,
 						height: `${length}px`,
-						left: '50%',
+						left: centeredStart(thickness),
 						top: beforeCenter(edgeGap + length),
-						transform: 'translateX(-50%)'
 					}}
 				/>
 			)}
@@ -63,9 +60,8 @@ export const CrosshairShape = ({ crosshair, className = '', resolutionScale = 1,
 							...lineStyle,
 							width: `${thickness}px`,
 							height: `${length}px`,
-							left: '50%',
+							left: centeredStart(thickness),
 							top: fromCenter(edgeGap),
-							transform: 'translateX(-50%)'
 						}}
 					/>
 					<div
@@ -75,8 +71,7 @@ export const CrosshairShape = ({ crosshair, className = '', resolutionScale = 1,
 							width: `${length}px`,
 							height: `${thickness}px`,
 							left: beforeCenter(edgeGap + length),
-							top: '50%',
-							transform: 'translateY(-50%)'
+							top: centeredStart(thickness),
 						}}
 					/>
 					<div
@@ -86,8 +81,7 @@ export const CrosshairShape = ({ crosshair, className = '', resolutionScale = 1,
 							width: `${length}px`,
 							height: `${thickness}px`,
 							left: fromCenter(edgeGap),
-							top: '50%',
-							transform: 'translateY(-50%)'
+							top: centeredStart(thickness),
 						}}
 					/>
 				</>
