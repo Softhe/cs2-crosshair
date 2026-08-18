@@ -335,8 +335,10 @@ test('copies active outputs, downloads the displayed file, and manages favorites
   await page.getByRole('button', { name: 'Share link', exact: true }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(`http://127.0.0.1:4175/?code=${code}`);
 
-  await page.getByText('CFG & autoexec shortcut', { exact: true }).click();
-  await page.getByLabel('Alias name', { exact: false }).fill('team green');
+  const aliasInput = page.getByLabel('Alias name', { exact: false });
+  await expect(aliasInput).toBeVisible();
+  await aliasInput.fill('team green');
+  await page.getByText('Instructions', { exact: true }).click();
   await expect(page.getByText('crosshair_team_green.cfg', { exact: true })).toBeVisible();
   await expect(page.getByText('alias "team_green" "exec crosshair_team_green.cfg"', { exact: true })).toBeVisible();
 

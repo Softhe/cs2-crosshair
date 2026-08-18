@@ -13,18 +13,22 @@ interface AutoexecShortcutProps {
 export const AutoexecShortcut = ({ aliasName, onAliasNameChange, fileName, aliasCommand, onCopyAlias }: AutoexecShortcutProps) => {
 	const hasAlias = Boolean(aliasName.trim());
 	return (
-		<details className="group rounded-lg border border-white/10 bg-background/35">
-			<summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+		<div className="rounded-lg border border-white/10 bg-background/35">
+			<div className="space-y-3 p-4">
 				<span className="flex items-center gap-2"><TerminalSquare className="h-4 w-4 text-primary" /><span className="text-sm font-semibold text-foreground">CFG & autoexec shortcut</span></span>
-				<span className="text-xs text-muted-foreground group-open:hidden">Optional</span><span className="hidden text-xs text-muted-foreground group-open:inline">Close</span>
-			</summary>
-			<div className="space-y-3 border-t border-white/10 p-4">
-				<p className="text-xs text-muted-foreground">Name the file, download it to your CS2 cfg folder, then copy the alias into autoexec.cfg.</p>
 				<label htmlFor="aliasName" className="text-sm font-medium text-foreground">Alias name <span aria-hidden="true" className="font-normal text-muted-foreground">(optional)</span></label>
 				<Input id="aliasName" value={aliasName} onChange={(event) => onAliasNameChange(event.target.value)} placeholder="team green" className="border-white/10 bg-background/70 font-mono" />
-				<div className="space-y-1 text-xs text-muted-foreground"><p>File: <code className="text-foreground">{fileName}</code></p>{hasAlias && <p>Autoexec alias: <code className="break-all text-foreground">{aliasCommand}</code></p>}</div>
-				{hasAlias && <Button onClick={onCopyAlias} variant="ghost" size="sm" className="w-full"><ClipboardCopy className="h-4 w-4" />Copy autoexec alias</Button>}
 			</div>
-		</details>
+			<details className="border-t border-white/10">
+				<summary className="cursor-pointer list-none px-4 py-3 text-xs text-muted-foreground">
+					<span>Instructions</span>
+				</summary>
+				<div className="space-y-3 border-t border-white/10 p-4">
+					<p className="text-xs text-muted-foreground">Download the CFG, then copy its alias into autoexec.cfg.</p>
+					<div className="space-y-1 text-xs text-muted-foreground"><p>File: <code className="text-foreground">{fileName}</code></p>{hasAlias && <p>Autoexec alias: <code className="break-all text-foreground">{aliasCommand}</code></p>}</div>
+					{hasAlias && <Button onClick={onCopyAlias} variant="ghost" size="sm" className="w-full"><ClipboardCopy className="h-4 w-4" />Copy autoexec alias</Button>}
+				</div>
+			</details>
+		</div>
 	);
 };
