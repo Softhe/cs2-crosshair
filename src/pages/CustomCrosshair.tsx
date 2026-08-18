@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
 	ClipboardCopy,
 	Crosshair as CrosshairIcon,
@@ -231,10 +231,11 @@ const CustomCrosshair = () => {
 			toast({ title: 'Crosshair pasted', description: 'Ready to tune.' });
 		} catch (error) {
 			trackStudioEvent('import_failed');
-			const description = error instanceof Error ? error.message : 'Unable to read the clipboard.';
+			const description = clipboardValue
+				? (error instanceof Error ? error.message : 'Enter a valid CS2 crosshair share code.')
+				: 'Clipboard blocked. Paste with Ctrl+V.';
 			if (clipboardValue) setImportCode(clipboardValue);
 			setImportError(description);
-			toast({ title: 'Paste failed', description, variant: 'destructive' });
 		}
 	};
 
@@ -299,13 +300,13 @@ const CustomCrosshair = () => {
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-2 pb-20 md:gap-4 md:pb-0 min-[1600px]:max-w-[1680px]">
 			<header>
-				<div className="space-y-1 md:space-y-2">
+				<Link to="/" aria-label="CS2 Crosshair Studio home" className="group block w-fit max-w-full space-y-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background md:space-y-2">
 					<div className="hidden items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary sm:inline-flex">
 						<CrosshairIcon className="h-3.5 w-3.5" /> One workspace
 					</div>
-					<h1 className="text-3xl font-semibold leading-tight tracking-normal text-foreground sm:text-4xl md:text-5xl">CS2 Crosshair Studio</h1>
+					<h1 className="text-3xl font-semibold leading-tight tracking-normal text-foreground transition-colors group-hover:text-primary sm:text-4xl md:text-5xl">CS2 Crosshair Studio</h1>
 					<p className="max-w-2xl text-sm leading-snug text-muted-foreground sm:text-base sm:leading-relaxed md:text-lg xl:leading-normal">Paste a crosshair, tune it, then download a ready-to-use CFG.</p>
-				</div>
+				</Link>
 			</header>
 			{showGuide && <FirstRunGuide onDismiss={dismissGuide} />}
 

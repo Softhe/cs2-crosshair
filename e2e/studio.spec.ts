@@ -5,6 +5,15 @@ import { expect, test } from '@playwright/test';
 const VALID_CODE = 'CSGO-RBZih-6Hynp-ieuGe-tTkVz-9PqNO';
 const DOT_CODE = 'CSGO-zDZH2-jXXvr-yFaQu-OjXPS-G8sdA';
 
+test('uses the complete studio brand as a home link', async ({ page }) => {
+  await page.goto(`/?code=${VALID_CODE}`);
+  const homeLink = page.getByRole('link', { name: 'CS2 Crosshair Studio home' });
+  await expect(homeLink.getByRole('heading', { name: 'CS2 Crosshair Studio' })).toBeVisible();
+  await expect(homeLink.getByText('Paste a crosshair, tune it, then download a ready-to-use CFG.')).toBeVisible();
+  await homeLink.click();
+  await expect(page).toHaveURL('/');
+});
+
 test('loads the unified studio without runtime or layout failures', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('console', (message) => {
@@ -407,8 +416,23 @@ test('searches, renames, and backs up the local library', async ({ page }) => {
   await expect(nameInput).toHaveValue(customName);
   await expect(nameInput).toHaveAttribute('title', customName);
 
+  await historyItem.getByRole('button', { name: `Add ${customName} to favorites` }).click();
+  await page.getByRole('tab', { name: 'Favorites (1)' }).click();
+  const favoriteItem = page.getByTestId('history-item');
+  const favoriteNameInput = favoriteItem.locator('input');
+  await expect(favoriteNameInput).toHaveValue(customName);
+  const [favoriteNameBox, favoriteItemBox] = await Promise.all([favoriteNameInput.boundingBox(), favoriteItem.boundingBox()]);
+  expect(favoriteNameBox).not.toBeNull();
+  expect(favoriteItemBox).not.toBeNull();
+  expect(favoriteNameBox!.width).toBeGreaterThan(favoriteItemBox!.width * 0.8);
+  await favoriteNameInput.fill('favorite-side rename');
+  await favoriteNameInput.press('Enter');
+  await page.getByRole('tab', { name: 'Recent (1)' }).click();
+  await expect(historyItem.locator('input')).toHaveValue('favorite-side rename');
+  await historyItem.getByRole('button', { name: 'Remove favorite-side rename from favorites' }).click();
+
   const search = page.getByRole('textbox', { name: 'Search saved crosshairs', exact: true });
-  await search.fill('ranked');
+	await search.fill('favorite-side');
   await expect(historyItem).toHaveCount(1);
   await search.fill('missing');
   await expect(historyItem).toHaveCount(0);
@@ -422,9 +446,9 @@ test('searches, renames, and backs up the local library', async ({ page }) => {
   expect(backupPath).not.toBeNull();
   const backup = await readFile(backupPath!, 'utf8');
   expect(backup).toContain(code);
-  expect(backup).toContain(customName);
+	expect(backup).toContain('favorite-side rename');
 
-  await page.getByRole('button', { name: `Remove ${customName} from history` }).click();
+	await page.getByRole('button', { name: 'Remove favorite-side rename from history' }).click();
   await expect(historyItem).toHaveCount(0);
   await page.getByLabel('Import crosshair backup').setInputFiles({
     name: 'crosshair-backup.json',
@@ -432,7 +456,7 @@ test('searches, renames, and backs up the local library', async ({ page }) => {
     buffer: Buffer.from(backup),
   });
   await expect(page.getByTestId('history-item')).toBeVisible();
-  await expect(page.getByTestId('history-item').locator('input')).toHaveValue(customName);
+	await expect(page.getByTestId('history-item').locator('input')).toHaveValue('favorite-side rename');
 });
 
 test('pastes valid codes and exposes invalid clipboard values accessibly', async ({ page }) => {

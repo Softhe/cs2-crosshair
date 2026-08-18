@@ -79,6 +79,22 @@ describe('CS2 Crosshair Studio', () => {
 		expect(screen.queryByText('Open in converter')).not.toBeInTheDocument();
 	});
 
+	it('offers manual paste without exposing clipboard permission internals', async () => {
+		const user = userEvent.setup();
+		Object.defineProperty(navigator, 'clipboard', {
+			configurable: true,
+			value: { readText: vi.fn().mockRejectedValue(new DOMException('Read permission denied.', 'NotAllowedError')) },
+		});
+		renderStudio();
+		const input = screen.getByRole('textbox', { name: 'CS2 crosshair share code' });
+
+		await user.click(screen.getByRole('button', { name: 'Paste' }));
+
+		expect(await screen.findByRole('alert')).toHaveTextContent('Clipboard blocked. Paste with Ctrl+V.');
+		expect(screen.queryByText(/Read permission denied/i)).not.toBeInTheDocument();
+		expect(input).toBeInTheDocument();
+	});
+
 	it('opens the visual color picker and keeps output in the same workspace', async () => {
 		const user = userEvent.setup();
 		renderStudio();

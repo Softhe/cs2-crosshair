@@ -133,14 +133,12 @@ export const renameHistoryItem = (id: string, aliasName: string): void => {
 	try {
 		const nextAlias = aliasName.trim().slice(0, 48) || undefined;
 		const history = getHistory();
-		const item = history.find((entry) => entry.id === id);
+		const favorites = getFavorites();
+		const item = history.find((entry) => entry.id === id) ?? favorites.find((entry) => entry.id === id);
 		if (!item) return;
 
-		localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history.map((entry) => entry.id === id ? { ...entry, aliasName: nextAlias } : entry)));
-		const favorites = getFavorites();
-		if (favorites.some((entry) => entry.shareCode === item.shareCode)) {
-			localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites.map((entry) => entry.shareCode === item.shareCode ? { ...entry, aliasName: nextAlias } : entry)));
-		}
+		localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history.map((entry) => entry.shareCode === item.shareCode ? { ...entry, aliasName: nextAlias } : entry)));
+		localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites.map((entry) => entry.shareCode === item.shareCode ? { ...entry, aliasName: nextAlias } : entry)));
 	} catch (error) {
 		console.error('Error renaming history item:', error);
 	}

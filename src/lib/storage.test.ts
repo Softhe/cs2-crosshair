@@ -47,6 +47,16 @@ describe('crosshair history and favorites persistence', () => {
 		expect(getFavorites()[0].aliasName).toBe('named setup');
 	});
 
+	it('renames from the favorite copy and keeps recent history in sync', () => {
+		addToHistory({ shareCode: FIRST_CODE, aliasName: 'before' });
+		toggleFavorite({ shareCode: FIRST_CODE, aliasName: 'before' });
+
+		renameHistoryItem(getFavorites()[0].id, 'favorite edit');
+
+		expect(getHistory()[0].aliasName).toBe('favorite edit');
+		expect(getFavorites()[0].aliasName).toBe('favorite edit');
+	});
+
 	it('exports and restores history, favorites, and settings as one backup', () => {
 		addToHistory({ shareCode: FIRST_CODE, aliasName: 'restored' });
 		toggleFavorite({ shareCode: SECOND_CODE });

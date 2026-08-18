@@ -133,7 +133,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 		return date.toLocaleDateString();
 	};
 
-	const CrosshairItem = ({ item, showDelete = true }: { item: CrosshairData; showDelete?: boolean }) => {
+	const CrosshairItem = ({ item }: { item: CrosshairData }) => {
 		const isFav = isFavorited(item.shareCode);
 		const previewCrosshair = decodeHistoryCrosshair(item.shareCode);
 		const handleCardClick = (event: MouseEvent<HTMLDivElement>) => {
@@ -220,7 +220,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 						>
 							<Download className="w-4 h-4" />
 						</Button>
-						{showDelete && (
+						{history.some((entry) => entry.shareCode === item.shareCode) && (
 							<Button
 								onClick={() => handleDelete(item.id)}
 								variant="ghost"
@@ -278,7 +278,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 					) : filteredHistory.length === 0 ? (
 						<div className="text-center py-8 text-muted-foreground"><Search className="w-10 h-10 mx-auto mb-3 opacity-50" /><p>No matching crosshairs</p><p className="text-sm mt-1">Try a different name or share-code fragment.</p></div>
 					) : (
-						<div className="max-h-[280px] overflow-y-auto pr-4">
+						<div className="max-h-[280px] overflow-y-auto pr-2 [scrollbar-gutter:stable]">
 							<div className="space-y-3">
 								{filteredHistory.map((item) => (
 									<CrosshairItem key={item.id} item={item} />
@@ -298,10 +298,10 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 					) : filteredFavorites.length === 0 ? (
 						<div className="text-center py-8 text-muted-foreground"><Search className="w-10 h-10 mx-auto mb-3 opacity-50" /><p>No matching favorites</p><p className="text-sm mt-1">Try a different name or share-code fragment.</p></div>
 					) : (
-						<div className="max-h-[280px] overflow-y-auto pr-4">
+						<div className="max-h-[280px] overflow-y-auto pr-2 [scrollbar-gutter:stable]">
 							<div className="space-y-3">
 								{filteredFavorites.map((item) => (
-									<CrosshairItem key={item.id} item={item} showDelete={false} />
+									<CrosshairItem key={item.id} item={item} />
 								))}
 							</div>
 						</div>
