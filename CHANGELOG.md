@@ -15,6 +15,10 @@ Notable changes to CS2 Crosshair Studio are recorded here.
 - Added direct coverage for local-library filtering, renaming, favorites, and removal through the extracted state boundary.
 - Kept the external CS2 calibration and five-player playtest as explicit requirements for a future 2.1 release.
 
+### Housekeeping
+
+- Raised the JavaScript gzip performance budget from 150,000 to 150,500 bytes; the previous baseline passed with only 7 bytes of headroom, and the studio hardening (backup sanitization, library state extraction, and list deduplication) adds a net 149 gzip bytes.
+
 ## 2.0.0 - 2026-07-22
 
 ### Added

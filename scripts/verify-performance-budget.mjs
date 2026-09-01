@@ -23,7 +23,7 @@ const entryFiles = jsFiles.filter((file) => file.startsWith('index-'));
 const entry = await measure(entryFiles);
 const budgets = {
   jsRaw: 500_000,
-  jsGzip: 150_000,
+  jsGzip: 150_500,
   entryGzip: 115_000,
   cssRaw: 75_000,
   cssGzip: 16_000,

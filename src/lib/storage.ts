@@ -31,7 +31,20 @@ const STORAGE_KEYS = {
 
 const MAX_HISTORY_ITEMS = 20;
 const MAX_FAVORITE_ITEMS = 50;
+const MAX_ALIAS_LENGTH = 48;
 const CURRENT_STORAGE_VERSION = '3.0';
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const normalizeAliasName = (value: unknown): string | undefined => {
+	if (typeof value !== 'string') {
+		return undefined;
+	}
+
+	const nextAlias = value.trim().slice(0, MAX_ALIAS_LENGTH);
+	return nextAlias || undefined;
+};
 
 interface StorageExportData {
 	version: string;
@@ -56,11 +69,13 @@ const normalizeCrosshairData = (items: unknown, isFavorite = false): CrosshairDa
 			return typeof item === 'object' && item !== null && typeof (item as CrosshairData).shareCode === 'string';
 		})
 		.map((item) => ({
-			...item,
 			id: typeof item.id === 'string' ? item.id : generateCrosshairId(item.shareCode),
+			shareCode: item.shareCode,
+			aliasName: normalizeAliasName(item.aliasName),
+			activity: item.activity === 'imported' || item.activity === 'exported' ? item.activity : undefined,
 			timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
 			isFavorite: item.isFavorite ?? isFavorite,
-			activity: item.activity === 'imported' || item.activity === 'exported' ? item.activity : undefined,
+			settings: isPlainRecord(item.settings) ? item.settings : undefined,
 		}));
 };
 
@@ -131,7 +146,7 @@ export const removeFromHistory = (id: string): void => {
 
 export const renameHistoryItem = (id: string, aliasName: string): void => {
 	try {
-		const nextAlias = aliasName.trim().slice(0, 48) || undefined;
+		const nextAlias = normalizeAliasName(aliasName);
 		const history = getHistory();
 		const favorites = getFavorites();
 		const item = history.find((entry) => entry.id === id) ?? favorites.find((entry) => entry.id === id);
