@@ -36,6 +36,7 @@ Notable changes to CS2 Crosshair Studio are recorded here.
 ### Housekeeping
 
 - Raised the JavaScript gzip performance budget from 150,000 to 151,000 bytes and moved the budget values into `scripts/performance-budgets.json`. The original value passed with only 7 bytes of headroom, and the studio hardening (backup sanitization, library state extraction, list deduplication, preset thumbnails, and the invalid-share-link page) adds a net ~500 gzip bytes.
+- Raised the JavaScript gzip budget to 152,000 bytes for the SVG preview rebuild and storage validation (~850 gzip bytes). Splitting the first-run guide into its own chunk was tried and reverted: extra chunks compress worse in total even though the entry chunk shrank. The paint-blocking entry chunk remains far under budget (~28,000 of 115,000 gzip bytes).
 
 ## 2.0.0 - 2026-07-22
 
