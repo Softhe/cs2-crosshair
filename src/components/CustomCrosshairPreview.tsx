@@ -16,6 +16,7 @@ export const CustomCrosshairPreview = ({ crosshair, className = '', embedded = f
 	const {
 		resolution, setResolution, zoom, setZoom, resolutionScale, effectiveResolution, zoomMultiplier,
 	} = usePreviewPreferences();
+	const stageLabel = `Custom crosshair preview: length ${crosshair.length}, gap ${crosshair.gap}, thickness ${crosshair.thickness}, color ${crosshair.color}${crosshair.centerDotEnabled ? ', center dot' : ''}${crosshair.tStyleEnabled ? ', T style' : ''}${crosshair.outlineEnabled ? `, outline ${crosshair.outline}` : ''}`;
 
 	return (
 		<Card className={`overflow-hidden p-0 ${embedded ? 'rounded-none border-0 bg-transparent shadow-none' : 'border-white/10 bg-card/75 shadow-2xl shadow-black/25 backdrop-blur-xl'} ${className}`}>
@@ -50,7 +51,7 @@ export const CustomCrosshairPreview = ({ crosshair, className = '', embedded = f
 				</div>
 			</div>
 			<div className="p-4">
-				<div data-testid="crosshair-stage" className={`relative flex items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-[linear-gradient(135deg,#d7b886,#8b7355_62%,#3d352c)] ${embedded ? 'aspect-[16/10] xl:aspect-[16/8.5] xl:max-h-[330px]' : 'aspect-[16/10]'}`} role="img" aria-label="Custom crosshair preview">
+				<div data-testid="crosshair-stage" className={`relative flex items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-[linear-gradient(135deg,#d7b886,#8b7355_62%,#3d352c)] ${embedded ? 'aspect-[16/10] xl:aspect-[16/8.5] xl:max-h-[330px]' : 'aspect-[16/10]'}`} role="img" aria-label={stageLabel}>
 					<div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_26%,rgba(255,255,255,.26),transparent_15rem),linear-gradient(180deg,rgba(255,255,255,.1),rgba(0,0,0,.18))]" />
 					<div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.45) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
 					<div className="relative h-full w-full">

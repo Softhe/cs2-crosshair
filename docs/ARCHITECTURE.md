@@ -34,8 +34,8 @@ The older `CS2ConfigGenerator` and its separate preview were removed. New work s
 
 | Module | Responsibility |
 | --- | --- |
-| `src/lib/cs2-sharecode.ts` | Encode and decode Valve-style share-code bytes and convert crosshair values to console variables. |
-| `src/lib/crosshair-preview.ts` | Clamp editable values and calculate browser-preview geometry. |
+| `src/lib/cs2-sharecode.ts` | Encode and decode Valve-style share-code bytes, convert crosshair values to console variables, and clamp crosshair values. |
+| `src/lib/crosshair-preview.ts` | Calculate browser-preview geometry. |
 | `src/lib/crosshair-output.ts` | Validate input and generate console commands and `.cfg` content. |
 | `src/lib/crosshair-config.ts` | Sanitize aliases and create safe config filenames. |
 | `src/lib/share-url.ts` | Read canonical and compatibility URLs and generate canonical query links. |

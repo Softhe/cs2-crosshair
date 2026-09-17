@@ -96,6 +96,15 @@ describe('CS2 crosshair share-code corpus', () => {
 		expect(() => decodeCrosshairShareCode('CSGO-wAD3c-ykt5L-zvZ98-vBisR-6sWPB')).toThrow(InvalidCrosshairShareCode);
 	});
 
+	it('clamps out-of-range values instead of wrapping bytes when encoding', () => {
+		const decoded = decodeCrosshairShareCode('CSGO-wAD3c-ykt5L-zvZ98-vBisR-6sWPA');
+		const clamped = decodeCrosshairShareCode(encodeCrosshair({ ...decoded, gap: 20, length: 30, thickness: -4, alpha: 900 }));
+		expect(clamped.gap).toBe(10);
+		expect(clamped.length).toBe(10);
+		expect(clamped.thickness).toBe(0.5);
+		expect(clamped.alpha).toBe(255);
+	});
+
 	it('maps the built-in palette to canonical RGB colors', () => {
 		expect(getCrosshairPreviewColor({ color: 0, red: 0, green: 0, blue: 0 })).toEqual({ r: 255, g: 0, b: 0 });
 		expect(getCrosshairPreviewColor({ color: 1, red: 0, green: 0, blue: 0 })).toEqual({ r: 0, g: 255, b: 0 });

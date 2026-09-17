@@ -69,4 +69,67 @@ describe('crosshair history and favorites persistence', () => {
 		expect(getFavorites()).toEqual([expect.objectContaining({ shareCode: SECOND_CODE, isFavorite: true })]);
 		expect(getUserSettings()).toEqual({ previewBackground: 'dust' });
 	});
+
+	it('sanitizes imported backup entries by dropping unknown fields and capping aliases', () => {
+		const backup = JSON.stringify({
+			version: '3.0',
+			history: [
+				{
+					id: 'imported-id',
+					shareCode: FIRST_CODE,
+					aliasName: ` ${'x'.repeat(60)} `,
+					activity: 'bogus',
+					timestamp: 1700000000000,
+					isFavorite: false,
+					unexpectedField: 'junk',
+					settings: { style: 4 },
+				},
+			],
+			favorites: [{ shareCode: SECOND_CODE, aliasName: '   ', timestamp: 'not-a-number' }],
+		});
+
+		expect(importAllData(backup)).toEqual({ success: true });
+
+		const restored = getHistory()[0];
+		expect(restored.id).toBe('imported-id');
+		expect(restored.aliasName).toHaveLength(48);
+		expect(restored.activity).toBeUndefined();
+		expect(restored.timestamp).toBe(1700000000000);
+		expect(restored.settings).toEqual({ style: 4 });
+		expect('unexpectedField' in restored).toBe(false);
+
+		const restoredFavorite = getFavorites()[0];
+		expect(restoredFavorite.aliasName).toBeUndefined();
+		expect(typeof restoredFavorite.timestamp).toBe('number');
+	});
+
+	it('keeps rename trimming aligned with the alias length cap', () => {
+		addToHistory({ shareCode: FIRST_CODE });
+		renameHistoryItem(getHistory()[0].id, ` ${'y'.repeat(60)} `);
+
+		expect(getHistory()[0].aliasName).toHaveLength(48);
+	});
+
+	it('caps aliases on the write path before persisting history', () => {
+		addToHistory({ shareCode: FIRST_CODE, aliasName: ` ${'z'.repeat(120)} ` });
+
+		expect(getHistory()[0].aliasName).toHaveLength(48);
+	});
+
+	it('drops undecodable share codes on read and import', () => {
+		addToHistory({ shareCode: FIRST_CODE });
+		localStorage.setItem('cs2_crosshair_history', JSON.stringify([...JSON.parse(localStorage.getItem('cs2_crosshair_history') || '[]'), { id: 'corrupt', shareCode: 'CSGO-aaaaa-bbbbb-ccccc-ddddd-eeeee', timestamp: Date.now() }]));
+
+		expect(getHistory()).toHaveLength(1);
+		expect(getHistory()[0].shareCode).toBe(FIRST_CODE);
+
+		expect(importAllData(JSON.stringify({ version: '3.0', history: [{ shareCode: 'not-a-code' }], favorites: [{ shareCode: SECOND_CODE }] }))).toEqual({ success: true });
+		expect(getHistory()).toHaveLength(0);
+		expect(getFavorites()).toEqual([expect.objectContaining({ shareCode: SECOND_CODE })]);
+	});
+
+	it('rejects non-object backups and non-array library fields', () => {
+		expect(importAllData(JSON.stringify({ version: '3.0', history: 'nope', favorites: [] }))).toEqual({ success: false, error: 'Invalid data format' });
+		expect(importAllData('[]')).toEqual({ success: false, error: 'Invalid data format' });
+	});
 });

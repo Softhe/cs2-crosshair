@@ -204,27 +204,55 @@ export function decodeCrosshairShareCode(shareCode: string): Crosshair {
   return crosshair;
 }
 
+export const clampCrosshairNumber = (value: number, min: number, max: number): number => {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+
+  return Math.min(max, Math.max(min, value));
+};
+
+export const clampCrosshair = (crosshair: Crosshair): Crosshair => ({
+  ...crosshair,
+  length: clampCrosshairNumber(crosshair.length, 0, 10),
+  gap: clampCrosshairNumber(crosshair.gap, -10, 10),
+  thickness: clampCrosshairNumber(crosshair.thickness, 0.5, 6),
+  outline: clampCrosshairNumber(crosshair.outline, 0, 3),
+  alpha: Math.round(clampCrosshairNumber(crosshair.alpha, 0, 255)),
+  red: Math.round(clampCrosshairNumber(crosshair.red, 0, 255)),
+  green: Math.round(clampCrosshairNumber(crosshair.green, 0, 255)),
+  blue: Math.round(clampCrosshairNumber(crosshair.blue, 0, 255)),
+  color: Math.round(clampCrosshairNumber(crosshair.color, 0, 5)),
+  style: Math.round(clampCrosshairNumber(crosshair.style, 0, 4)),
+  splitDistance: Math.round(clampCrosshairNumber(crosshair.splitDistance, 0, 16)),
+  fixedCrosshairGap: clampCrosshairNumber(crosshair.fixedCrosshairGap, -10, 10),
+  innerSplitAlpha: clampCrosshairNumber(crosshair.innerSplitAlpha, 0, 1),
+  outerSplitAlpha: clampCrosshairNumber(crosshair.outerSplitAlpha, 0, 1),
+  splitSizeRatio: clampCrosshairNumber(crosshair.splitSizeRatio, 0, 1),
+});
+
 export function encodeCrosshair(crosshair: Crosshair): string {
+  const normalized = clampCrosshair(crosshair);
   const bytes: number[] = [
     0,
     1,
-    (crosshair.gap * 10) & 0xff,
-    crosshair.outline * 2,
-    crosshair.red,
-    crosshair.green,
-    crosshair.blue,
-    crosshair.alpha,
-    crosshair.splitDistance,
-    (crosshair.fixedCrosshairGap * 10) & 0xff,
-    (crosshair.color & 7) | (Number(crosshair.outlineEnabled) << 3) | ((crosshair.innerSplitAlpha * 10) << 4),
-    (crosshair.outerSplitAlpha * 10) | ((crosshair.splitSizeRatio * 10) << 4),
-    crosshair.thickness * 10,
-    (crosshair.style << 1) |
-      (Number(crosshair.centerDotEnabled) << 4) |
-      (Number(crosshair.deployedWeaponGapEnabled) << 5) |
-      (Number(crosshair.alphaEnabled) << 6) |
-      (Number(crosshair.tStyleEnabled) << 7),
-    crosshair.length * 10,
+    Math.round(normalized.gap * 10) & 0xff,
+    Math.round(normalized.outline * 2),
+    normalized.red,
+    normalized.green,
+    normalized.blue,
+    normalized.alpha,
+    normalized.splitDistance,
+    Math.round(normalized.fixedCrosshairGap * 10) & 0xff,
+    (normalized.color & 7) | (Number(normalized.outlineEnabled) << 3) | (Math.round(normalized.innerSplitAlpha * 10) << 4),
+    Math.round(normalized.outerSplitAlpha * 10) | (Math.round(normalized.splitSizeRatio * 10) << 4),
+    Math.round(normalized.thickness * 10),
+    (normalized.style << 1) |
+      (Number(normalized.centerDotEnabled) << 4) |
+      (Number(normalized.deployedWeaponGapEnabled) << 5) |
+      (Number(normalized.alphaEnabled) << 6) |
+      (Number(normalized.tStyleEnabled) << 7),
+    Math.round(normalized.length * 10),
     0,
     0,
     0,

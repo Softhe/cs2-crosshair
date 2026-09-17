@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Clock, Star, Trash2, Download, Copy, Share2, Database, Search, Upload, FileDown, FileUp } from 'lucide-react';
-import { exportAllData, importAllData, isFavorited } from '@/lib/storage';
+import { exportAllData, importAllData } from '@/lib/storage';
 import type { CrosshairData } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,6 +25,169 @@ const decodeHistoryCrosshair = (shareCode: string): Crosshair | null => {
 	}
 };
 
+const formatDate = (timestamp: number) => {
+	const date = new Date(timestamp);
+	const now = new Date();
+	const diffMs = now.getTime() - date.getTime();
+	const diffMins = Math.floor(diffMs / 60000);
+	const diffHours = Math.floor(diffMs / 3600000);
+	const diffDays = Math.floor(diffMs / 86400000);
+
+	if (diffMins < 1) return 'Just now';
+	if (diffMins < 60) return `${diffMins}m ago`;
+	if (diffHours < 24) return `${diffHours}h ago`;
+	if (diffDays < 7) return `${diffDays}d ago`;
+
+	return date.toLocaleDateString();
+};
+
+interface CrosshairActions {
+	onSelect: (shareCode: string, aliasName?: string) => void;
+	onToggleFavorite: (item: CrosshairData) => void;
+	onCopyShareCode: (shareCode: string) => void;
+	onCopyShareLink: (shareCode: string) => void;
+	onCommitAlias: (item: CrosshairData, value: string) => void;
+	onDelete: (id: string) => void;
+}
+
+interface CrosshairItemProps {
+	item: CrosshairData;
+	isFavorite: boolean;
+	inHistory: boolean;
+	actions: CrosshairActions;
+}
+
+const CrosshairItem = ({ item, isFavorite, inHistory, actions }: CrosshairItemProps) => {
+	const previewCrosshair = decodeHistoryCrosshair(item.shareCode);
+	const handleCardClick = (event: MouseEvent<HTMLDivElement>) => {
+		if ((event.target as HTMLElement).closest('[data-history-actions]')) return;
+		actions.onSelect(item.shareCode, item.aliasName);
+	};
+
+	return (
+		<div
+			data-testid="history-item"
+			data-activity={item.activity}
+			onClick={handleCardClick}
+			title="Load this crosshair"
+			className="group cursor-pointer rounded-lg border border-tactical-blue/20 bg-secondary/30 p-4 transition-all duration-200 hover:border-neon-cyan/30 hover:bg-secondary/50"
+		>
+			<div className="grid min-w-0 gap-3">
+				<div className="min-w-0">
+					<div className="mb-2 grid min-w-0 gap-2">
+						<Input
+							key={`${item.id}:${item.aliasName || ''}`}
+							aria-label={`Name ${item.aliasName || 'crosshair'}`}
+							defaultValue={item.aliasName ?? ''}
+							placeholder="Name this crosshair"
+							maxLength={48}
+							title={item.aliasName || 'Name this crosshair'}
+							spellCheck={false}
+							autoCapitalize="none"
+							autoCorrect="off"
+							autoComplete="off"
+							className="h-9 w-full min-w-0 border-white/10 bg-background/50 text-sm font-semibold text-neon-cyan"
+							onClick={(event) => event.stopPropagation()}
+							onBlur={(event) => actions.onCommitAlias(item, event.currentTarget.value)}
+							onKeyDown={(event) => {
+								if (event.key !== 'Enter') return;
+								event.preventDefault();
+								actions.onCommitAlias(item, event.currentTarget.value);
+							}}
+						/>
+						<div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground flex items-center gap-1">
+							<Clock className="w-3 h-3" />
+							{formatDate(item.timestamp)}
+						</span>
+						{item.activity && <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{item.activity === 'imported' ? <Search className="h-3 w-3" /> : <Upload className="h-3 w-3" />}{item.activity === 'imported' ? 'Loaded' : 'Exported'}</span>}
+						</div>
+					</div>
+					<div className="relative h-24 w-full overflow-hidden rounded-md border border-white/10 bg-[linear-gradient(135deg,#bca27d,#74614c_65%,#39322b)]" role="img" aria-label={`Crosshair preview for ${item.aliasName || 'saved crosshair'}`}>
+						{previewCrosshair ? <CrosshairShape crosshair={previewCrosshair} zoom={3} /> : <span className="absolute inset-0 grid place-items-center text-xs text-muted-foreground">Preview unavailable</span>}
+					</div>
+				</div>
+				<div data-history-actions="" className="flex items-center justify-end gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+					<Button
+						onClick={() => actions.onToggleFavorite(item)}
+						variant="ghost"
+						size="icon"
+						className="h-10 w-10"
+						title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+						aria-label={`${isFavorite ? "Remove" : "Add"} ${item.aliasName || "crosshair"} ${isFavorite ? "from" : "to"} favorites`}
+					>
+						<Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+					</Button>
+					<Button
+						onClick={() => actions.onCopyShareCode(item.shareCode)}
+						variant="ghost"
+						size="icon"
+						className="h-10 w-10"
+						title="Copy share code"
+						aria-label={`Copy share code for ${item.aliasName || "crosshair"}`}
+					>
+						<Copy className="w-4 h-4" />
+					</Button>
+					<Button
+						onClick={() => actions.onCopyShareLink(item.shareCode)}
+						variant="ghost"
+						size="icon"
+						className="h-10 w-10 text-primary hover:text-primary"
+						title="Copy share link"
+						aria-label={`Copy share link for ${item.aliasName || "crosshair"}`}
+					>
+						<Share2 className="w-4 h-4" />
+					</Button>
+					<Button
+						onClick={() => actions.onSelect(item.shareCode, item.aliasName)}
+						variant="ghost"
+						size="icon"
+						className="h-10 w-10"
+						title="Load crosshair"
+						aria-label={`Load ${item.aliasName || "crosshair"}`}
+					>
+						<Download className="w-4 h-4" />
+					</Button>
+					{inHistory && (
+						<Button
+							onClick={() => actions.onDelete(item.id)}
+							variant="ghost"
+							size="icon"
+							className="h-10 w-10 text-destructive hover:text-destructive"
+							title="Remove from history"
+							aria-label={`Remove ${item.aliasName || "crosshair"} from history`}
+						>
+							<Trash2 className="w-4 h-4" />
+						</Button>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+};
+
+interface LibraryListProps {
+	items: CrosshairData[];
+	favoriteCodes: Set<string>;
+	historyCodes: Set<string>;
+	actions: CrosshairActions;
+}
+
+const LibraryList = ({ items, favoriteCodes, historyCodes, actions }: LibraryListProps) => (
+	<div className="max-h-[280px] overflow-y-auto pr-2 [scrollbar-gutter:stable]">
+		<div className="space-y-3">
+			{items.map((item) => (
+				<CrosshairItem
+					key={item.id}
+					item={item}
+					isFavorite={favoriteCodes.has(item.shareCode)}
+					inHistory={historyCodes.has(item.shareCode)}
+					actions={actions}
+				/>
+			))}
+		</div>
+	</div>
+);
+
 export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) => {
 	const {
 		history, favorites, filteredHistory, filteredFavorites, query, setQuery,
@@ -32,6 +195,9 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 	} = useCrosshairLibrary();
 	const backupInputRef = useRef<HTMLInputElement>(null);
 	const { toast } = useToast();
+
+	const favoriteCodes = new Set(favorites.map((item) => item.shareCode));
+	const historyCodes = new Set(history.map((item) => item.shareCode));
 
 	const handleExportBackup = () => {
 		const blob = new Blob([exportAllData()], { type: 'application/json' });
@@ -93,7 +259,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 				title: "Share link copied!",
 				description: "Anyone opening this link will load this crosshair automatically.",
 			});
-		} catch (error) {
+		} catch {
 			toast({
 				title: "Error",
 				description: "Failed to copy share link. Please copy manually.",
@@ -101,6 +267,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 			});
 		}
 	};
+
 	const handleCopyShareCode = async (shareCode: string) => {
 		try {
 			await copyToClipboard(shareCode);
@@ -108,7 +275,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 				title: "Copied!",
 				description: "Share code copied to clipboard",
 			});
-		} catch (error) {
+		} catch {
 			toast({
 				title: "Error",
 				description: "Failed to copy. Please copy manually.",
@@ -117,125 +284,13 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 		}
 	};
 
-	const formatDate = (timestamp: number) => {
-		const date = new Date(timestamp);
-		const now = new Date();
-		const diffMs = now.getTime() - date.getTime();
-		const diffMins = Math.floor(diffMs / 60000);
-		const diffHours = Math.floor(diffMs / 3600000);
-		const diffDays = Math.floor(diffMs / 86400000);
-
-		if (diffMins < 1) return 'Just now';
-		if (diffMins < 60) return `${diffMins}m ago`;
-		if (diffHours < 24) return `${diffHours}h ago`;
-		if (diffDays < 7) return `${diffDays}d ago`;
-
-		return date.toLocaleDateString();
-	};
-
-	const CrosshairItem = ({ item }: { item: CrosshairData }) => {
-		const isFav = isFavorited(item.shareCode);
-		const previewCrosshair = decodeHistoryCrosshair(item.shareCode);
-		const handleCardClick = (event: MouseEvent<HTMLDivElement>) => {
-			if ((event.target as HTMLElement).closest('[data-history-actions]')) return;
-			onSelectCrosshair(item.shareCode, item.aliasName);
-		};
-
-		return (
-			<div
-				data-testid="history-item"
-				data-activity={item.activity}
-				onClick={handleCardClick}
-				title="Load this crosshair"
-				className="group cursor-pointer rounded-lg border border-tactical-blue/20 bg-secondary/30 p-4 transition-all duration-200 hover:border-neon-cyan/30 hover:bg-secondary/50"
-			>
-				<div className="grid min-w-0 gap-3">
-					<div className="min-w-0">
-						<div className="mb-2 grid min-w-0 gap-2">
-							<Input
-								key={`${item.id}:${item.aliasName || ''}`}
-								aria-label={`Name ${item.aliasName || 'crosshair'}`}
-								defaultValue={item.aliasName ?? ''}
-								placeholder="Name this crosshair"
-								maxLength={48}
-								title={item.aliasName || 'Name this crosshair'}
-								className="h-9 w-full min-w-0 border-white/10 bg-background/50 text-sm font-semibold text-neon-cyan"
-								onClick={(event) => event.stopPropagation()}
-								onBlur={(event) => commitAliasValue(item, event.currentTarget.value)}
-								onKeyDown={(event) => {
-									if (event.key !== 'Enter') return;
-									event.preventDefault();
-									commitAliasValue(item, event.currentTarget.value);
-								}}
-							/>
-							<div className="flex flex-wrap items-center gap-2"><span className="text-xs text-muted-foreground flex items-center gap-1">
-								<Clock className="w-3 h-3" />
-								{formatDate(item.timestamp)}
-							</span>
-							{item.activity && <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{item.activity === 'imported' ? <Search className="h-3 w-3" /> : <Upload className="h-3 w-3" />}{item.activity === 'imported' ? 'Loaded' : 'Exported'}</span>}
-							</div>
-						</div>
-						<div className="relative h-24 w-full overflow-hidden rounded-md border border-white/10 bg-[linear-gradient(135deg,#bca27d,#74614c_65%,#39322b)]" role="img" aria-label={`Crosshair preview for ${item.aliasName || 'saved crosshair'}`}>
-							{previewCrosshair ? <CrosshairShape crosshair={previewCrosshair} zoom={3} /> : <span className="absolute inset-0 grid place-items-center text-xs text-muted-foreground">Preview unavailable</span>}
-						</div>
-					</div>
-					<div data-history-actions="" className="flex items-center justify-end gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-						<Button
-							onClick={() => handleToggleFavorite(item)}
-							variant="ghost"
-							size="icon"
-							className="h-10 w-10"
-							title={isFav ? "Remove from favorites" : "Add to favorites"}
-							aria-label={`${isFav ? "Remove" : "Add"} ${item.aliasName || "crosshair"} ${isFav ? "from" : "to"} favorites`}
-						>
-							<Star className={`w-4 h-4 ${isFav ? 'fill-yellow-500 text-yellow-500' : ''}`} />
-						</Button>
-						<Button
-							onClick={() => handleCopyShareCode(item.shareCode)}
-							variant="ghost"
-							size="icon"
-							className="h-10 w-10"
-							title="Copy share code"
-							aria-label={`Copy share code for ${item.aliasName || "crosshair"}`}
-						>
-							<Copy className="w-4 h-4" />
-						</Button>
-						<Button
-							onClick={() => handleCopyShareLink(item.shareCode)}
-							variant="ghost"
-							size="icon"
-							className="h-10 w-10 text-primary hover:text-primary"
-							title="Copy share link"
-							aria-label={`Copy share link for ${item.aliasName || "crosshair"}`}
-						>
-							<Share2 className="w-4 h-4" />
-						</Button>
-						<Button
-							onClick={() => onSelectCrosshair(item.shareCode, item.aliasName)}
-							variant="ghost"
-							size="icon"
-							className="h-10 w-10"
-							title="Load crosshair"
-							aria-label={`Load ${item.aliasName || "crosshair"}`}
-						>
-							<Download className="w-4 h-4" />
-						</Button>
-						{history.some((entry) => entry.shareCode === item.shareCode) && (
-							<Button
-								onClick={() => handleDelete(item.id)}
-								variant="ghost"
-								size="icon"
-								className="h-10 w-10 text-destructive hover:text-destructive"
-								title="Remove from history"
-								aria-label={`Remove ${item.aliasName || "crosshair"} from history`}
-							>
-								<Trash2 className="w-4 h-4" />
-							</Button>
-						)}
-					</div>
-				</div>
-			</div>
-		);
+	const actions: CrosshairActions = {
+		onSelect: onSelectCrosshair,
+		onToggleFavorite: handleToggleFavorite,
+		onCopyShareCode: handleCopyShareCode,
+		onCopyShareLink: handleCopyShareLink,
+		onCommitAlias: commitAliasValue,
+		onDelete: handleDelete,
 	};
 
 	return (
@@ -277,15 +332,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 						</div>
 					) : filteredHistory.length === 0 ? (
 						<div className="text-center py-8 text-muted-foreground"><Search className="w-10 h-10 mx-auto mb-3 opacity-50" /><p>No matching crosshairs</p><p className="text-sm mt-1">Try a different name or share-code fragment.</p></div>
-					) : (
-						<div className="max-h-[280px] overflow-y-auto pr-2 [scrollbar-gutter:stable]">
-							<div className="space-y-3">
-								{filteredHistory.map((item) => (
-									<CrosshairItem key={item.id} item={item} />
-								))}
-							</div>
-						</div>
-					)}
+					) : <LibraryList items={filteredHistory} favoriteCodes={favoriteCodes} historyCodes={historyCodes} actions={actions} />}
 				</TabsContent>
 
 				<TabsContent value="favorites" className="mt-0">
@@ -297,15 +344,7 @@ export const CrosshairHistory = ({ onSelectCrosshair }: CrosshairHistoryProps) =
 						</div>
 					) : filteredFavorites.length === 0 ? (
 						<div className="text-center py-8 text-muted-foreground"><Search className="w-10 h-10 mx-auto mb-3 opacity-50" /><p>No matching favorites</p><p className="text-sm mt-1">Try a different name or share-code fragment.</p></div>
-					) : (
-						<div className="max-h-[280px] overflow-y-auto pr-2 [scrollbar-gutter:stable]">
-							<div className="space-y-3">
-								{filteredFavorites.map((item) => (
-									<CrosshairItem key={item.id} item={item} />
-								))}
-							</div>
-						</div>
-					)}
+					) : <LibraryList items={filteredFavorites} favoriteCodes={favoriteCodes} historyCodes={historyCodes} actions={actions} />}
 				</TabsContent>
 			</Tabs>
 		</Card>
