@@ -1,8 +1,8 @@
 import {
+	clampCrosshair,
 	crosshairToConVars,
 	decodeCrosshairShareCode,
-	InvalidCrosshairShareCode,
-	InvalidShareCode
+	type Crosshair,
 } from '@/lib/cs2-sharecode';
 import { createAliasCommand } from '@/lib/crosshair-config';
 
@@ -11,46 +11,46 @@ export interface ShareCodeValidationResult {
 	error?: string;
 }
 
-export const validateShareCode = (code: string): ShareCodeValidationResult => {
+export type ShareCodeParseResult = { valid: true; crosshair: Crosshair } | { valid: false; error: string };
+
+export const parseShareCode = (code: string): ShareCodeParseResult => {
 	const trimmedCode = code.trim();
 
 	if (!trimmedCode) {
 		return { valid: false, error: 'Please enter a share code' };
 	}
 
-	if (!trimmedCode.startsWith('CSGO-')) {
+	// The share-code body is case-sensitive, but users often paste a
+	// lowercase "csgo-" prefix from mobile keyboards; normalize that only.
+	if (!/^csgo-/i.test(trimmedCode)) {
 		return { valid: false, error: 'Share code must start with "CSGO-"' };
 	}
+	const normalizedCode = `CSGO-${trimmedCode.slice(5)}`;
 
-	const parts = trimmedCode.split('-');
-	if (parts.length !== 6) {
+	if (normalizedCode.split('-').length !== 6) {
 		return { valid: false, error: 'Invalid format. Expected: CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX' };
 	}
 
 	try {
-		decodeCrosshairShareCode(trimmedCode);
-		return { valid: true };
+		return { valid: true, crosshair: clampCrosshair(decodeCrosshairShareCode(normalizedCode)) };
 	} catch {
 		return { valid: false, error: 'Unable to decode share code. Please verify it\'s correct.' };
 	}
 };
 
+export const validateShareCode = (code: string): ShareCodeValidationResult => {
+	const result = parseShareCode(code);
+	return result.valid ? { valid: true } : result;
+};
+
 export const getCrosshairConVars = (shareCode: string): string => {
-	const validation = validateShareCode(shareCode);
+	const result = parseShareCode(shareCode);
 
-	if (!validation.valid) {
-		throw new Error(validation.error || 'Invalid crosshair share code format');
+	if (!result.valid) {
+		throw new Error(result.error);
 	}
 
-	try {
-		const crosshair = decodeCrosshairShareCode(shareCode.trim());
-		return crosshairToConVars(crosshair);
-	} catch (error) {
-		if (error instanceof InvalidShareCode || error instanceof InvalidCrosshairShareCode) {
-			throw new Error('Invalid crosshair share code format', { cause: error });
-		}
-		throw error;
-	}
+	return crosshairToConVars(result.crosshair);
 };
 
 export const generateConfig = (shareCode: string, fileName: string, aliasName?: string): string => {

@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { Script } from 'node:vm';
 import ts from 'typescript';
 
+const moduleCache = new Map();
+
 const loadTsModule = (path) => {
-  const source = readFileSync(path, 'utf8');
+  const absolutePath = resolve(path);
+  const cached = moduleCache.get(absolutePath);
+  if (cached) {
+    return cached.exports;
+  }
+
+  const source = readFileSync(absolutePath, 'utf8');
   const { outputText } = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -12,7 +21,19 @@ const loadTsModule = (path) => {
     },
   });
   const module = { exports: {} };
-  new Script(outputText, { filename: path }).runInNewContext({ exports: module.exports, module, URLSearchParams });
+  moduleCache.set(absolutePath, module);
+  const localRequire = (spec) => {
+    if (!spec.startsWith('.')) {
+      throw new Error(`verify-crosshair-utils only supports relative imports (received ${spec})`);
+    }
+    return loadTsModule(resolve(dirname(absolutePath), `${spec}.ts`));
+  };
+  new Script(outputText, { filename: absolutePath }).runInNewContext({
+    exports: module.exports,
+    module,
+    require: localRequire,
+    URLSearchParams,
+  });
   return module.exports;
 };
 

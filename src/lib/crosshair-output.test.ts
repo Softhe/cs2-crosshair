@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateConfig, generateConsoleCommand, validateShareCode } from '@/lib/crosshair-output';
+import { generateConfig, generateConsoleCommand, parseShareCode, validateShareCode } from '@/lib/crosshair-output';
 
 const VALID_CODE = 'CSGO-wAD3c-ykt5L-zvZ98-vBisR-6sWPA';
 const DOT_CODE = 'CSGO-zDZH2-jXXvr-yFaQu-OjXPS-G8sdA';
@@ -10,6 +10,23 @@ describe('crosshair output', () => {
 		expect(validateShareCode('wAD3c')).toMatchObject({ valid: false });
 		expect(validateShareCode('CSGO-aaaaa-bbbbb')).toMatchObject({ valid: false });
 		expect(validateShareCode(VALID_CODE)).toEqual({ valid: true });
+	});
+
+	it('parses once and returns clamped editor state', () => {
+		const parsed = parseShareCode(`  ${VALID_CODE}  `);
+		expect(parsed.valid).toBe(true);
+		if (parsed.valid) {
+			expect(parsed.crosshair).toEqual(expect.objectContaining({ color: 4, length: 1, gap: -4 }));
+		}
+		expect(parseShareCode('')).toEqual({ valid: false, error: 'Please enter a share code' });
+		expect(parseShareCode('CSGO-aaaaa-bbbbb').valid).toBe(false);
+	});
+
+	it('accepts a lowercase share-code prefix without changing the body', () => {
+		const lower = parseShareCode(VALID_CODE.replace('CSGO-', 'csgo-'));
+		const upper = parseShareCode(VALID_CODE);
+		expect(lower).toEqual(upper);
+		expect(parseShareCode('csgo-aaaaa-bbbbb').valid).toBe(false);
 	});
 
 	it('generates a single-line console command', () => {
