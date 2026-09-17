@@ -18,7 +18,7 @@ Notable changes to CS2 Crosshair Studio are recorded here.
 - Clipboard paste flows through the shared `readFromClipboard` helper instead of reimplementing permission handling in the editor.
 - Performance budgets are read from `scripts/performance-budgets.json` so the gate and the CI size report share one source.
 - Updated compatible React, Radix UI, routing, lint, build, and browser-test dependencies without crossing major-version boundaries.
-- Separated studio preferences and local-library state transitions from their presentation components.
+- Separated studio preferences, local-library state transitions, and studio URL synchronization from their presentation components.
 - Added non-blocking dependency-drift reporting to continuous integration.
 - Rebuilt the crosshair preview on a centered SVG with a separate opaque outline layer: the outline no longer inherits crosshair alpha, odd thicknesses stay symmetric, and rendering is memoized. The preview stage also announces the current settings to assistive technology.
 - Hardened local storage (undecodable share codes are dropped on read/import, backup shape is validated before migration, history IDs are collision-safe), throttled preview resize handling, documented preview metric constants, accepted lowercase `csgo-` prefixes, and guarded color conversion against non-finite channels.

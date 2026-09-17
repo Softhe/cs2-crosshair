@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
 	ClipboardCopy,
 	Crosshair as CrosshairIcon,
@@ -19,6 +19,7 @@ import { FirstRunGuide } from '@/components/studio/FirstRunGuide';
 import { useToast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { PALETTE_OPTIONS, useStudioPreferences } from '@/hooks/use-studio-preferences';
+import { useStudioUrlSync } from '@/hooks/use-studio-url-sync';
 import { readFromClipboard, copyToClipboard } from '@/lib/clipboard';
 import {
 	crosshairToConVars,
@@ -27,10 +28,10 @@ import {
 	type Crosshair
 } from '@/lib/cs2-sharecode';
 import { clampCrosshair } from '@/lib/crosshair-preview';
-import { clearCustomCrosshair, loadCustomCrosshair, saveCustomCrosshair } from '@/lib/custom-crosshair-storage';
+import { clearCustomCrosshair, saveCustomCrosshair } from '@/lib/custom-crosshair-storage';
 import { createAliasCommand, createConfigFileName } from '@/lib/crosshair-config';
 import { generateConfig, generateConsoleCommand, parseShareCode } from '@/lib/crosshair-output';
-import { getCurrentShareUrl, getShareCodeFromUrl, getShareCodeUrlPath } from '@/lib/share-url';
+import { getCurrentShareUrl } from '@/lib/share-url';
 import { addToHistory, type CrosshairHistoryActivity } from '@/lib/storage';
 import { hexToRgb, rgbToHex } from '@/lib/color';
 import { trackStudioEvent, type StudioEventName } from '@/lib/observability';
@@ -78,21 +79,6 @@ const PRESETS: StudioPreset[] = [
 ];
 
 const CustomCrosshair = () => {
-	const location = useLocation();
-	const navigate = useNavigate();
-	const [initialState] = useState(() => {
-		const urlCode = getShareCodeFromUrl(location);
-		const parsed = parseShareCode(urlCode);
-		const crosshair = parsed.valid ? parsed.crosshair : loadCustomCrosshair(DEFAULT_CROSSHAIR);
-		return {
-			crosshair,
-			importCode: urlCode || encodeCrosshair(crosshair),
-			importError: urlCode && !parsed.valid ? parsed.error : '',
-		};
-	});
-	const [crosshair, setCrosshair] = useState<Crosshair>(initialState.crosshair);
-	const [importCode, setImportCode] = useState(initialState.importCode);
-	const [importError, setImportError] = useState(initialState.importError);
 	const [aliasName, setAliasName] = useState('');
 	const [customColorOpen, setCustomColorOpen] = useState(false);
 	const { palette, setPalette, showGuide, dismissGuide } = useStudioPreferences();
@@ -101,13 +87,8 @@ const CustomCrosshair = () => {
 	const narrowStudioLayout = useMediaQuery('(max-width: 767px)');
 	const ultrawideStudioLayout = useMediaQuery('(min-width: 1600px)');
 	const suppressedDraftCode = useRef<string | null>(null);
-	const pendingUrlCode = useRef<string | undefined>(undefined);
-	const lastExternalHistoryCode = useRef<string | null>(null);
 	const { toast } = useToast();
 
-	const shareCode = useMemo(() => encodeCrosshair(crosshair), [crosshair]);
-	const convars = useMemo(() => crosshairToConVars(crosshair), [crosshair]);
-	const customHexColor = rgbToHex(crosshair.red, crosshair.green, crosshair.blue);
 	const trimmedAliasName = aliasName.trim();
 	const [defaultFileName] = useState(() => createConfigFileName());
 	const previewFileName = useMemo(() => trimmedAliasName ? createConfigFileName(trimmedAliasName) : defaultFileName, [defaultFileName, trimmedAliasName]);
@@ -135,6 +116,22 @@ const CustomCrosshair = () => {
 		setHistoryKey((current) => current + 1);
 	}, []);
 
+	const handleExternalImport = useCallback((decoded: Crosshair) => recordCrosshairHistory(decoded, 'imported'), [recordCrosshairHistory]);
+	const {
+		crosshair,
+		importCode,
+		importError,
+		setImportCode,
+		setImportError,
+		applyCrosshair,
+		markExternalCode,
+		resetToDefault,
+	} = useStudioUrlSync({ defaultCrosshair: DEFAULT_CROSSHAIR, onExternalImport: handleExternalImport });
+
+	const shareCode = useMemo(() => encodeCrosshair(crosshair), [crosshair]);
+	const convars = useMemo(() => crosshairToConVars(crosshair), [crosshair]);
+	const customHexColor = rgbToHex(crosshair.red, crosshair.green, crosshair.blue);
+
 	useEffect(() => { trackStudioEvent('studio_loaded'); }, []);
 
 	useEffect(() => {
@@ -145,53 +142,6 @@ const CustomCrosshair = () => {
 		}
 		saveCustomCrosshair(crosshair);
 	}, [crosshair, shareCode]);
-
-	useEffect(() => {
-		const urlCode = getShareCodeFromUrl({ pathname: location.pathname, search: location.search });
-		if (pendingUrlCode.current !== undefined) {
-			if (urlCode === pendingUrlCode.current) {
-				pendingUrlCode.current = undefined;
-			}
-			return;
-		}
-		if (!urlCode) {
-			// URL navigation is external state; mirror it into the editor after the location changes.
-			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setImportCode(shareCode);
-			setImportError('');
-			return;
-		}
-		const parsed = parseShareCode(urlCode);
-		if (!parsed.valid) {
-			trackStudioEvent('import_failed');
-			setImportCode(urlCode);
-			setImportError(parsed.error);
-			return;
-		}
-		const decoded = parsed.crosshair;
-		if (lastExternalHistoryCode.current !== urlCode) {
-			lastExternalHistoryCode.current = urlCode;
-			recordCrosshairHistory(decoded, 'imported');
-		}
-		if (urlCode === shareCode) {
-			setImportCode(urlCode);
-			setImportError('');
-			return;
-		}
-		setCrosshair(decoded);
-		setImportCode(urlCode);
-		setImportError('');
-	}, [location.pathname, location.search, recordCrosshairHistory, shareCode]);
-
-	const applyCrosshair = useCallback((nextCrosshair: Crosshair) => {
-		const next = clampCrosshair(nextCrosshair);
-		const nextCode = encodeCrosshair(next);
-		setCrosshair(next);
-		setImportCode(nextCode);
-		setImportError('');
-		pendingUrlCode.current = getShareCodeFromUrl(location) === nextCode ? undefined : nextCode;
-		navigate(getShareCodeUrlPath(nextCode), { replace: true });
-	}, [location, navigate]);
 
 	const updateNumber = (key: NumberCrosshairKey, value: number) => applyCrosshair({ ...crosshair, [key]: value });
 	const updateBoolean = (key: BooleanCrosshairKey, value: boolean) => applyCrosshair({ ...crosshair, [key]: value });
@@ -211,12 +161,12 @@ const CustomCrosshair = () => {
 			return;
 		}
 		const decoded = parsed.crosshair;
-		lastExternalHistoryCode.current = encodeCrosshair(decoded);
+		markExternalCode(encodeCrosshair(decoded));
 		applyCrosshair(decoded);
 		recordCrosshairHistory(decoded, 'imported');
 		trackStudioEvent('import_succeeded');
 		toast({ title: 'Crosshair loaded', description: 'The editor and preview now use this share code.' });
-	}, [applyCrosshair, importCode, recordCrosshairHistory, toast]);
+	}, [applyCrosshair, importCode, markExternalCode, recordCrosshairHistory, setImportError, toast]);
 
 	const handlePaste = async () => {
 		let clipboardValue = '';
@@ -226,7 +176,7 @@ const CustomCrosshair = () => {
 			if (!parsed.valid) throw new Error(parsed.error);
 			setImportCode(clipboardValue);
 			const decoded = parsed.crosshair;
-			lastExternalHistoryCode.current = encodeCrosshair(decoded);
+			markExternalCode(encodeCrosshair(decoded));
 			applyCrosshair(decoded);
 			recordCrosshairHistory(decoded, 'imported');
 			trackStudioEvent('import_succeeded');
@@ -245,13 +195,9 @@ const CustomCrosshair = () => {
 		const defaultCode = encodeCrosshair(DEFAULT_CROSSHAIR);
 		clearCustomCrosshair();
 		suppressedDraftCode.current = shareCode === defaultCode ? null : defaultCode;
-		setCrosshair({ ...DEFAULT_CROSSHAIR });
-		setImportCode(defaultCode);
-		setImportError('');
+		resetToDefault(DEFAULT_CROSSHAIR);
 		setAliasName('');
 		setCustomColorOpen(false);
-		pendingUrlCode.current = getShareCodeFromUrl(location) ? '' : undefined;
-		navigate('/', { replace: true });
 	};
 
 	const handleCopy = useCallback(async (value: string, title: string, track = false, eventName?: StudioEventName) => {
