@@ -35,9 +35,16 @@ describe('application routes', () => {
     expect(screen.getByLabelText('CS2 crosshair share code')).toHaveValue(VALID_CODE);
   });
 
-  it.each(['/anything', '/CSGO-invalid', '/nested/path'])('renders the 404 page for %s', async (path) => {
+  it.each(['/anything', '/nested/path'])('renders the 404 page for %s', async (path) => {
     renderRoute(path);
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'CS2 Crosshair Studio' })).not.toBeInTheDocument();
+  });
+
+  it('explains invalid legacy share-code paths instead of a generic 404', async () => {
+    renderRoute('/CSGO-invalid');
+    expect(await screen.findByRole('heading', { name: 'Invalid crosshair link' })).toBeInTheDocument();
+    expect(screen.getByText(/share code in this link is incomplete or corrupted/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Return to the studio' })).toHaveAttribute('href', '/');
   });
 });

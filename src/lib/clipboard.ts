@@ -10,9 +10,9 @@ export const copyToClipboard = async (text: string): Promise<void> => {
 		try {
 			await navigator.clipboard.writeText(text);
 			return;
-		} catch (error) {
-			// If modern API fails, fall back to execCommand
-			console.warn('Clipboard API failed, using fallback method');
+		} catch {
+			// Permission denial is routine (HTTP, iframes, revoked
+			// permission); fall through to execCommand silently.
 		}
 	}
 
@@ -70,49 +70,16 @@ const copyToClipboardFallback = (text: string): Promise<void> => {
 
 /**
  * Read text from clipboard
- * Note: This requires user permission in most browsers
+ * Throws a user-safe error when the API is missing or permission is denied.
  */
 export const readFromClipboard = async (): Promise<string> => {
-	if (navigator.clipboard && navigator.clipboard.readText) {
-		try {
-			return await navigator.clipboard.readText();
-		} catch (error) {
-			throw new Error('Failed to read from clipboard. Permission may be required.', { cause: error });
-		}
-	} else {
-		throw new Error('Clipboard read not supported in this browser');
+	if (!navigator.clipboard || !navigator.clipboard.readText) {
+		throw new Error('Clipboard reading is not available in this browser.');
 	}
-};
 
-/**
- * Check if Clipboard API is supported
- */
-export const isClipboardSupported = (): boolean => {
-	return !!(navigator.clipboard && navigator.clipboard.writeText);
-};
-
-/**
- * Check if clipboard read is supported
- */
-export const isClipboardReadSupported = (): boolean => {
-	return !!(navigator.clipboard && navigator.clipboard.readText);
-};
-
-/**
- * Copy text with error handling and user-friendly messages
- */
-export const safeCopyToClipboard = async (
-	text: string,
-	onSuccess?: () => void,
-	onError?: (error: Error) => void
-): Promise<boolean> => {
 	try {
-		await copyToClipboard(text);
-		onSuccess?.();
-		return true;
+		return await navigator.clipboard.readText();
 	} catch (error) {
-		const err = error instanceof Error ? error : new Error('Unknown error');
-		onError?.(err);
-		return false;
+		throw new Error('Failed to read from clipboard. Permission may be required.', { cause: error });
 	}
 };

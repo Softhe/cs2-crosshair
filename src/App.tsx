@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { validateShareCode } from '@/lib/crosshair-output';
+import { parseShareCode } from '@/lib/crosshair-output';
 import { decodeUrlShareCode } from '@/lib/share-url';
 import Index from '@/pages/Index';
 
@@ -18,7 +18,8 @@ export const LegacyShareCodeRoute = () => {
   const { shareCode = '' } = useParams();
   const decodedShareCode = decodeUrlShareCode(shareCode);
 
-  return validateShareCode(decodedShareCode).valid ? <Index /> : <NotFound />;
+  if (parseShareCode(decodedShareCode).valid) return <Index />;
+  return decodedShareCode.startsWith('CSGO-') ? <NotFound invalidShareCode /> : <NotFound />;
 };
 
 export const CustomCompatibilityRedirect = () => {

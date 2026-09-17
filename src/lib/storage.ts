@@ -1,4 +1,5 @@
 // Storage utility for managing crosshair history and favorites
+import { decodeCrosshairShareCode } from '@/lib/cs2-sharecode';
 
 export type CrosshairHistoryActivity = 'imported' | 'exported';
 
@@ -55,8 +56,17 @@ interface StorageExportData {
 }
 
 // Generate unique ID for crosshair
-export const generateCrosshairId = (shareCode: string): string => {
-	return `${shareCode}_${Date.now()}`;
+const generateCrosshairId = (shareCode: string): string => {
+	return `${shareCode}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+};
+
+const isDecodableShareCode = (shareCode: string): boolean => {
+	try {
+		decodeCrosshairShareCode(shareCode.trim());
+		return true;
+	} catch {
+		return false;
+	}
 };
 
 const normalizeCrosshairData = (items: unknown, isFavorite = false): CrosshairData[] => {
@@ -68,6 +78,9 @@ const normalizeCrosshairData = (items: unknown, isFavorite = false): CrosshairDa
 		.filter((item): item is Partial<CrosshairData> & { shareCode: string } => {
 			return typeof item === 'object' && item !== null && typeof (item as CrosshairData).shareCode === 'string';
 		})
+		// Corrupt or hand-edited entries would otherwise render as
+		// "Preview unavailable" forever; drop them on read instead.
+		.filter((item) => isDecodableShareCode(item.shareCode))
 		.map((item) => ({
 			id: typeof item.id === 'string' ? item.id : generateCrosshairId(item.shareCode),
 			shareCode: item.shareCode,
@@ -118,6 +131,7 @@ export const addToHistory = (crosshair: Omit<CrosshairData, 'id' | 'timestamp'>)
 
 		const newItem: CrosshairData = {
 			...crosshair,
+			aliasName: normalizeAliasName(crosshair.aliasName),
 			id: generateCrosshairId(crosshair.shareCode),
 			timestamp: Date.now(),
 		};
@@ -156,15 +170,6 @@ export const renameHistoryItem = (id: string, aliasName: string): void => {
 		localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites.map((entry) => entry.shareCode === item.shareCode ? { ...entry, aliasName: nextAlias } : entry)));
 	} catch (error) {
 		console.error('Error renaming history item:', error);
-	}
-};
-
-// Clear all history
-export const clearHistory = (): void => {
-	try {
-		localStorage.removeItem(STORAGE_KEYS.HISTORY);
-	} catch (error) {
-		console.error('Error clearing history:', error);
 	}
 };
 
@@ -209,7 +214,7 @@ export const addToFavorites = (crosshair: Omit<CrosshairData, 'id' | 'timestamp'
 };
 
 // Remove item from favorites
-export const removeFromFavorites = (shareCode: string): void => {
+const removeFromFavorites = (shareCode: string): void => {
 	try {
 		const favorites = getFavorites();
 		const filtered = favorites.filter(item => item.shareCode !== shareCode);
@@ -243,15 +248,6 @@ export const toggleFavorite = (crosshair: Omit<CrosshairData, 'id' | 'timestamp'
 	}
 };
 
-// Clear all favorites
-export const clearFavorites = (): void => {
-	try {
-		localStorage.removeItem(STORAGE_KEYS.FAVORITES);
-	} catch (error) {
-		console.error('Error clearing favorites:', error);
-	}
-};
-
 // Export all data
 export const exportAllData = (): string => {
 	const history = getHistory();
@@ -271,11 +267,15 @@ export const exportAllData = (): string => {
 // Import data
 export const importAllData = (jsonString: string): { success: boolean; error?: string } => {
 	try {
-		const data = migrateStorageData(JSON.parse(jsonString));
-
-		if (!data.version || !Array.isArray(data.history) || !Array.isArray(data.favorites)) {
+		const raw: unknown = JSON.parse(jsonString);
+		if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
 			return { success: false, error: 'Invalid data format' };
 		}
+		const rawRecord = raw as { history?: unknown; favorites?: unknown };
+		if (('history' in rawRecord && !Array.isArray(rawRecord.history)) || ('favorites' in rawRecord && !Array.isArray(rawRecord.favorites))) {
+			return { success: false, error: 'Invalid data format' };
+		}
+		const data = migrateStorageData(raw);
 
 		localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(data.history));
 		localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(data.favorites));
@@ -310,16 +310,4 @@ export const saveUserSettings = (settings: Record<string, unknown>): void => {
 	} catch (error) {
 		console.error('Error saving settings:', error);
 	}
-};
-
-// Get storage usage stats
-export const getStorageStats = (): { history: number; favorites: number; total: number } => {
-	const history = getHistory();
-	const favorites = getFavorites();
-
-	return {
-		history: history.length,
-		favorites: favorites.length,
-		total: history.length + favorites.length,
-	};
 };

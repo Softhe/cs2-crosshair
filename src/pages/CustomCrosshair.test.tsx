@@ -7,6 +7,7 @@ import { copyToClipboard } from '@/lib/clipboard';
 
 vi.mock('@/lib/clipboard', () => ({
 	copyToClipboard: vi.fn().mockResolvedValue(undefined),
+	readFromClipboard: vi.fn().mockRejectedValue(new Error('Clipboard read not supported in this browser')),
 }));
 
 const VALID_CODE = 'CSGO-RBZih-6Hynp-ieuGe-tTkVz-9PqNO';
@@ -57,7 +58,7 @@ describe('CS2 Crosshair Studio', () => {
 			screen.getByRole('slider', { name: 'Outline thickness' }),
 			screen.getByRole('slider', { name: 'Alpha' })
 		]);
-		expect(within(controlCenter).getByRole('img', { name: 'Custom crosshair preview' })).toBeInTheDocument();
+		expect(within(controlCenter).getByRole('img', { name: /^Custom crosshair preview/ })).toBeInTheDocument();
 		expect(within(controlCenter).getByTestId('preview-workspace')).toBeInTheDocument();
 		expect(within(controlCenter).getByRole('button', { name: 'Copy command' })).toBeInTheDocument();
 		expect(within(controlCenter).getByRole('button', { name: 'Download CFG' })).toBeInTheDocument();

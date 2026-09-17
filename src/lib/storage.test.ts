@@ -109,4 +109,27 @@ describe('crosshair history and favorites persistence', () => {
 
 		expect(getHistory()[0].aliasName).toHaveLength(48);
 	});
+
+	it('caps aliases on the write path before persisting history', () => {
+		addToHistory({ shareCode: FIRST_CODE, aliasName: ` ${'z'.repeat(120)} ` });
+
+		expect(getHistory()[0].aliasName).toHaveLength(48);
+	});
+
+	it('drops undecodable share codes on read and import', () => {
+		addToHistory({ shareCode: FIRST_CODE });
+		localStorage.setItem('cs2_crosshair_history', JSON.stringify([...JSON.parse(localStorage.getItem('cs2_crosshair_history') || '[]'), { id: 'corrupt', shareCode: 'CSGO-aaaaa-bbbbb-ccccc-ddddd-eeeee', timestamp: Date.now() }]));
+
+		expect(getHistory()).toHaveLength(1);
+		expect(getHistory()[0].shareCode).toBe(FIRST_CODE);
+
+		expect(importAllData(JSON.stringify({ version: '3.0', history: [{ shareCode: 'not-a-code' }], favorites: [{ shareCode: SECOND_CODE }] }))).toEqual({ success: true });
+		expect(getHistory()).toHaveLength(0);
+		expect(getFavorites()).toEqual([expect.objectContaining({ shareCode: SECOND_CODE })]);
+	});
+
+	it('rejects non-object backups and non-array library fields', () => {
+		expect(importAllData(JSON.stringify({ version: '3.0', history: 'nope', favorites: [] }))).toEqual({ success: false, error: 'Invalid data format' });
+		expect(importAllData('[]')).toEqual({ success: false, error: 'Invalid data format' });
+	});
 });

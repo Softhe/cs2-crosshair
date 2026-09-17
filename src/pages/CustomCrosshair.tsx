@@ -19,7 +19,7 @@ import { FirstRunGuide } from '@/components/studio/FirstRunGuide';
 import { useToast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { PALETTE_OPTIONS, useStudioPreferences } from '@/hooks/use-studio-preferences';
-import { copyToClipboard } from '@/lib/clipboard';
+import { readFromClipboard, copyToClipboard } from '@/lib/clipboard';
 import {
 	crosshairToConVars,
 	decodeCrosshairShareCode,
@@ -29,7 +29,7 @@ import {
 import { clampCrosshair } from '@/lib/crosshair-preview';
 import { clearCustomCrosshair, loadCustomCrosshair, saveCustomCrosshair } from '@/lib/custom-crosshair-storage';
 import { createAliasCommand, createConfigFileName } from '@/lib/crosshair-config';
-import { generateConfig, generateConsoleCommand, validateShareCode } from '@/lib/crosshair-output';
+import { generateConfig, generateConsoleCommand, parseShareCode } from '@/lib/crosshair-output';
 import { getCurrentShareUrl, getShareCodeFromUrl, getShareCodeUrlPath } from '@/lib/share-url';
 import { addToHistory, type CrosshairHistoryActivity } from '@/lib/storage';
 import { hexToRgb, rgbToHex } from '@/lib/color';
@@ -82,12 +82,12 @@ const CustomCrosshair = () => {
 	const navigate = useNavigate();
 	const [initialState] = useState(() => {
 		const urlCode = getShareCodeFromUrl(location);
-		const validation = validateShareCode(urlCode);
-		const crosshair = validation.valid ? decodeCrosshairShareCode(urlCode) : loadCustomCrosshair(DEFAULT_CROSSHAIR);
+		const parsed = parseShareCode(urlCode);
+		const crosshair = parsed.valid ? parsed.crosshair : loadCustomCrosshair(DEFAULT_CROSSHAIR);
 		return {
 			crosshair,
 			importCode: urlCode || encodeCrosshair(crosshair),
-			importError: urlCode && !validation.valid ? validation.error || '' : '',
+			importError: urlCode && !parsed.valid ? parsed.error : '',
 		};
 	});
 	const [crosshair, setCrosshair] = useState<Crosshair>(initialState.crosshair);
@@ -161,14 +161,14 @@ const CustomCrosshair = () => {
 			setImportError('');
 			return;
 		}
-		const validation = validateShareCode(urlCode);
-		if (!validation.valid) {
+		const parsed = parseShareCode(urlCode);
+		if (!parsed.valid) {
 			trackStudioEvent('import_failed');
 			setImportCode(urlCode);
-			setImportError(validation.error || 'Enter a valid CS2 crosshair share code.');
+			setImportError(parsed.error);
 			return;
 		}
-		const decoded = decodeCrosshairShareCode(urlCode);
+		const decoded = parsed.crosshair;
 		if (lastExternalHistoryCode.current !== urlCode) {
 			lastExternalHistoryCode.current = urlCode;
 			recordCrosshairHistory(decoded, 'imported');
@@ -203,14 +203,14 @@ const CustomCrosshair = () => {
 	const addCurrentToHistory = useCallback(() => recordCrosshairHistory(crosshair, 'exported', trimmedAliasName), [crosshair, recordCrosshairHistory, trimmedAliasName]);
 
 	const handleImport = useCallback(() => {
-		const validation = validateShareCode(importCode);
-		if (!validation.valid) {
+		const parsed = parseShareCode(importCode);
+		if (!parsed.valid) {
 			trackStudioEvent('import_failed');
-			setImportError(validation.error || 'Enter a valid CS2 crosshair share code.');
-			toast({ title: 'Import failed', description: validation.error, variant: 'destructive' });
+			setImportError(parsed.error);
+			toast({ title: 'Import failed', description: parsed.error, variant: 'destructive' });
 			return;
 		}
-		const decoded = decodeCrosshairShareCode(importCode.trim());
+		const decoded = parsed.crosshair;
 		lastExternalHistoryCode.current = encodeCrosshair(decoded);
 		applyCrosshair(decoded);
 		recordCrosshairHistory(decoded, 'imported');
@@ -221,12 +221,11 @@ const CustomCrosshair = () => {
 	const handlePaste = async () => {
 		let clipboardValue = '';
 		try {
-			if (!navigator.clipboard?.readText) throw new Error('Clipboard reading is not available in this browser.');
-			clipboardValue = (await navigator.clipboard.readText()).trim();
-			const validation = validateShareCode(clipboardValue);
-			if (!validation.valid) throw new Error(validation.error);
+			clipboardValue = (await readFromClipboard()).trim();
+			const parsed = parseShareCode(clipboardValue);
+			if (!parsed.valid) throw new Error(parsed.error);
 			setImportCode(clipboardValue);
-			const decoded = decodeCrosshairShareCode(clipboardValue);
+			const decoded = parsed.crosshair;
 			lastExternalHistoryCode.current = encodeCrosshair(decoded);
 			applyCrosshair(decoded);
 			recordCrosshairHistory(decoded, 'imported');
@@ -299,7 +298,13 @@ const CustomCrosshair = () => {
 	}, [copyConsoleCommand]);
 
 	const handleHistorySelect = (code: string, alias?: string) => {
-		applyCrosshair(decodeCrosshairShareCode(code));
+		const parsed = parseShareCode(code);
+		if (!parsed.valid) {
+			trackStudioEvent('import_failed');
+			toast({ title: 'Saved crosshair is invalid', description: parsed.error, variant: 'destructive' });
+			return;
+		}
+		applyCrosshair(parsed.crosshair);
 		setAliasName(alias || '');
 		trackStudioEvent('history_loaded');
 		toast({ title: 'Crosshair loaded', description: 'Loaded from your saved crosshairs.' });
