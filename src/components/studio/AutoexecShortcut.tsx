@@ -17,7 +17,7 @@ export const AutoexecShortcut = ({ aliasName, onAliasNameChange, fileName, alias
 			<div className="space-y-3 p-4">
 				<span className="flex items-center gap-2"><TerminalSquare className="h-4 w-4 text-primary" /><span className="text-sm font-semibold text-foreground">CFG & autoexec shortcut</span></span>
 				<label htmlFor="aliasName" className="text-sm font-medium text-foreground">Alias name <span aria-hidden="true" className="font-normal text-muted-foreground">(optional)</span></label>
-				<Input id="aliasName" value={aliasName} onChange={(event) => onAliasNameChange(event.target.value)} placeholder="team green" className="border-white/10 bg-background/70 font-mono" />
+				<Input id="aliasName" value={aliasName} onChange={(event) => onAliasNameChange(event.target.value)} placeholder="team green" spellCheck={false} autoCapitalize="none" autoCorrect="off" autoComplete="off" className="border-white/10 bg-background/70 font-mono" />
 			</div>
 			<details className="border-t border-white/10">
 				<summary className="cursor-pointer list-none px-4 py-3 text-xs text-muted-foreground">

@@ -36,9 +36,16 @@ export const usePreviewPreferences = () => {
 	const [viewportHeight, setViewportHeight] = useState(readViewportHeight);
 
 	useEffect(() => {
-		const updateViewportHeight = () => setViewportHeight(window.innerHeight);
+		let frame = 0;
+		const updateViewportHeight = () => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => setViewportHeight(window.innerHeight));
+		};
 		window.addEventListener('resize', updateViewportHeight);
-		return () => window.removeEventListener('resize', updateViewportHeight);
+		return () => {
+			window.removeEventListener('resize', updateViewportHeight);
+			cancelAnimationFrame(frame);
+		};
 	}, []);
 
 	useEffect(() => {

@@ -82,6 +82,10 @@ const CrosshairItem = ({ item, isFavorite, inHistory, actions }: CrosshairItemPr
 							placeholder="Name this crosshair"
 							maxLength={48}
 							title={item.aliasName || 'Name this crosshair'}
+							spellCheck={false}
+							autoCapitalize="none"
+							autoCorrect="off"
+							autoComplete="off"
 							className="h-9 w-full min-w-0 border-white/10 bg-background/50 text-sm font-semibold text-neon-cyan"
 							onClick={(event) => event.stopPropagation()}
 							onBlur={(event) => actions.onCommitAlias(item, event.currentTarget.value)}
