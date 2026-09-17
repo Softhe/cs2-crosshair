@@ -1,0 +1,7 @@
+{
+  "jsRaw": 500000,
+  "jsGzip": 151000,
+  "entryGzip": 115000,
+  "cssRaw": 75000,
+  "cssGzip": 16000
+}

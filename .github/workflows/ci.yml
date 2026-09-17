@@ -25,6 +25,8 @@ jobs:
         continue-on-error: true
         run: pnpm deps:check
       - run: pnpm check
+      - name: Report bundle sizes
+        run: pnpm report:bundles
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v7

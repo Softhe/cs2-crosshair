@@ -25,6 +25,7 @@
     "test:watch": "vitest",
     "test:utils": "node scripts/verify-crosshair-utils.mjs",
     "verify:build": "node scripts/verify-build.mjs && node scripts/verify-performance-budget.mjs",
+    "report:bundles": "node scripts/report-bundle-sizes.mjs",
     "smoke:production": "node scripts/smoke-site.mjs https://delli.cc",
     "deps:check": "pnpm outdated",
     "check": "pnpm lint && pnpm typecheck && pnpm test:utils && pnpm test && pnpm build"
