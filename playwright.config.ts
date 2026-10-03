@@ -1,32 +1,6 @@
-import { defineConfig } from '@playwright/test';
+import {defineConfig} from '@playwright/test';
 
-export default defineConfig({
-  testDir: './e2e',
-  fullyParallel: true,
-  forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
-  use: {
-    baseURL: 'http://127.0.0.1:4175',
-    permissions: ['clipboard-read', 'clipboard-write'],
-    screenshot: 'only-on-failure',
-    trace: 'on-first-retry',
-  },
-  webServer: {
-    command: 'node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4175',
-    url: 'http://127.0.0.1:4175',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
-  projects: [
-    {
-      name: 'desktop-chromium',
-      use: { browserName: 'chromium', viewport: { width: 1280, height: 720 } },
-    },
-    {
-      name: 'mobile-chromium',
-      use: { browserName: 'chromium', viewport: { width: 390, height: 844 } },
-    },
-  ],
-});
+const port=Number(process.env.PLAYWRIGHT_PORT??4180);
+if(!Number.isInteger(port)||port<1024||port>65535)throw Error('PLAYWRIGHT_PORT must be an integer from 1024 to 65535.');
+const url=`http://127.0.0.1:${port}`;
+export default defineConfig({testDir:'./e2e',fullyParallel:true,workers:2,use:{baseURL:url,browserName:'chromium'},projects:[{name:'desktop',use:{viewport:{width:1440,height:1000}}},{name:'mobile',use:{viewport:{width:390,height:844}}}],webServer:{command:`npm run build && npm exec vite preview -- --host 127.0.0.1 --port ${port} --strictPort`,url,reuseExistingServer:!process.env.CI}});

@@ -1,104 +1,27 @@
 # Testing
 
-## Release gate
-
-Install the pinned dependencies, then run the same main gate used by CI:
+Install dependencies with `npm ci`, then run:
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm check
+npm run check
+npx playwright install chromium
+npm run test:e2e
 ```
 
-`pnpm check` covers linting, TypeScript, utility invariants, the Vitest suite, and a production build. Run the production-browser suite separately when working locally:
+Playwright starts the production preview on localhost. To use another port, set `PLAYWRIGHT_PORT`, for example `4181` when the editor development server occupies `4180`. CI starts a fresh server and does not reuse a running instance.
 
-```sh
-pnpm exec playwright install chromium
-pnpm test:e2e
-```
+## Automated coverage
 
-`pnpm test:e2e` runs a fresh production build before Playwright starts the preview server. CI installs Chromium and runs both the main gate and the end-to-end suite.
+Unit tests exercise exact game fixtures, every representable share-code field value, 3,000 deterministic setting combinations, 9,000 config imports with different separators, malformed payloads, validation, aliases, library backups, and dynamic spread.
 
-## Focused commands
+Browser tests run at desktop and mobile viewport sizes. They cover all ten styles, visible fields, RGBA colors, negative gap input and slider synchronization, clipboard operations and fallback, named config downloads and file re-imports, full links, presets, undo, reset, themes, observer controls, map switching, zoom, and library actions.
 
-```sh
-pnpm lint
-pnpm typecheck
-pnpm test:utils
-pnpm test
-pnpm test:watch
-pnpm build
-pnpm verify:build
-pnpm preview
-pnpm test:e2e
-pnpm smoke:production
-pnpm verify:release-readiness
-pnpm deps:check
-```
+Canvas tests compare dot and outer-shape centers at 1×, 2×, 4×, and 8× with thicknesses 1 and 3. They protect the odd-thickness centering fix. UI tests assert that Grenade Line-up, Sniper Sights, and the sniper preview option are absent.
 
-`deps:check` is an informational maintenance report: finding available updates is expected to produce a non-zero exit code and does not fail CI. Major-version migrations are reviewed separately.
+## Live game checks
 
-The release-readiness command is separate from `pnpm check`: it fails until real CS2 captures and five anonymized player sessions have been supplied.
+On October 3, 2026, Computer Use imported a website-generated code for each of the ten styles into CS2, then copied it back through the game's menu. All ten strings matched exactly. Probes included thickness 3, half outline, scope scale 1.37, and negative gap -4. The original game crosshair was restored and verified afterward.
 
-Unit tests should remain close to the relevant module or component as `*.test.ts` or `*.test.tsx`. End-to-end tests live under `e2e/` and exercise the built application through a real browser.
+These checks establish menu import/export compatibility. Downloaded configs were compared with all 42 generated commands and imported back into the website; they were not executed in CS2. The tests do not establish identical gameplay rendering or physical mobile-device behavior. Chromium is the automated browser target.
 
-## Automated browser smoke coverage
-
-Playwright runs Chromium at 1280×720 and 390×844. The current suite verifies:
-
-- The unified studio loads without browser errors or horizontal overflow and keeps the editor ahead of the preview on mobile.
-- Mobile preview and autoexec disclosures open correctly, while fixed quick actions remain accessible.
-- A preset updates the selected color, preview, share code, URL, and persisted draft.
-- Code and link copying, aliased config download, recent history, favorites, library search, inline naming, and JSON backup import/export.
-- `/custom` query/hash preservation, a valid legacy path, and an invalid single-segment path.
-- No automatically detectable WCAG 2.0/2.1 A or AA violations on the initial studio.
-- Theme palettes retain their intended tokens and remain free of automatically detectable WCAG A/AA violations.
-
-## What to cover
-
-### Codec and output
-
-- Valid codes decode and round-trip without changing represented values.
-- Malformed codes and checksum failures produce actionable validation errors.
-- Values are clamped to supported ranges before encoding and preview rendering.
-- Representative fixture states cover negative/maximum gaps, heavy outlines, center dot, T style, alpha, and custom colors.
-- Commands and configs contain the correct convars, filename, and sanitized alias.
-
-### Studio behavior
-
-- Importing a valid code updates controls, preview, generated code, and canonical URL.
-- Presets and individual controls update all derived outputs.
-- Reset returns to the default and clears the persisted draft.
-- Copy and download actions create history; history selection and favorites restore the right code.
-- Library search filters by alias and share code; renaming keeps history and favorites in sync; JSON backups restore history, favorites, and settings.
-- Clipboard failures produce feedback without breaking the page.
-- `Ctrl+Enter` and `Cmd+Enter` copy the current console command.
-
-### Routes
-
-- `/` loads the unified studio.
-- `/?code=...` and the compatibility `/?crosshair=...` load valid codes.
-- `/custom` redirects to `/` and preserves its query string and hash.
-- A valid legacy `/CSGO-...` path loads the same crosshair.
-- Invalid single-segment and nested paths render the not-found page.
-
-### Accessibility and responsive layout
-
-- All controls have accessible names and visible keyboard focus.
-- Validation errors are announced and controls remain keyboard-operable.
-- Desktop and mobile layouts have no horizontal overflow.
-- On a narrow viewport, editing and export actions remain discoverable without the preview obscuring the workflow.
-
-## Manual production smoke test
-
-After `pnpm build`, start `pnpm preview` and verify at a desktop width and a narrow mobile width:
-
-1. Load `/` with a clean storage profile and confirm there are no console errors.
-2. Apply each preset, move representative sliders, toggle settings, and choose a custom color.
-3. Import a known-valid share code and compare the generated code after a round trip.
-4. Copy the command, code, and share link; download a config and inspect its filename and content.
-5. Refresh and confirm draft, history, and favorites persistence.
-6. Open the canonical link in a fresh context and verify the same crosshair loads.
-7. Check `/custom?code=...#help`, a legacy share-code path, and invalid paths.
-8. Confirm FAQ interactions, keyboard navigation, toasts, and the not-found page.
-
-For the production deployment, repeat the route, clipboard, download, and console-error checks on `https://delli.cc/`. Clipboard reads may be denied by browser policy; manual paste must continue to work.
+Game screenshots and local test artifacts are retained in the development workspace. They are excluded from this public replacement to avoid publishing unrelated game account details.

@@ -1,114 +1,66 @@
 # CS2 Crosshair Studio
 
-[CS2 Crosshair Studio](https://delli.cc/) is a private, browser-based workspace for creating, editing, previewing, saving, and sharing Counter-Strike 2 crosshairs.
+[delli.cc](https://delli.cc/) is a browser editor for the current Counter-Strike 2 crosshair system. Choose a style, adjust its settings, and copy a share code into the game. You can also download a config or save crosshairs in a local library.
 
-![CS2 Crosshair Studio](public/og-image.jpg)
+## Use the editor
 
-Everything runs locally in your browser. Crosshair codes, settings, aliases, drafts, history, favorites, and feedback choices are not sent to a server.
+1. Choose one of the ten crosshair styles or import a code through **Share or Import**.
+2. Adjust color, opacity, outline, thickness, gap, and the controls available for that style.
+3. Copy the crosshair code. In CS2, open **Settings → Crosshair / Scopes → Share or Import**, paste it, and import it.
 
-## How it works
+The editor has Style Settings and Crosshair Settings. Gap controls accept values from -10 to 128. The preview offers seven game backgrounds, four zoom levels, a scope dot view, and simulated dynamic motion.
 
-1. Paste a CS2 `CSGO-...` share code or start from a preset.
-2. Tune the crosshair while watching the preview update immediately.
-3. Copy a command, code, or share link, or download a ready-to-use `.cfg` file.
+Current `CS` codes carry crosshair and scope dot settings. Older `CSGO-` codes are supported with an approximation notice when conversion is needed. Config files and website links preserve additional settings. Imported console commands are parsed as data; the website does not execute them.
 
-[Open the studio](https://delli.cc/) · [Report an issue](https://github.com/Softhe/cs2-crosshair/issues/new/choose)
+An optional alias such as `team_green` produces `crosshair_team_green.cfg` and this autoexec shortcut:
 
-## Features
+```cfg
+alias team_green "exec crosshair_team_green.cfg"
+```
 
-### Create and customize
+Put the config in `Counter-Strike Global Offensive/game/csgo/cfg`. Add the shortcut to `autoexec.cfg`, then type `team_green` in the game console.
 
-- Import and validate CS2 crosshair share codes, including one-click clipboard paste.
-- Start from Small static, Dot, High visibility, or Classic green presets.
-- Adjust style, length, gap, thickness, color, opacity, outline and outline thickness, center dot, and T style.
-- Choose a preset color or use the custom color picker.
-- Reset the workspace to a known default at any time.
-- Follow a dismissible first-run guide that stays dismissed on the current device.
+## Local storage and sharing
 
-### Preview and personalize
+Drafts, preferences, aliases, feedback notes, up to 50 favorites, and up to 20 recent crosshairs stay in your browser. Use the library's JSON backup to save a copy elsewhere. Share links include settings in the URL, so anyone with the link can read them.
 
-- See changes immediately in a browser-rendered crosshair preview.
-- Switch between Tactical, CS2, and Crimson palettes; the selection persists locally.
-- Use layouts tailored for mobile, desktop, and ultrawide screens.
-- Keep copy and download actions within reach through mobile quick actions.
+The application has no backend, accounts, or analytics. Fonts and map backgrounds are served with the site. GitHub Pages receives normal page requests. Opening an issue draft takes you to GitHub, where you can review the text before submitting it.
 
-### Export and share
-
-- Copy the generated CS2 console command with a button or `Ctrl+Enter` / `Cmd+Enter`.
-- Copy the current share code or a canonical `delli.cc` share link.
-- Download a ready-to-use `.cfg` file with a safe generated filename.
-- Add an optional alias and copy the matching autoexec command for quick switching.
-- Inspect the generated CS2 console variables before exporting.
-
-### Save locally
-
-- Restore the latest draft after a refresh.
-- Keep up to 20 recently imported or exported crosshairs and up to 50 favorites.
-- Search the local library by name or share-code fragment.
-- Rename, reload, copy, favorite, and remove saved entries.
-- Export the local library as JSON and restore it from a backup.
-
-### Privacy-conscious feedback
-
-- Record an optional ease rating only in the current browser.
-- Review coarse diagnostics and an optional note before explicitly opening a prefilled GitHub issue.
-- Never include crosshair codes, settings, aliases, URLs, or local history in the generated issue.
-
-## Preview accuracy
-
-The live preview is a close browser approximation. Resolution, aspect ratio, display scaling, and CS2 rendering can produce small visual differences. Generated share codes, console commands, and config files use the actual crosshair settings rather than measurements from the preview.
-
-## Supported links
-
-| URL | Behavior |
-| --- | --- |
-| `/` | Opens the studio and restores the local draft or default crosshair. |
-| `/?code=CSGO-...` | Canonical share link. |
-| `/?crosshair=CSGO-...` | Supported compatibility query. |
-| `/custom` | Redirects to `/` while preserving the query string and hash. |
-| `/CSGO-...` | Opens a valid legacy path-based share link. |
-| Any other path | Shows the not-found page. |
-
-Use query-based links for anything new. The legacy path format remains available for existing shared URLs.
+This replacement uses a separate `delli.v3` storage namespace. It does not automatically migrate the previous website's drafts or library. Old stored data is left in place. Legacy share-code links still work.
 
 ## Development
 
-Requirements: Node.js 20 or newer and pnpm 11.9.0.
+Use Node.js 24 and npm.
 
 ```sh
-corepack enable
-pnpm install
-pnpm dev
+npm ci
+npm run dev
 ```
 
-Essential commands:
+Open `http://127.0.0.1:4180/`.
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Start the local Vite development server. |
-| `pnpm check` | Run linting, type checks, utility checks, unit/component tests, and a verified production build. |
-| `pnpm test:e2e` | Build the site and run Playwright smoke tests at desktop and mobile widths. |
-| `pnpm test:watch` | Run the Vitest suite in watch mode. |
-| `pnpm verify:release-readiness` | Verify CS2 reference and 2.1 playtest evidence. |
-| `pnpm smoke:production` | Probe the deployed `https://delli.cc` routes and metadata. |
+| `npm test` | Run codec, config, validation, and geometry tests |
+| `npm run build` | Check TypeScript and build the static site into `dist` |
+| `npm run check` | Run unit tests and the production build |
+| `npx playwright install chromium` | Install the browser used by end-to-end tests |
+| `npm run test:e2e` | Test the production build at desktop and mobile sizes |
 
-The application uses React, TypeScript, Vite, Tailwind CSS, Vitest, and Playwright.
+## Verification and limits
 
-## Project documentation
+The current codec was checked against CS2 1.41.8.8. All ten website-generated styles were imported through the running game's menu and re-exported as the exact same code. Browser tests cover editing, clipboard operations, downloads, imports, links, library actions, and preview controls.
+
+The preview is a browser approximation. Dynamic movement, recoil, quadrant geometry, and scope rendering do not model every weapon or game state. Check your final crosshair in CS2. Earlier code conversion is approximate.
+
+## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Testing](docs/TESTING.md)
-- [Maintenance baseline](docs/MAINTENANCE.md)
-- [Release and deployment](docs/RELEASE.md)
-- [Preview calibration](docs/PREVIEW_CALIBRATION.md)
-- [CS2 screenshot guide](docs/CS2_SCREENSHOT_GUIDE.md)
-- [2.1 playtest](docs/PLAYTEST_2_1.md)
-- [Changelog](CHANGELOG.md)
+- [Deployment and rollback](docs/DEPLOYMENT.md)
+- [Share-code protocol](docs/PROTOCOL.md)
+- [Third-party notices](docs/THIRD_PARTY.md)
 
-## Deployment
+GitHub Actions tests the site before deploying `main` to GitHub Pages at `delli.cc`. The replacement is a normal commit, so the previous source remains in Git history.
 
-Pull requests and pushes to `main` run the release gate and browser smoke suite. Pushes to `main` deploy the verified build to GitHub Pages, retain the `delli.cc` custom domain, and probe the production routes after deployment. See the [release guide](docs/RELEASE.md) for the maintained checklist and compatibility contract.
-
-## License
-
-Built by [delli.cc](https://delli.cc/). No separate open-source license is declared in this repository.
+Counter-Strike and the map preview assets belong to Valve. This project is independent and is not endorsed by Valve. No separate license for the project's source code is declared.
