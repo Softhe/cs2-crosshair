@@ -2,6 +2,8 @@
 
 [delli.cc](https://delli.cc/) is a browser editor for the current Counter-Strike 2 crosshair system. Choose a style, adjust its settings, and copy a share code into the game. You can also download a config or save crosshairs in a local library.
 
+![CS2 Crosshair Studio showing the Dynamic Quadrant editor and a negative gap](docs/images/crosshair-studio.png)
+
 ## Use the editor
 
 1. Choose one of the ten crosshair styles or import a code through **Share or Import**.
