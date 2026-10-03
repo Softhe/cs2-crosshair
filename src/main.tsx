@@ -20,7 +20,7 @@ function initial(): {settings:Settings;error?:string;note?:string}{
     const code=params.get('code')??params.get('crosshair')??(location.pathname.startsWith('/CS')?location.pathname.slice(1):null);
     if(code){const result=decode(code);const complete=params.get('settings');if(complete){const full=validateSettings(JSON.parse(complete));if(encode(full)!==encode(result.settings))throw Error('The link contains conflicting crosshair settings.');return {settings:full,note:result.note};}return {settings:result.settings,note:result.note};}
     const full=params.get('settings');if(full)return {settings:validateSettings(JSON.parse(full))};
-    return {settings:validateSettings(read('draft',defaults))};
+    return {settings:{...validateSettings(read('draft',defaults)),cl_crosshair_recoil:0,cl_crosshair_friendly_warning:0}};
   }catch(error){return {settings:{...defaults},error:message(error)};}
 }
 function message(error:unknown){return error instanceof Error?error.message:'Something went wrong.';}
@@ -57,7 +57,7 @@ function App(){
   useEffect(()=>{if(modal)dialogRef.current?.showModal();else dialogRef.current?.close();},[modal]);
   function change(key:string,value:number){setUndo(items=>[...items.slice(-29),s]);setSettings(prev=>({...prev,[key]:value}));}
   function load(settings:Settings){setUndo(items=>[...items.slice(-29),s]);setSettings({...settings});}
-  function reset(){load({...defaults});notify('Crosshair reset to the current game defaults.');}
+  function reset(){load({...defaults});notify('Crosshair reset to the studio defaults.');}
   function goBack(){if(!undo.length)return;setSettings(undo[undo.length-1]);setUndo(undo.slice(0,-1));}
   function remember(settings=s,name=styles.find(([id])=>id===settings.cl_crosshairstyle)?.[1]??'Crosshair',favorite=false){
     const entry:Saved={id:crypto.randomUUID(),name,settings:{...settings},alias:aliasError?'':alias.trim(),favorite,date:new Date().toISOString()};
