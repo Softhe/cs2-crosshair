@@ -1,0 +1,189 @@
+{
+  "transparentNoOutline": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 60,
+    "maxAlpha": 192,
+    "partial": 60,
+    "bounds": [
+      417,
+      120,
+      432,
+      135
+    ]
+  },
+  "transparentOpaqueOutline": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 128,
+    "maxAlpha": 255,
+    "partial": 0,
+    "bounds": [
+      416,
+      119,
+      433,
+      136
+    ]
+  },
+  "transparentNegativeGap": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 44,
+    "maxAlpha": 240,
+    "partial": 44,
+    "bounds": [
+      419,
+      122,
+      430,
+      133
+    ]
+  },
+  "oddDot": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 4,
+    "maxAlpha": 64,
+    "partial": 4,
+    "bounds": [
+      424,
+      127,
+      425,
+      128
+    ]
+  },
+  "reference1080": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 128,
+    "maxAlpha": 255,
+    "partial": 0,
+    "bounds": [
+      416,
+      119,
+      433,
+      136
+    ]
+  },
+  "reference2160": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 128,
+    "maxAlpha": 255,
+    "partial": 0,
+    "bounds": [
+      416,
+      119,
+      433,
+      136
+    ]
+  },
+  "staticAfterDprChange": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 2,
+    "count": 128,
+    "maxAlpha": 255,
+    "partial": 0,
+    "bounds": [
+      416,
+      119,
+      433,
+      136
+    ]
+  },
+  "afterSettingsRedraw": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 1700,
+    "height": 512,
+    "dpr": 2,
+    "count": 2048,
+    "maxAlpha": 255,
+    "partial": 0,
+    "bounds": [
+      814,
+      220,
+      885,
+      291
+    ]
+  },
+  "defaultDynamicPeak": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 1374,
+    "maxAlpha": 255,
+    "partial": 580,
+    "bounds": [
+      159,
+      0,
+      690,
+      255
+    ]
+  },
+  "dynamicCirclePeak": [
+    69
+  ],
+  "circleNegative10": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 16,
+    "maxAlpha": 255,
+    "partial": 12,
+    "bounds": [
+      423,
+      126,
+      426,
+      129
+    ]
+  },
+  "circleGap0": {
+    "cssWidth": 850,
+    "cssHeight": 256,
+    "width": 850,
+    "height": 256,
+    "dpr": 1,
+    "count": 16,
+    "maxAlpha": 255,
+    "partial": 12,
+    "bounds": [
+      423,
+      126,
+      426,
+      129
+    ]
+  },
+  "staticStyleAnimatedClears250ms": 15,
+  "scopeAnimatedClears250ms": 15,
+  "scopeScale01Radius": [
+    0.5
+  ],
+  "scopeScale03Radius": [
+    0.5
+  ]
+}

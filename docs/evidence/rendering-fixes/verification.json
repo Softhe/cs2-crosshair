@@ -1,0 +1,23 @@
+{
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "dpr": 1,
+  "canvas": [
+    850,
+    256
+  ],
+  "timings": {
+    "native": {
+      "medianMs": 2.5,
+      "p95Ms": 4.2000000001862645,
+      "maxMs": 5.099999999627471,
+      "samples": 40
+    },
+    "fit": {
+      "medianMs": 0.900000000372529,
+      "p95Ms": 3.199999999254942,
+      "maxMs": 4,
+      "samples": 40
+    }
+  },
+  "errors": []
+}
