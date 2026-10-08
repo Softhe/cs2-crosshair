@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { styles, type Settings } from './model';
 import { motionEligible, previewGeometry, renderingSettings, renderingKeys, type PreviewMode } from './preview-geometry';
 import { createPreviewRenderer, fitScale, type RenderStatus } from './preview-renderer';
+import { previewScale } from './display';
 type Props = {
     settings: Settings;
     zoom?: number;
@@ -62,11 +63,9 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
                 peak.bounds[1] -= 7;
                 peak.bounds[3] += 7;
             }
-            const magnification = Number.isFinite(p.zoom) && p.zoom > 0 ? p.zoom : 1;
             // Optional estimated game-pixel size, converted to CSS pixels at the current DPR.
             // This mapping is explicitly uncalibrated against game captures.
-            const requested = magnification * (p.targetHeight && Number.isFinite(p.targetHeight) && p.targetHeight>0
-                ? p.targetHeight/Math.max(1,p.settings.cl_crosshair_screen_height)/(devicePixelRatio||1) : 1);
+            const requested = previewScale(p.zoom, p.targetHeight, p.settings.cl_crosshair_screen_height, devicePixelRatio);
             const scale = p.fit ? fitScale(peak.bounds, canvas!.clientWidth, canvas!.clientHeight, requested) : requested;
             const key = JSON.stringify([geometry, p.mode, scale, canvas!.clientWidth, canvas!.clientHeight, devicePixelRatio, ...['color', 'outline'].flatMap(prefix => ['r', 'g', 'b', 'a'].map(c => p.settings[`cl_crosshair${prefix}_${c}`])), p.settings.cl_ironsight_usecrosshaircolor]);
             if (key !== signature) {

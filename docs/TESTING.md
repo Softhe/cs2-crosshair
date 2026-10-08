@@ -18,6 +18,8 @@ Browser tests run at desktop and mobile viewport sizes. They cover all ten style
 
 Canvas tests compare dot and outer-shape centers at 1×, 2×, 4×, and 8× with thicknesses 1 and 3. They protect the odd-thickness centering fix. UI tests assert that Grenade Line-up, Sniper Sights, and the sniper preview option are absent.
 
+Pixel symmetry tests reject blank canvases and compare reflected RGBA pixels at several thicknesses, positive and negative gaps, fractional display scaling, and 1×/4× zoom. Display tests verify physical-pixel sizes across DPR, fullscreen centering, and normal keyboard edits to the display-height override, including empty and invalid input. Intro tests cover repeated refreshes, original playback speed, the overlapping reveal, layout stability, and failed or stalled video playback.
+
 ## Live game checks
 
 On October 3, 2026, Computer Use imported a website-generated code for each of the ten styles into CS2, then copied it back through the game's menu. All ten strings matched exactly. Probes included thickness 3, half outline, scope scale 1.37, and negative gap -4. The original game crosshair was restored and verified afterward.

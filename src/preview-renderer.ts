@@ -5,6 +5,20 @@ export type RenderStatus = {
     scale: number;
 };
 export function fitScale(b: Geometry['bounds'], width: number, height: number, requested: number) { return Math.min(requested, Math.max(1, width - 16) / Math.max(1, 2 * Math.max(Math.abs(b[0]), Math.abs(b[2]))), Math.max(1, height - 16) / Math.max(1, 2 * Math.max(Math.abs(b[1]), Math.abs(b[3])))); }
+
+function snapInterval(start: number, length: number, unit: number, center: number): [number, number] {
+    let pixels = Math.max(1, Math.round(length * unit));
+    const midpoint = (start + length / 2) * unit, centerPhase = center - Math.floor(center);
+    if (Math.abs(midpoint) < 1e-8) {
+        // A centered interval must share the center's odd/even pixel parity.
+        if (pixels % 2 !== centerPhase * 2) pixels++;
+        return [center - pixels / 2, pixels];
+    }
+    const phase = Math.abs(pixels % 2 / 2 - centerPhase);
+    const distance = Math.max(phase, Math.round(Math.abs(midpoint) - phase) + phase);
+    // Quantize the distance once, then reflect it for the opposite arm.
+    return [center + Math.sign(midpoint) * distance - pixels / 2, pixels];
+}
 export function createPreviewRenderer(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
     const mask = document.createElement('canvas'), ctx = mask.getContext('2d', { willReadFrequently: true });
     if (!ctx)
@@ -17,7 +31,8 @@ export function createPreviewRenderer(canvas: HTMLCanvasElement, context: Canvas
         }
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, pw, ph);
-        const unit = scale * dpr, cx = pw / 2, cy = ph / 2, b = g.bounds;
+        const unit = scale * dpr, phase = Math.max(1, Math.round(s.cl_crosshair_thickness * unit)) % 2 / 2;
+        const cx = Math.round(pw / 2 - phase) + phase, cy = Math.round(ph / 2 - phase) + phase, b = g.bounds;
         const clipped = cx + b[0] * unit < 0 || cy + b[1] * unit < 0 || cx + b[2] * unit > pw || cy + b[3] * unit > ph;
         const left = Math.max(0, Math.floor(cx + b[0] * unit) - 2), top = Math.max(0, Math.floor(cy + b[1] * unit) - 2), right = Math.min(pw, Math.ceil(cx + b[2] * unit) + 2), bottom = Math.min(ph, Math.ceil(cy + b[3] * unit) + 2), w = right - left, h = bottom - top;
         if (w <= 0 || h <= 0 || !g.shapes.length)
@@ -33,10 +48,11 @@ export function createPreviewRenderer(canvas: HTMLCanvasElement, context: Canvas
             ctx.fillStyle = '#fff';
             ctx.strokeStyle = '#fff';
             ctx.beginPath();
-            const x0 = cx + g.offset[0] * unit - left, y0 = cy + g.offset[1] * unit - top;
+            const x0 = cx + Math.round(g.offset[0] * unit) - left, y0 = cy + Math.round(g.offset[1] * unit) - top;
             for (const shape of shapes) {
             if (shape.kind === 'rect') {
-                const x = Math.round(x0 + shape.x * unit), y = Math.round(y0 + shape.y * unit), rw = Math.max(1, Math.round(shape.width * unit)), rh = Math.max(1, Math.round(shape.height * unit));
+                const [x, rw] = snapInterval(shape.x, shape.width, unit, x0);
+                const [y, rh] = snapInterval(shape.y, shape.height, unit, y0);
                 const before = outline ? unit : 0, after = outline && g.outline === 1 ? unit : 0;
                 ctx.fillRect(x - before, y - before, rw + before + after, rh + before + after);
             }

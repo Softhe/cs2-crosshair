@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
 import { defaults } from '../src/model';
 for (const dpr of [1,1.25,1.5,2]) test(`rectangular raster coverage at DPR ${dpr}`,async({browser})=>{
     const context=await browser.newContext({viewport:{width:1001,height:900},deviceScaleFactor:dpr});
@@ -38,6 +40,7 @@ test('estimated resolution uses reference height without changing exports',async
 });
 async function load(page: import('@playwright/test').Page, settings: Record<string, number>) {
     await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, ...settings })));
+    await page.getByLabel('Preview scale', { exact: true }).selectOption('0');
     await expect(page.locator('.map-preview canvas')).toHaveAttribute('data-scale', /./);
 }
 async function stats(page: import('@playwright/test').Page) {

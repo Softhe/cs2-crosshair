@@ -12,6 +12,8 @@
 
 The editor has Style Settings and Crosshair Settings. Gap controls accept values from -10 to 128. The preview offers seven game backgrounds, four zoom levels, a scope dot view, and simulated dynamic motion.
 
+The preview defaults to an estimated monitor-resolution size. Correct the display height when the browser's estimate differs from your monitor, or use fullscreen to place the crosshair at the screen center. The 4× detail view helps inspect arm and outline symmetry. A short intro plays at its original speed on every refresh and fades into the editor.
+
 Current `CS` codes carry crosshair and scope dot settings. Older `CSGO-` codes are supported with an approximation notice when conversion is needed. Config files and website links preserve additional settings. Imported console commands are parsed as data; the website does not execute them.
 
 An optional alias such as `team_green` produces `crosshair_team_green.cfg` and this autoexec shortcut:
@@ -21,6 +23,8 @@ alias team_green "exec crosshair_team_green.cfg"
 ```
 
 Put the config in `Counter-Strike Global Offensive/game/csgo/cfg`. Add the shortcut to `autoexec.cfg`, then type `team_green` in the game console.
+
+Downloaded configs include the share code, the commented alias shortcut, and a short usage note at the top. Remove the leading `//` when copying the alias into `autoexec.cfg`.
 
 ## Local storage and sharing
 
@@ -59,6 +63,8 @@ The preview is a browser approximation. Dynamic movement, recoil, quadrant geome
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Testing](docs/TESTING.md)
+- [Display sizing](docs/DISPLAY_SCALING.md)
+- [Raster symmetry](docs/RASTER_SYMMETRY.md)
 - [Deployment and rollback](docs/DEPLOYMENT.md)
 - [Share-code protocol](docs/PROTOCOL.md)
 - [Third-party notices](docs/THIRD_PARTY.md)

@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 
+test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
+
 for(const mode of ['silent-write','write-rejected','read-denied','fallback-succeeds'] as const){
   test(`clipboard reports truthful status: ${mode}`,async({page})=>{
     await page.addInitScript((mode)=>{

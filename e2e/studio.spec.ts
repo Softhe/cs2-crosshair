@@ -1,4 +1,6 @@
 import {test,expect} from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
 const original='CSxkMfFVRUG6fRehdb2CvLNuajHopsuAQ5O38aVLPTTPHj';
 test('renders all menu sections, changes style, edits and restores draft',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/');
@@ -45,6 +47,9 @@ test('downloads a named config and validates alias injection',async({page})=>{
   const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Download .cfg',exact:true}).click();const download=await downloadPromise;
   expect(download.suggestedFilename()).toBe('crosshair_team_green.cfg');const stream=await download.createReadStream();let content='';for await(const chunk of stream!)content+=chunk;
   expect(content).toContain('cl_crosshair_length "8"');expect(content).toContain('cl_ironsight_dot_scale "1"');expect(content).toContain('cl_grenadecrosshair_smoke "1"');
+  expect(content).toContain(`// Crosshair code: ${await page.getByLabel('Current CS2 share code').inputValue()}`);
+  expect(content).toContain('// alias team_green "exec crosshair_team_green.cfg"');
+  expect(content).toContain('// Add the alias line to autoexec.cfg without //');
   await page.getByRole('textbox',{name:'Alias name'}).fill('bad;quit');await expect(page.getByRole('button',{name:'Copy autoexec shortcut',exact:true})).toBeDisabled();
 });
 test('library favorite, rename, search, load, remove and backup',async({page})=>{

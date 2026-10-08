@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 
+test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
+
 test('every style with a gap accepts negative input and slider values',async({page})=>{
   await page.goto('/');
   for(const style of [0,2,3,4,5,7,8,9]){

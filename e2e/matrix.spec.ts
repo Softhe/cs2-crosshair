@@ -1,4 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
 import {styles,styleFields,defaults,presets} from '../src/model';
 
 async function number(page:Page,label:string,value:number){const input=page.getByRole('spinbutton',{name:label,exact:true});await input.fill(String(value));await input.press('Enter');await expect(input).toHaveValue(value%1?value.toFixed(2):String(value));}

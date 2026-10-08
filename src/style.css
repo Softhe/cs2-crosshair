@@ -40,3 +40,34 @@ input[type=range]::-moz-range-track{height:6px;background:#bbc0b558}
 input[type=range]::-moz-range-thumb{width:13px;height:11px;border:1px solid #d1d3c88c;background:#b9bfb0}
 @media(max-width:380px){.header{padding:0 10px;gap:3px}.brand{gap:4px;flex-shrink:0}.brand strong{font-size:18px}.brand>svg{width:16px}.header-actions{flex-shrink:0;gap:0}.header-actions button.icon-button{padding:4px}.header-actions>button:not(.icon-button){padding:4px;gap:2px}.header-actions>button .count{padding:2px 3px}.menu-nav{min-width:0;margin:0;flex:1}.menu-nav button{min-width:0;padding:0 5px;font-size:8px;letter-spacing:0}.menu-nav button:first-child{max-width:69px}.menu-nav button+button:before{display:none}}
 .preview-inspection{display:flex;flex-wrap:wrap;gap:12px;padding:12px;font-size:11px;border-top:1px solid var(--line);color:var(--muted)}.preview-inspection label{display:flex;align-items:center;gap:6px}.preview-inspection input[type=range]{width:120px}.preview-inspection>span{width:100%;line-height:1.6}.preview-unavailable{position:absolute;left:15%;top:35%;max-width:70%;background:var(--panel);padding:16px;font-size:12px}
+
+/* Carry the entrance video's blue and violet palette into the default appearance. */
+:root:not([data-theme]),:root[data-theme=cs2]{--back:#10131e;--panel:#191e2c;--line:#a4b7de24;--accent:#9dcce7;--accent-dark:#6b9cc4;--muted:#a1abc1;--heading:#d8deed;background:#10131e}
+:root:not([data-theme]) body,:root[data-theme=cs2] body{background:radial-gradient(ellipse at 18% 5%,#2599c514,transparent 48%),radial-gradient(ellipse at 85% 18%,#8981d512,transparent 50%),var(--back)}
+:root[data-theme=cs2] .header{background:#10141fe8;border-bottom-color:#9dcce728}
+:root[data-theme=cs2] .brand>svg{filter:drop-shadow(0 0 8px #80bce333)}
+:root[data-theme=cs2] .preview-section{background:#141a27;border-color:#9dcce730}
+:root[data-theme=cs2] .new-badge{background:#a9a0d9;color:#171629}
+:root[data-theme=cs2] .menu-nav button.active:after{background:linear-gradient(90deg,#72bbdc,#a69cda);box-shadow:0 -3px 16px #8cd4e627}
+
+/* A full-width preview keeps the aiming point centered above the settings columns. */
+.workspace>.preview-section{grid-column:1/-1;min-width:0}
+.workspace>.editor .section-nav{margin-top:0}
+.workspace>.preview-section .map-preview{height:clamp(300px,32vw,520px)}
+.preview-inspection{align-items:stretch;gap:20px}
+.preview-controls{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-content:center;gap:12px}
+.preview-controls>span{width:100%;line-height:1.6}
+.preview-controls .display-note{color:var(--muted);font-size:10px;max-width:780px}
+.display-height{width:78px;padding:5px 7px;text-align:center}
+.detail-preview{width:144px;flex-shrink:0;border:1px solid var(--line);background:#111722}
+.detail-preview>span{display:block;padding:6px 9px;font-size:9px;color:var(--muted);border-bottom:1px solid var(--line)}
+.detail-preview>div{height:90px;position:relative;background:radial-gradient(#30394b,#111722)}
+.fullscreen-button{padding:5px 7px;font-size:10px;color:var(--accent)}
+.map-preview:fullscreen{width:100vw;height:100vh!important;max-height:none;background-color:#090d15}
+.map-preview:fullscreen .preview-actions{justify-content:center;gap:20px;padding-bottom:24px}
+.map-preview:fullscreen .map-label{left:24px;top:24px}
+.exit-fullscreen{position:absolute;right:24px;bottom:80px}
+@media(min-width:1900px){.workspace,.page-heading{max-width:1664px}.workspace{grid-template-columns:minmax(0,1fr) 360px;gap:32px}.site-footer{max-width:1616px}.header{padding-left:max(32px,calc((100% - 1616px)/2));padding-right:max(32px,calc((100% - 1616px)/2))}}
+@media(max-width:700px){.workspace>.preview-section .map-preview{height:300px}.preview-inspection{gap:12px}.preview-controls{font-size:10px}.detail-preview{width:100%;display:flex;align-items:center}.detail-preview>span{border:0;width:72px}.detail-preview>div{height:70px;flex:1}.fullscreen-button span{display:none}.preview-caption{flex-wrap:wrap;gap:6px}.preview-toolbar>div{gap:5px}.preview-controls select{max-width:180px}.map-preview:fullscreen .preview-actions{flex-wrap:wrap;gap:8px;padding:16px 8px}}
+/* Fullscreen has no scrollbar; use the entire framebuffer for the aiming point. */
+html:has(.map-preview:fullscreen){scrollbar-gutter:auto}
