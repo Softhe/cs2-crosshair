@@ -1,3 +1,4 @@
+import { convertLegacy } from './converter';
 import { defaults, validateSettings, type Settings } from './model';
 
 // CS2 1.41.8.8. Byte layout verified against codes exported by the game.
@@ -59,19 +60,8 @@ export function decode(input: string, legacyHeight=1080): Decoded {
     const b=unpack(code.slice(5).replaceAll('-',''),18);const view=new DataView(b.buffer);const s={...defaults};
     if(![1,3,4].includes(b[1])) throw Error('This is not a supported crosshair code. Match codes cannot be imported.');
     if(b[1]===1){
-      if(b.slice(15).some(x=>x!==0)) throw Error('This is not a supported legacy crosshair code.');
-      const signed=(n:number)=>n>127?n-256:n;
-      s.cl_crosshairstyle=(b[13]&15)>>1;s.cl_crosshairdot=(b[13]>>4)&1;s.cl_crosshair_t=b[13]>>7;s.cl_crosshair_recoil=b[8]>>7;
-      const colors=[[250,50,50],[50,250,50],[250,250,50],[50,50,250],[50,250,250]];const color=colors[b[10]&7]??[b[4],b[5],b[6]];
-      color.forEach((v,i)=>s[['cl_crosshaircolor_r','cl_crosshaircolor_g','cl_crosshaircolor_b'][i]]=v);
-      s.cl_crosshaircolor_a=b[13]&64?b[7]:255;s.cl_crosshair_drawoutline=b[10]&8?1:0;
-      s.cl_crosshair_length=Math.min(255,Math.round(b[14]/10*legacyHeight/480));
-      s.cl_crosshair_thickness=Math.min(32,Math.round(b[12]/10*legacyHeight/480));
-      s.cl_crosshair_gap=Math.min(128,Math.max(0,Math.round((signed(b[2])/10+4)*legacyHeight/960)));
-      s.cl_crosshair_dynamic_splitdist=b[8]&7;s.cl_crosshair_dynamic_splitalpha_innermod=(b[10]>>4)/10;
-      s.cl_crosshair_dynamic_splitalpha_outermod=Math.max(.3,(b[11]&15)/10);s.cl_crosshair_dynamic_maxdist_splitratio=(b[11]>>4)/10;s.cl_crosshair_screen_height=legacyHeight;
-      if(s.cl_crosshairstyle<4) s.cl_crosshairstyle=2;
-      return {settings:validateSettings(s),legacy:true,note:'Converted a pre-update code. Pixel conversion is approximate; check it in CS2. Old outline thickness and weapon-gap behavior have no exact equivalent.'};
+      const converted=convertLegacy(code,legacyHeight);
+      return {settings:converted.settings,legacy:true,note:'Converted with the community-static-v6 reconstruction. Pixel matching is approximate; check it in CS2. Use the converter panel to review warnings.'};
     }
     const bits=view.getUint32(10,true);
     s.cl_crosshairstyle=b[2]&15;s.cl_crosshair_recoil=(b[2]>>4)&1;s.cl_crosshairdot=(b[2]>>6)&1;s.cl_crosshair_t=b[2]>>7;

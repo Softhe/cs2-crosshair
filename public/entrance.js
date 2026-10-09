@@ -26,9 +26,9 @@
       video.pause();
       video.removeAttribute('src');
       video.load();
-    }, immediate ? 0 : Math.max(0, 480 - (performance.now() - revealStarted)));
+    }, immediate ? 0 : Math.max(0, 240 - (performance.now() - revealStarted)));
   };
-  const timeout = setTimeout(() => dismiss(true), 2800);
+  const timeout = setTimeout(() => dismiss(true), 2200);
   entrance.hidden = false;
   root.inert = true;
   root.classList.add('entrance-pending');
@@ -37,12 +37,14 @@
   video.addEventListener('error', () => dismiss(true));
   const watch = () => {
     if (finished) return;
-    if (video.duration && video.currentTime >= video.duration - 0.36) reveal();
+    if (video.duration && video.currentTime >= video.duration - 0.30) reveal();
     frame = requestAnimationFrame(watch);
   };
   video.addEventListener('playing', () => entrance.classList.add('entrance-playing'), { once: true });
   frame = requestAnimationFrame(watch);
   video.muted = true;
+  video.defaultPlaybackRate = 1.25;
   video.src = '/operation_loading.webm';
+  video.playbackRate = 1.25;
   video.play().catch(() => dismiss(true));
 })();

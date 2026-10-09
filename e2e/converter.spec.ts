@@ -1,0 +1,40 @@
+import {test,expect} from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('**/entrance.js*',route=>route.fulfill({contentType:'text/javascript',body:''}));});
+test('convert old config, copy new code, invalidate stale output and apply',async({page,context})=>{
+  await context.grantPermissions(['clipboard-read','clipboard-write']);
+  await page.goto('/');
+  const previous=await page.getByLabel('Current CS2 share code').inputValue();
+  await page.getByRole('button',{name:'Share or Import',exact:true}).click();
+  await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 4; cl_crosshairsize 2; cl_crosshairthickness 0.5; cl_crosshairgap -2');
+  await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
+  await page.getByLabel('New game height').selectOption('1440');
+  await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
+  const code=await page.getByLabel('NEW CS CODE',{exact:true}).inputValue();
+  expect(code).toMatch(/^CS[A-Za-z0-9]{44}$/);
+  await page.getByRole('button',{name:'Copy converted code',exact:true}).click();
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(code);
+  expect(await page.getByLabel('Current CS2 share code').inputValue()).toBe(previous);
+  await page.getByLabel('New game height').selectOption('1080');
+  await expect(page.getByLabel('NEW CS CODE',{exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
+  const updated=await page.getByLabel('NEW CS CODE',{exact:true}).inputValue();
+  await page.getByRole('button',{name:'Use converted crosshair',exact:true}).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(updated);
+});
+test('blocked legacy styles show an error without offering a new code',async({page})=>{
+  await page.goto('/');await page.getByRole('button',{name:'Share or Import',exact:true}).click();
+  await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 0; cl_crosshairsize 2');
+  await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
+  await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
+  await expect(page.getByText(/Old styles 0 and 1 \(the default styles\)/)).toBeVisible();
+  await expect(page.getByLabel('NEW CS CODE',{exact:true})).toHaveCount(0);
+});
+test('regular import converts old config rather than silently ignoring old geometry',async({page})=>{
+  await page.goto('/');await page.getByRole('button',{name:'Share or Import',exact:true}).click();
+  await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 4; cl_crosshairsize 2; cl_crosshairthickness 0.5; cl_crosshairgap -2');
+  await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
+  await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue('4');
+  await expect(page.getByRole('spinbutton',{name:'Thickness',exact:true})).toHaveValue('1');
+  await expect(page.getByRole('spinbutton',{name:'Gap',exact:true})).toHaveValue('3');
+});

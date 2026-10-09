@@ -28,7 +28,7 @@ test('intro crossfades into the editor before playback ends', async ({ page }) =
   await expect(page.locator('#root')).not.toHaveAttribute('inert');
 });
 
-for (const path of ['/', '/?intro=preview']) test(`two-second intro plays on every refresh at original speed: ${path}`, async ({ page }) => {
+for (const path of ['/', '/?intro=preview']) test(`shortened intro plays on every refresh: ${path}`, async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => sessionStorage.setItem('delli-entrance-seen', '1'));
   for (let visit = 0; visit < 2; visit++) {
@@ -44,7 +44,7 @@ for (const path of ['/', '/?intro=preview']) test(`two-second intro plays on eve
       const video = element as HTMLVideoElement;
       return { rate: video.playbackRate, loop: video.loop, duration: video.duration };
     });
-    expect(playback.rate).toBe(1);
+    expect(playback.rate).toBe(1.25);
     expect(playback.loop).toBe(false);
     expect(playback.duration).toBeCloseTo(2, 1);
     await expect(page.locator('#entrance')).toBeHidden({ timeout: 3500 });
