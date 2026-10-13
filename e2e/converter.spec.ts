@@ -3,8 +3,8 @@ test.beforeEach(async({page})=>{await page.route('**/entrance.js*',route=>route.
 test('convert old config, copy new code, invalidate stale output and apply',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   await page.goto('/');
-  const previous=await page.getByLabel('Current CS2 share code').inputValue();
-  await page.getByRole('button',{name:'Share or Import',exact:true}).click();
+  const previous=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
+  await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 4; cl_crosshairsize 2; cl_crosshairthickness 0.5; cl_crosshairgap -2');
   await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
   await page.getByLabel('New game height').selectOption('1440');
@@ -13,17 +13,17 @@ test('convert old config, copy new code, invalidate stale output and apply',asyn
   expect(code).toMatch(/^CS[A-Za-z0-9]{44}$/);
   await page.getByRole('button',{name:'Copy converted code',exact:true}).click();
   expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(code);
-  expect(await page.getByLabel('Current CS2 share code').inputValue()).toBe(previous);
+  expect(await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!)).toBe(previous);
   await page.getByLabel('New game height').selectOption('1080');
   await expect(page.getByLabel('NEW CS CODE',{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
   const updated=await page.getByLabel('NEW CS CODE',{exact:true}).inputValue();
   await page.getByRole('button',{name:'Use converted crosshair',exact:true}).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(updated);
+  await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',updated);
 });
 test('blocked legacy styles show an error without offering a new code',async({page})=>{
-  await page.goto('/');await page.getByRole('button',{name:'Share or Import',exact:true}).click();
+  await page.goto('/');await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 0; cl_crosshairsize 2');
   await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
   await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
@@ -31,7 +31,7 @@ test('blocked legacy styles show an error without offering a new code',async({pa
   await expect(page.getByLabel('NEW CS CODE',{exact:true})).toHaveCount(0);
 });
 test('regular import converts old config rather than silently ignoring old geometry',async({page})=>{
-  await page.goto('/');await page.getByRole('button',{name:'Share or Import',exact:true}).click();
+  await page.goto('/');await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 4; cl_crosshairsize 2; cl_crosshairthickness 0.5; cl_crosshairgap -2');
   await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
   await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue('4');

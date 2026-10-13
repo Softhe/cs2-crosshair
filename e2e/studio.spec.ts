@@ -8,7 +8,7 @@ test('renders all menu sections, changes style, edits and restores draft',async(
   await expect(page.getByRole('heading',{name:'Grenade Line-up'})).toHaveCount(0);
   await expect(page.getByRole('heading',{name:'Sniper Sights'})).toHaveCount(0);
   await expect(page.getByLabel('Preview mode').locator('option[value=sniper]')).toHaveCount(0);
-  await expect(page.getByRole('textbox',{name:'Alias name'})).toBeVisible();
+  await expect(page.locator('.export-advanced')).not.toHaveAttribute('open');await page.locator('.export-advanced > summary').click();await expect(page.getByRole('textbox',{name:'Alias name'})).toBeVisible();
   await page.getByLabel('Style',{exact:true}).selectOption('2');
   await page.getByRole('spinbutton',{name:'Gap',exact:true}).fill('-4');await page.getByRole('spinbutton',{name:'Gap',exact:true}).blur();
   await expect(page.getByRole('spinbutton',{name:'Gap',exact:true})).toHaveValue('-4');
@@ -19,13 +19,12 @@ test('renders all menu sections, changes style, edits and restores draft',async(
 });
 test('clipboard exports code, full links and autoexec shortcuts correctly',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/');
-  await page.getByRole('textbox',{name:'Alias name'}).fill('team_green');
+  await page.locator('.export-advanced > summary').click();await page.getByRole('textbox',{name:'Alias name'}).fill('team_green');
   await page.getByRole('button',{name:'Copy autoexec shortcut',exact:true}).click();
   expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('alias team_green "exec crosshair_team_green.cfg"');
-  await page.getByLabel('Friendly Fire Reticle Warning',{exact:true}).selectOption('0');
   await page.getByRole('button',{name:'Copy link',exact:true}).click();const link=await page.evaluate(()=>navigator.clipboard.readText());
-  await page.goto(link);await expect(page.getByLabel('Friendly Fire Reticle Warning',{exact:true})).toHaveValue('0');
-  await page.getByRole('button',{name:'Copy crosshair code',exact:true}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(await page.getByLabel('Current CS2 share code').inputValue());
+  await page.goto(link);expect(JSON.parse(new URL(link).searchParams.get('settings')!).cl_crosshair_friendly_warning).toBe(0);
+  await page.getByRole('button',{name:'Copy crosshair code',exact:true}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!));
   await page.keyboard.press('Control+Enter');expect(await page.evaluate(()=>navigator.clipboard.readText())).toContain('cl_crosshairstyle');
 });
 test('restores a backup and rejects invalid settings',async({page})=>{
@@ -37,17 +36,17 @@ test('restores a backup and rejects invalid settings',async({page})=>{
   await expect(page.getByRole('status')).toContainText('Unknown setting');await expect(page.getByText('Backup green',{exact:true})).toBeVisible();
 });
 test('imports actual game code and rejects a corrupted code without changing state',async({page})=>{
-  await page.goto('/');await page.getByRole('button',{name:'Share or Import',exact:true}).click();await page.getByLabel('Crosshair code or config').fill(original);
-  await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
-  await page.getByRole('button',{name:'Share or Import',exact:true}).click();await page.getByLabel('Crosshair code or config').fill(original.slice(0,-1)+'A');await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('checksum');await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.goto('/');await page.getByLabel('Crosshair code or config').focus();await page.getByLabel('Crosshair code or config').fill(original);
+  await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',original);
+  await page.getByLabel('Crosshair code or config').focus();await page.getByLabel('Crosshair code or config').fill(original.slice(0,-1)+'A');await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('checksum');await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',original);await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
 });
 test('downloads a named config and validates alias injection',async({page})=>{
-  await page.goto('/');await page.getByRole('textbox',{name:'Alias name'}).fill('team_green');
+  await page.goto('/');await page.locator('.export-advanced > summary').click();await page.getByRole('textbox',{name:'Alias name'}).fill('team_green');
   const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Download .cfg',exact:true}).click();const download=await downloadPromise;
   expect(download.suggestedFilename()).toBe('crosshair_team_green.cfg');const stream=await download.createReadStream();let content='';for await(const chunk of stream!)content+=chunk;
   expect(content).toContain('cl_crosshair_length "8"');expect(content).toContain('cl_ironsight_dot_scale "1"');expect(content).toContain('cl_grenadecrosshair_smoke "1"');
-  expect(content).toContain(`// Crosshair code: ${await page.getByLabel('Current CS2 share code').inputValue()}`);
+  expect(content).toContain(`// Crosshair code: ${await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!)}`);
   expect(content).toContain('// alias team_green "exec crosshair_team_green.cfg"');
   expect(content).toContain('// Add the alias line to autoexec.cfg without //');
   await page.getByRole('textbox',{name:'Alias name'}).fill('bad;quit');await expect(page.getByRole('button',{name:'Copy autoexec shortcut',exact:true})).toBeDisabled();
@@ -61,9 +60,9 @@ test('library favorite, rename, search, load, remove and backup',async({page})=>
   await page.getByRole('button',{name:'Library',exact:true}).click();await page.getByRole('button',{name:'Remove Team reticle'}).click();await expect(page.getByText('Your collection starts here.')).toBeVisible();
 });
 test('full links preserve extra settings, compatibility routes and missing routes',async({page})=>{
-  await page.goto('/?code='+original);await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
-  await page.goto('/?crosshair='+original);await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
-  await page.goto('/'+original);await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
+  await page.goto('/?code='+original);await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',original);
+  await page.goto('/?crosshair='+original);await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',original);
+  await page.goto('/'+original);await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',original);
   await page.goto('/custom?code='+original+'#keep');await expect(page).toHaveURL('/?code='+original+'#keep');
   await page.goto('/missing');await expect(page.getByRole('heading',{name:'Crosshair not found'})).toBeVisible();
 });
@@ -93,28 +92,35 @@ test('save action above preview persists a favorite without overwriting it while
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
 });
 
-test('integrated code field updates live and preserves pending imports',async({page},testInfo)=>{
+test('integrated code field updates live and preserves pending imports',async({page,context},testInfo)=>{
+  await context.grantPermissions(['clipboard-read','clipboard-write']);
   await page.goto('/');
   const field=page.getByLabel('Crosshair code or config',{exact:true});
   const panel=page.getByRole('region',{name:'Crosshair preview',exact:true});
   await expect(panel.getByLabel('Crosshair code or config',{exact:true})).toBeVisible();
   const before=await field.inputValue();
-  await expect(field).toHaveValue(await page.getByLabel('Current CS2 share code').inputValue());
+  await expect(field).toHaveValue(await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!));
   const length=page.getByRole('spinbutton',{name:'Length',exact:true});
   await length.fill('12');await length.blur();
   await expect(field).not.toHaveValue(before);
   const updated=await field.inputValue();
-  await expect(field).toHaveValue(await page.getByLabel('Current CS2 share code').inputValue());
+  await expect(field).toHaveValue(await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!));
   await page.reload();await expect(field).toHaveValue(updated);
   await field.fill(original);
   await page.getByLabel('Style',{exact:true}).selectOption('6');
   await expect(field).toHaveValue(original);
   await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
   await expect(field).toHaveValue(original);
-  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
+  await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',original);
   await field.fill('CSinvalid');await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
   await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',original);
+  await page.getByRole('button',{name:'Copy crosshair code',exact:true}).click();
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(original);
+  await expect(field).toHaveValue('CSinvalid');
   await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
+  await page.getByRole('button',{name:'Copy share code',exact:true}).click();
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(original);
   await page.getByRole('button',{name:'Use current code',exact:true}).click();
   await expect(field).toHaveValue(original);
   await expect(page.getByRole('alert')).toHaveCount(0);
@@ -123,4 +129,46 @@ test('integrated code field updates live and preserves pending imports',async({p
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:testInfo.outputPath('integrated-code.png')});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+});
+
+test('editor exposes one primary control per action with advanced exports collapsed',async({page},testInfo)=>{
+  await page.goto('/');
+  await expect(page.getByLabel('Crosshair code or config',{exact:true})).toHaveCount(1);
+  await expect(page.getByLabel('Current CS2 share code')).toHaveCount(1);
+  await expect(page.getByLabel('Current CS2 share code')).toHaveAttribute('readonly','');
+  await expect(page.getByRole('button',{name:'Guide',exact:true})).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Help and instructions',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Reset crosshair',exact:true})).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Share or Import',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Copy crosshair code',exact:true})).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Copy share code',exact:true})).toHaveCount(1);
+  await expect(page.locator('.export-advanced')).not.toHaveAttribute('open');
+  await expect(page.getByRole('textbox',{name:'Alias name'})).toBeHidden();
+  await page.locator('.export-advanced > summary').click();
+  await expect(page.getByRole('textbox',{name:'Alias name'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Copy autoexec shortcut',exact:true})).toBeVisible();
+  await page.locator('.console-details > summary').click();
+  await expect(page.getByLabel('Generated console commands')).toBeVisible();
+  await page.locator('.export-advanced > summary').click();
+  if(testInfo.project.name==='mobile'){
+    const shortcuts=page.locator('.mobile-actions');
+    for(const name of ['Copy code','.cfg','Import'])await expect(shortcuts.getByRole('button',{name,exact:true})).toBeVisible();
+    await shortcuts.getByRole('button',{name:'Import',exact:true}).click();
+    await expect(page.getByLabel('Crosshair code or config')).toBeFocused();
+  }else await expect(page.locator('.mobile-actions')).toBeHidden();
+  await page.getByRole('button',{name:'Guide',exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.screenshot({path:testInfo.outputPath('consolidated-editor.png'),fullPage:true});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+});
+
+test('invalid hidden alias opens advanced export for correction',async({page})=>{
+  await page.addInitScript(()=>localStorage.setItem('delli.v3.alias',JSON.stringify('bad;quit')));
+  await page.goto('/');
+  await expect(page.locator('.export-advanced')).not.toHaveAttribute('open');
+  await page.getByRole('button',{name:'Download .cfg',exact:true}).click();
+  await expect(page.locator('.export-advanced')).toHaveAttribute('open','');
+  await expect(page.getByRole('textbox',{name:'Alias name'})).toBeFocused();
+  await expect(page.getByRole('textbox',{name:'Alias name'})).toHaveAttribute('aria-invalid','true');
 });

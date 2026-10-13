@@ -30,11 +30,11 @@ test('starting motion begins at rest regardless of the document timestamp',async
 test('estimated resolution uses reference height without changing exports',async({page})=>{
     for(const reference of [1080,2160]){
         await load(page,{cl_crosshairstyle:6,cl_crosshair_thickness:3,cl_crosshair_drawoutline:0,cl_crosshair_screen_height:reference});
-        const code=await page.getByLabel('Current CS2 share code').inputValue();
+        const code=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
         await page.getByLabel('Preview scale',{exact:true}).selectOption('1440');
         await expect.poll(async()=>Number(await page.locator('.map-preview canvas').getAttribute('data-scale'))).toBe(1440/reference);
         expect((await stats(page)).count).toBe(reference===1080?16:4);
-        await expect(page.getByLabel('Current CS2 share code')).toHaveValue(code);
+        await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
         await expect(page.getByText('Estimated target-resolution size; game-pixel calibration is pending.',{exact:true})).toBeVisible();
     }
 });
@@ -84,10 +84,10 @@ test('inspection warns about clipping and fit includes peak geometry', async ({ 
     await page.getByLabel('Inspection phase', { exact: true }).fill('1');
     await expect(page.locator('.map-preview canvas')).toHaveAttribute('data-clipped', 'true');
     await expect(page.getByText('Crosshair exceeds preview bounds.', { exact: false })).toBeVisible();
-    const code = await page.getByLabel('Current CS2 share code').inputValue();
+    const code = await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
     await page.getByLabel('Fit crosshair in preview').check();
     await expect(page.locator('.map-preview canvas')).toHaveAttribute('data-clipped', 'false');
-    await expect(page.getByLabel('Current CS2 share code')).toHaveValue(code);
+    await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
 });
 test('static dynamic mode stops drawing and reduced motion supports manual phase', async ({ page }) => {
     await load(page, { cl_crosshairstyle: 4 });
@@ -110,5 +110,5 @@ test('canvas context failure provides an export-safe fallback', async ({ page })
         return null; return (original as any).apply(this, args); } as any; });
     await page.goto('/');
     await expect(page.getByText('Canvas rendering is unavailable. Settings can still be exported.').first()).toBeVisible();
-    await expect(page.getByLabel('Current CS2 share code')).toHaveValue(/^CS/);
+    await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',/^CS/);
 });
