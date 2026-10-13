@@ -29,7 +29,7 @@ test('clipboard exports code, full links and autoexec shortcuts correctly',async
   await page.keyboard.press('Control+Enter');expect(await page.evaluate(()=>navigator.clipboard.readText())).toContain('cl_crosshairstyle');
 });
 test('restores a backup and rejects invalid settings',async({page})=>{
-  await page.goto('/');await page.getByLabel('Crosshair name',{exact:true}).fill('Backup green');await page.getByRole('button',{name:'Save to favorites',exact:true}).click();await page.getByRole('button',{name:'Open your library'}).click();
+  await page.goto('/');await page.getByLabel('Crosshair name',{exact:true}).fill('Backup green');await page.getByRole('button',{name:'Save to favorites',exact:true}).click();await page.getByRole('button',{name:'Library',exact:true}).click();
   const promise=page.waitForEvent('download');await page.getByRole('button',{name:'Export library'}).click();const download=await promise;
   const path=(await download.path())!;await page.getByRole('button',{name:'Remove Backup green'}).click();
   await page.getByLabel('Library backup file').setInputFiles(path);await expect(page.getByText('Backup green',{exact:true})).toBeVisible();
@@ -53,12 +53,12 @@ test('downloads a named config and validates alias injection',async({page})=>{
   await page.getByRole('textbox',{name:'Alias name'}).fill('bad;quit');await expect(page.getByRole('button',{name:'Copy autoexec shortcut',exact:true})).toBeDisabled();
 });
 test('library favorite, rename, search, load, remove and backup',async({page})=>{
-  await page.goto('/');await page.getByLabel('Crosshair name',{exact:true}).fill('Test green');await page.getByRole('button',{name:'Save to favorites',exact:true}).click();await page.getByRole('button',{name:'Open your library'}).click();
+  await page.goto('/');await page.getByLabel('Crosshair name',{exact:true}).fill('Test green');await page.getByRole('button',{name:'Save to favorites',exact:true}).click();await page.getByRole('button',{name:'Library',exact:true}).click();
   await expect(page.getByText('Test green',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Rename Test green'}).click();await page.getByLabel('Rename crosshair').fill('Team reticle');await page.getByLabel('Rename crosshair').press('Enter');
   await page.getByLabel('Search crosshairs').fill('Team');await expect(page.getByText('Team reticle',{exact:true})).toBeVisible();
   const promise=page.waitForEvent('download');await page.getByRole('button',{name:'Export library'}).click();const download=await promise;expect(download.suggestedFilename()).toBe('delli-crosshair-library.json');
   await page.getByRole('button',{name:'Load',exact:true}).click();await expect(page.getByRole('dialog')).not.toBeVisible();
-  await page.getByRole('button',{name:'Open your library'}).click();await page.getByRole('button',{name:'Remove Team reticle'}).click();await expect(page.getByText('Your collection starts here.')).toBeVisible();
+  await page.getByRole('button',{name:'Library',exact:true}).click();await page.getByRole('button',{name:'Remove Team reticle'}).click();await expect(page.getByText('Your collection starts here.')).toBeVisible();
 });
 test('full links preserve extra settings, compatibility routes and missing routes',async({page})=>{
   await page.goto('/?code='+original);await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
@@ -71,4 +71,56 @@ test('maps, zoom and accessible dynamic preview work',async({page})=>{
   await page.goto('/');await page.getByRole('button',{name:'Next map'}).click();await expect(page.getByText('Nuke',{exact:true})).toBeVisible();await page.getByRole('button',{name:'4x preview zoom'}).click();
   await expect(page.getByRole('button',{name:'4x preview zoom'})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'Start Dynamic Preview'}).click();await expect(page.getByRole('button',{name:'Stop Dynamic Preview'})).toBeVisible();
   await page.getByLabel('Preview mode',{exact:true}).selectOption('scope');await expect(page.getByRole('img',{name:'Scope dot preview'})).toBeVisible();
+});
+
+test('save action above preview persists a favorite without overwriting it while editing',async({page},testInfo)=>{
+  await page.goto('/');
+  const bar=page.locator('.library-save-bar');
+  await expect(bar.getByRole('button',{name:'Save to favorites',exact:true})).toBeInViewport();
+  await expect(page.getByRole('button',{name:'Library',exact:true})).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Library',exact:true})).toBeInViewport();
+  await page.getByLabel('Crosshair name',{exact:true}).fill('Match crosshair');
+  await bar.getByRole('button',{name:'Save to favorites',exact:true}).click();
+  await expect(bar).toContainText('Saved as Match crosshair');
+  await page.reload();await expect(bar).toContainText('Saved as Match crosshair');
+  await page.screenshot({path:testInfo.outputPath('library-save.png'),fullPage:false});
+  await page.getByLabel('Style',{exact:true}).selectOption('6');
+  await expect(bar).not.toContainText('Saved as Match crosshair');
+  await page.getByRole('button',{name:'Library',exact:true}).click();
+  await expect(page.getByText('Match crosshair',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Load',exact:true}).click();
+  await expect(bar).toContainText('Saved as Match crosshair');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+});
+
+test('integrated code field updates live and preserves pending imports',async({page},testInfo)=>{
+  await page.goto('/');
+  const field=page.getByLabel('Crosshair code or config',{exact:true});
+  const panel=page.getByRole('region',{name:'Crosshair preview',exact:true});
+  await expect(panel.getByLabel('Crosshair code or config',{exact:true})).toBeVisible();
+  const before=await field.inputValue();
+  await expect(field).toHaveValue(await page.getByLabel('Current CS2 share code').inputValue());
+  const length=page.getByRole('spinbutton',{name:'Length',exact:true});
+  await length.fill('12');await length.blur();
+  await expect(field).not.toHaveValue(before);
+  const updated=await field.inputValue();
+  await expect(field).toHaveValue(await page.getByLabel('Current CS2 share code').inputValue());
+  await page.reload();await expect(field).toHaveValue(updated);
+  await field.fill(original);
+  await page.getByLabel('Style',{exact:true}).selectOption('6');
+  await expect(field).toHaveValue(original);
+  await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
+  await expect(field).toHaveValue(original);
+  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
+  await field.fill('CSinvalid');await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(original);
+  await page.getByRole('button',{name:'Use current code',exact:true}).click();
+  await expect(field).toHaveValue(original);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await field.fill(updated);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
+  await expect(length).toHaveValue('12');
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:testInfo.outputPath('integrated-code.png')});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
 });

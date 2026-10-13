@@ -60,7 +60,7 @@ test('matrix: numeric bounds, slider synchronization, clipboard paste, code reje
   await page.getByLabel('Show Player Crosshairs',{exact:true}).selectOption('0');await expect(page.getByLabel('Show my crosshair when spectating bots',{exact:true})).toHaveCount(0);
   await page.getByLabel('Show Player Crosshairs',{exact:true}).selectOption('2');await page.getByLabel('Show my crosshair when spectating bots',{exact:true}).selectOption('2');
   const code=await page.getByLabel('Current CS2 share code').inputValue();await page.getByRole('button',{name:'Copy crosshair code',exact:true}).click();await page.getByRole('button',{name:'Share or Import',exact:true}).click();
-  await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();await expect(page.getByLabel('Crosshair code or config')).toHaveValue(code);
+  await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();await expect(page.getByLabel('Crosshair code or config')).toHaveValue(code);await expect(page.getByRole('button',{name:'Use current code',exact:true})).toBeEnabled();
   for(const invalid of ['CSINVALID','cl_crosshair_length 999','quit','cl_crosshair_thickness 1.5']){await page.getByLabel('Crosshair code or config').fill(invalid);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();await expect(page.getByLabel('Current CS2 share code')).toHaveValue(code);}
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
   await importText(page,'cl_crosshair_thickness 1; quit');await expect(page.getByRole('spinbutton',{name:'Thickness',exact:true})).toHaveValue('1');
