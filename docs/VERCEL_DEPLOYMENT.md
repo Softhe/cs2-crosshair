@@ -52,7 +52,7 @@ Report real Steam sign-in and two-browser persistence separately from mocked bro
 
 The `softhe` team owns the `delli-crosshair` project. Its Vercel production address is https://delli-crosshair-five.vercel.app. The `delli-crosshair-preview` Neon resource is connected only to Preview and Development. The separate `delli-crosshair-production` resource is connected only to Production. Both schemas have been migrated. Local environment and protection-bypass files are ignored by Git and deployment uploads.
 
-Production uses `PUBLIC_ORIGIN=https://delli-crosshair-five.vercel.app`. Preview derives its origin from `VERCEL_URL`. The existing `delli.cc` DNS and GitHub Pages deployment are unchanged.
+Production uses `PUBLIC_ORIGIN=https://delli.cc`. Preview derives its origin from `VERCEL_URL`. The existing `delli.cc` DNS and GitHub Pages deployment are unchanged.
 
 Runtime imports inside `server/` and `api/` use `.js` extensions so the emitted Node functions resolve them. Explicit Steam sign-in, callback, and logout route files cover nested API paths alongside the shared catchall adapter.
 
@@ -64,3 +64,6 @@ Run `npm run verify:vercel-preview` with the preview database environment and an
 ## Main branch release and custom domain
 
 The main branch now targets Vercel through its GitHub integration. GitHub Actions remains the verification workflow; automatic GitHub Pages publishing is retired to avoid competing releases. Historical Pages configuration remains recoverable from Git history. The public custom domain is `delli.cc`. Cloudflare DNS must complete the Vercel Domain Connect change before the domain can serve this backend. After DNS verification, production `PUBLIC_ORIGIN` must be updated to `https://delli.cc` and the production deployment rebuilt. Verify the session API and Steam callback on the custom domain before declaring cutover complete.
+
+
+Custom-domain cutover completed on 2026-10-15. Cloudflare Domain Connect replaced the four GitHub Pages apex A records and one apex AAAA record with the project-specific Vercel CNAME and added its verification TXT record. Vercel verified the domain. Nameservers and unrelated records were retained. Public production origin is now `https://delli.cc`.
