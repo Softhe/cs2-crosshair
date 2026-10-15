@@ -40,22 +40,26 @@ export function renderingSettings(s: Settings): RenderingSettings { return Objec
 export const motionEligible = (s: Settings, mode: PreviewMode) => mode === 'crosshair' && (!!s.cl_crosshair_recoil || [2,5].includes(s.cl_crosshairstyle) || ([0,1,7].includes(s.cl_crosshairstyle) && s.cl_crosshair_dynamic_spread_limit>0));
 // CSS-pixel editor geometry. Game-resolution calibration remains separate.
 export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase = 0, elapsed = 0, inspectSplit = false): Geometry {
-    const shapes: Shape[] = [], style = s.cl_crosshairstyle, t = s.cl_crosshair_thickness, half = t / 2;
+    const shapes: Shape[] = [], style = s.cl_crosshairstyle, t = s.cl_crosshair_thickness;
+    // The game enforces a 1px minimum even when thickness is 0 (see vendor
+    // legacy.js/community.js width=max(1,...)). Mirror that so a 0-thickness
+    // crosshair previews as a hairline instead of vanishing.
+    const drawT = t <= 0 ? 1 : t, half = drawT / 2;
     const spread = simulatedSpread(style, s.cl_crosshair_dynamic_spread_limit, phase), gap = s.cl_crosshair_gap / 2 + spread, length = s.cl_crosshair_length;
     const outline = mode === 'crosshair' ? s.cl_crosshair_drawoutline : 0;
-    const offset: Geometry['offset'] = mode === 'crosshair' && s.cl_crosshair_recoil ? [Math.round(Math.sin(elapsed / 250) * phase * 3), -Math.round(phase * 7)] : [0, 0];
+    const offset: Geometry['offset'] = mode === 'crosshair' && s.cl_crosshair_recoil ? [Math.round(Math.sin(elapsed / 550) * phase * 3), -Math.round(phase * 7)] : [0, 0];
     const rect = (x: number, y: number, width: number, height: number, alpha = 1) => { if (width > 0 && height > 0 && alpha > 0)
         shapes.push({ kind: 'rect', x, y, width, height, alpha }); };
-    const arc = (radius: number, start = 0, end = Math.PI * 2) => { if (t > 0 && end > start)
-        shapes.push({ kind: 'arc', radius: Math.max(0, radius), start, end, thickness: t, alpha: 1 }); };
+    const arc = (radius: number, start = 0, end = Math.PI * 2) => { if (end > start)
+        shapes.push({ kind: 'arc', radius: Math.max(0, radius), start, end, thickness: drawT, alpha: 1 }); };
     if (mode === 'scope')
         shapes.push({ kind: 'disc', radius: s.cl_ironsight_dot_scale * 1.5, alpha: 1 });
     else {
         if ([0, 2, 4, 5, 7].includes(style)) {
             const split = style === 2 && (inspectSplit || spread > s.cl_crosshair_dynamic_splitdist);
             const inner = split ? Math.round(length * (1 - s.cl_crosshair_dynamic_maxdist_splitratio)) : length;
-            const arms = (distance: number, size: number, alpha: number) => { rect(-distance - size, -half, size, t, alpha); rect(distance, -half, size, t, alpha); rect(-half, distance, t, size, alpha); if (!s.cl_crosshair_t)
-                rect(-half, -distance - size, t, size, alpha); };
+            const arms = (distance: number, size: number, alpha: number) => { rect(-distance - size, -half, size, drawT, alpha); rect(distance, -half, size, drawT, alpha); rect(-half, distance, drawT, size, alpha); if (!s.cl_crosshair_t)
+                rect(-half, -distance - size, drawT, size, alpha); };
             arms(gap, inner, split ? s.cl_crosshair_dynamic_splitalpha_innermod : 1);
             if (split)
                 arms(gap + inner + s.cl_crosshair_dynamic_splitdist, length - inner, s.cl_crosshair_dynamic_splitalpha_outermod);
@@ -64,20 +68,22 @@ export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase =
             arc((style === 1 ? 4 : Math.max(0, gap)) + half + (style === 1 ? spread : 0));
         if (style === 8) {
             const r = Math.max(0, gap);
-            rect(-r - t, -r - t, r * 2 + t * 2, t);
-            rect(-r - t, r, r * 2 + t * 2, t);
-            rect(-r - t, -r, t, r * 2);
-            rect(r, -r, t, r * 2);
+            rect(-r - drawT, -r - drawT, r * 2 + drawT * 2, drawT);
+            rect(-r - drawT, r, r * 2 + drawT * 2, drawT);
+            rect(-r - drawT, -r, drawT, r * 2);
+            rect(r, -r, drawT, r * 2);
         }
         if ([7, 9].includes(style)) {
-            const radius = Math.max(2, gap + t + 2), ratio = style === 9 ? s.cl_crosshair_dynamic_maxdist_splitratio : .65;
+            // Style 9 reuses the split-ratio cvar as arc length. Clamp the preview
+            // so ratio 0 does not vanish and ratio 1 does not become a full circle.
+            const radius = Math.max(2, gap + drawT + 2), ratio = style === 9 ? Math.min(.95, Math.max(.05, s.cl_crosshair_dynamic_maxdist_splitratio)) : .65;
             for (let i = 0; i < 4; i++) {
                 const mid = Math.PI / 4 + i * Math.PI / 2;
                 arc(radius, mid - Math.PI / 4 * ratio, mid + Math.PI / 4 * ratio);
             }
         }
         if (s.cl_crosshairdot || style === 6)
-            rect(-half, -half, t, t);
+            rect(-half, -half, drawT, drawT);
     }
     const bounds: Geometry['bounds'] = [Infinity, Infinity, -Infinity, -Infinity];
     for (const shape of shapes) {

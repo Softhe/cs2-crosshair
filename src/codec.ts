@@ -40,8 +40,29 @@ export function encode(s: Settings): string {
   return 'CS'+pack(b,44);
 }
 export type Decoded = {settings: Settings; legacy: boolean; note?: string};
+function extractCode(input: string): string {
+  const trimmed = input.trim();
+  if (/^CS[A-Za-z0-9]{44}$/.test(trimmed) || /^CSGO(-[A-Za-z0-9]{5}){5}$/.test(trimmed)) return trimmed;
+  // Accept pasted share links / URLs such as https://host/?code=CS...&settings=...
+  // or https://host/CS... so users can paste what "Copy link" produces.
+  const urlMatch = /https?:\/\/[^\s]+/.exec(trimmed);
+  const candidate = urlMatch ? urlMatch[0] : trimmed;
+  try {
+    const url = new URL(candidate, 'https://example.invalid');
+    for (const key of ['code', 'crosshair']) {
+      const value = url.searchParams.get(key);
+      if (value && (/^CS[A-Za-z0-9]{44}$/.test(value.trim()) || /^CSGO(-[A-Za-z0-9]{5}){5}$/.test(value.trim()))) return value.trim();
+    }
+    const path = url.pathname.split('/').filter(Boolean).pop() ?? '';
+    const decodedPath = decodeURIComponent(path);
+    if (/^CS[A-Za-z0-9]{44}$/.test(decodedPath) || /^CSGO(-[A-Za-z0-9]{5}){5}$/.test(decodedPath)) return decodedPath;
+  } catch { /* fall through to substring search */ }
+  const embedded = trimmed.match(/CS[A-Za-z0-9]{44}|CSGO(?:-[A-Za-z0-9]{5}){5}/);
+  if (embedded) return embedded[0];
+  return trimmed;
+}
 export function decode(input: string, legacyHeight=1080): Decoded {
-  const code=input.trim();
+  const code=extractCode(input);
   if(/^CS[A-Za-z0-9]{44}$/.test(code)) {
     const b=unpack(code.slice(2),32);const view=new DataView(b.buffer);
     if(b[1]!==1) throw Error('This CS code uses an unsupported format version.');
@@ -67,8 +88,12 @@ export function decode(input: string, legacyHeight=1080): Decoded {
     s.cl_crosshairstyle=b[2]&15;s.cl_crosshair_recoil=(b[2]>>4)&1;s.cl_crosshairdot=(b[2]>>6)&1;s.cl_crosshair_t=b[2]>>7;
     ['r','g','b','a'].forEach((c,i)=>s[`cl_crosshaircolor_${c}`]=b[3+i]);
     s.cl_crosshair_gap=b[7];s.cl_crosshair_length=b[8];s.cl_crosshair_dynamic_spread_limit=b[9];
-    s.cl_crosshair_dynamic_splitdist=bits&127;s.cl_crosshair_dynamic_splitalpha_innermod=((bits>>>7)&31)/20;
-    s.cl_crosshair_dynamic_splitalpha_outermod=(((bits>>>12)&15)+6)/20;s.cl_crosshair_dynamic_maxdist_splitratio=((bits>>>16)&127)/100;
+    // Bit fields can represent values slightly outside the editor UI ranges
+    // (e.g. inner 31/20=1.55). Clamp to the validated ranges so genuine game
+    // codes import instead of throwing in validateSettings().
+    const clampStep=(value:number,min:number,max:number,step:number)=>Number((Math.min(max,Math.max(min,value))/step).toFixed(6))*step;
+    s.cl_crosshair_dynamic_splitdist=bits&127;s.cl_crosshair_dynamic_splitalpha_innermod=Number(clampStep(((bits>>>7)&31)/20,0,1,.01).toFixed(2));
+    s.cl_crosshair_dynamic_splitalpha_outermod=Number(clampStep((((bits>>>12)&15)+6)/20,.3,1,.01).toFixed(2));s.cl_crosshair_dynamic_maxdist_splitratio=Number(clampStep(((bits>>>16)&127)/100,0,1,.01).toFixed(2));
     s.cl_crosshair_thickness=(bits>>>23)&31;s.cl_crosshair_drawoutline=b[1]===4?(b[13]>>4)&3:(b[2]>>5)&1;s.cl_crosshair_screen_height=view.getUint16(14,true);
     return {settings:validateSettings(s),legacy:true,note:'Imported a September CSGO code. Outline color and scope dot settings were absent and use defaults.'};
   }

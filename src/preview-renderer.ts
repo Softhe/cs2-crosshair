@@ -4,7 +4,11 @@ export type RenderStatus = {
     clipped: boolean;
     scale: number;
 };
-export function fitScale(b: Geometry['bounds'], width: number, height: number, requested: number) { return Math.min(requested, Math.max(1, width - 16) / Math.max(1, 2 * Math.max(Math.abs(b[0]), Math.abs(b[2]))), Math.max(1, height - 16) / Math.max(1, 2 * Math.max(Math.abs(b[1]), Math.abs(b[3])))); }
+export function fitScale(b: Geometry['bounds'], width: number, height: number, requested: number) {
+    // Fit the actual asymmetric extent (T-style has no top arm) instead of
+    // doubling the larger centered side, which over-shrank such crosshairs.
+    return Math.min(requested, Math.max(1, width - 16) / Math.max(1, b[2] - b[0]), Math.max(1, height - 16) / Math.max(1, b[3] - b[1]));
+}
 
 function snapInterval(start: number, length: number, unit: number, center: number): [number, number] {
     let pixels = Math.max(1, Math.round(length * unit));
@@ -68,7 +72,7 @@ export function createPreviewRenderer(canvas: HTMLCanvasElement, context: Canvas
                 ctx.arc(x0 + shift, y0 + shift, shape.radius * unit, shape.start, shape.end);
             }
             }
-            if (shapes[0].kind === 'arc') ctx.stroke();
+            if (shapes.some(shape => shape.kind === 'arc')) ctx.stroke();
             const pixels = ctx.getImageData(0, 0, w, h).data, coverage = outline ? edge : fg;
             for (let i = 0; i < coverage.length; i++)
                 coverage[i] = Math.max(coverage[i], pixels[i * 4 + 3] / 255 * shapes[0].alpha);
