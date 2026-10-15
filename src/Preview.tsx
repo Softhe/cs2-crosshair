@@ -58,10 +58,11 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
             const visual = renderingSettings(p.settings);
             const geometry = previewGeometry(visual, p.mode, phaseNow, elapsed, p.inspectSplit), peak = previewGeometry(visual, p.mode, p.dynamic ? 1 : p.phase, 0, p.inspectSplit);
             if (p.dynamic && p.mode === 'crosshair' && p.settings.cl_crosshair_recoil) {
+                // Recoil offset is [±3, -7] at peak phase (y depends only on
+                // phase, x on sin(elapsed)). Peak geometry at elapsed=0 already
+                // contains the -7 shift, so only the ±3 wobble needs padding.
                 peak.bounds[0] -= 3;
                 peak.bounds[2] += 3;
-                peak.bounds[1] -= 7;
-                peak.bounds[3] += 7;
             }
             // Optional estimated game-pixel size, converted to CSS pixels at the current DPR.
             // This mapping is explicitly uncalibrated against game captures.

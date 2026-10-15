@@ -9,7 +9,7 @@ export function validateLibrary(value:unknown):Saved[]{
   return value.map((item)=>{
     if(!item||typeof item!=='object'||typeof item.name!=='string'||!item.name.trim()||item.name.length>80||typeof item.favorite!=='boolean')throw Error('Invalid library entry.');
     const id=typeof item.id==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(item.id)&&!ids.has(item.id)?item.id:crypto.randomUUID();ids.add(id);
-    return {id,name:item.name,alias:safeAlias(typeof item.alias==='string'?item.alias:''),favorite:item.favorite,date:typeof item.date==='string'?item.date:new Date().toISOString(),settings:validateSettings(item.settings)};
+    return {id,name:item.name,alias:safeAlias(typeof item.alias==='string'?item.alias:''),favorite:item.favorite,date:typeof item.date==='string'&&item.date.length>0&&item.date.length<=64?item.date:new Date().toISOString(),settings:validateSettings(item.settings)};
   });
 }
 
