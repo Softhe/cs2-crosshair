@@ -7,14 +7,16 @@ for (const dpr of [1, 1.25, 2]) test(`rectangular crosshairs keep mirrored pixel
   await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
   try {
     await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, cl_crosshairstyle: 4, cl_crosshair_recoil: 0, cl_crosshair_drawoutline: 1 })));
+    await page.getByRole('button', {name:'Preview settings',exact:true}).click();
     await page.getByLabel('Preview scale', { exact: true }).selectOption('1440');
+    await page.getByRole('button', {name:'Close dialog'}).click();
     for (const thickness of [1, 2, 3]) for (const gap of [-9, 0, 5]) for (const zoom of [1, 4]) {
       await page.getByLabel('Thickness', { exact: true }).fill(String(thickness));
       await page.getByLabel('Thickness', { exact: true }).press('Enter');
       await page.getByLabel('Gap', { exact: true }).fill(String(gap));
       await page.getByLabel('Gap', { exact: true }).press('Enter');
       await page.getByRole('button', { name: `${zoom}x preview zoom` }).click();
-      await expect.poll(() => page.locator('.map-preview canvas').evaluate(element => {
+      await expect.poll(() => page.locator('.map-preview > canvas').evaluate(element => {
         const canvas = element as HTMLCanvasElement;
         const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
         let left = canvas.width, right = -1, top = canvas.height, bottom = -1;

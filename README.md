@@ -69,6 +69,25 @@ The preview is a browser approximation. Dynamic movement, recoil, quadrant geome
 - [Share-code protocol](docs/PROTOCOL.md)
 - [Third-party notices](docs/THIRD_PARTY.md)
 
-GitHub Actions tests the site before deploying `main` to GitHub Pages at `delli.cc`. The replacement is a normal commit, so the previous source remains in Git history.
+GitHub Actions verifies changes on `main`. Vercel deploys the frontend and Steam/library API from the connected repository. Previous GitHub Pages configuration remains recoverable in Git history.
 
 Counter-Strike and the map preview assets belong to Valve. This project is independent and is not endorsed by Valve. No separate license for the project's source code is declared.
+
+## Steam sign-in and private library sync
+
+The editor works without an account. Native CS2 codes apply immediately when pasted; config and legacy imports remain explicit. Library is a main view with names or player nicknames, selected previews, direct code copying, backup and restore. Editing a saved crosshair creates a draft; use Update saved crosshair or Save as new explicitly.
+
+For the complete local application, use Node.js 24 or newer:
+
+```sh
+npm run build
+npm start
+```
+
+Open http://127.0.0.1:4181. This serves the frontend and Steam/library API from the same origin. Steam sign-in uses OpenID and does not require a Steam Web API key. Authentication happens on Steam; the app stores a private favorite library under the verified Steam identity. Only saved names and settings synchronize. Local drafts, recent imports, aliases, and appearance preferences do not.
+
+The SQLite file is `data/library.sqlite`; preserve and back it up when deploying. Pending account changes are durably cached in browser storage and retried after connectivity returns. First login offers an explicit merge of the device's guest favorites; it never silently uploads them. Concurrent divergent edits retain both versions rather than silently overwriting one.
+
+GitHub Pages can only host the static editor and cannot run this backend. Production Steam login requires an HTTPS same-origin backend, supplied by Vercel Functions in the configured deployment or by the local Node service behind a reverse proxy. Set `PUBLIC_ORIGIN` to the exact stable public origin. Do not publish the SQLite file, environment files, or server sources as static assets. See [library sync](docs/LIBRARY_SYNC.md) for configuration, privacy, verification, and deployment details.
+
+Vercel hosting is configured under the `softhe` team with separate Neon databases for preview and production. The Node API runs as Vercel Functions and keeps durable sessions and favorites in Postgres. See [Vercel deployment](docs/VERCEL_DEPLOYMENT.md) for environment setup, verification, and the boundary between the Vercel address and the existing `delli.cc` site.

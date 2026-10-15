@@ -7,7 +7,7 @@ test('odd-width center dots remain concentric with square and circle at every zo
   await page.getByLabel('Outline',{exact:true}).selectOption('0');
   await page.getByLabel('Gap',{exact:true}).fill('6');
   await page.getByLabel('Gap',{exact:true}).press('Enter');
-  const bounds=async()=>page.locator('.map-preview canvas').evaluate((element)=>{
+  const bounds=async()=>page.locator('.map-preview > canvas').evaluate((element)=>{
     const canvas=element as HTMLCanvasElement;
     const data=canvas.getContext('2d')!.getImageData(0,0,canvas.width,canvas.height).data;
     let left=canvas.width,right=-1,top=canvas.height,bottom=-1;

@@ -4,3 +4,16 @@ dist/
 research/
 test-results/
 playwright-report/
+
+data/
+.env
+.env.*
+!.env.example
+
+.vercel/
+
+.vercel
+
+.agents/skills/neon/
+.agents/skills/neon-postgres/
+skills-lock.json

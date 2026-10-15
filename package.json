@@ -8,12 +8,22 @@
     "build": "tsc --noEmit && vite build && node scripts/pages-fallback.mjs",
     "test": "tsx --test tests/*.test.ts",
     "check": "npm test && npm run build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "api": "tsx server/index.ts",
+    "start": "tsx server/index.ts",
+    "test:server": "tsx --test tests/server*.test.ts",
+    "verify:library-fullstack": "tsx scripts/verify-library-fullstack.ts",
+    "db:migrate": "node --env-file=.env.local --import tsx scripts/migrate-database.ts",
+    "verify:neon": "node --env-file=.env.local --import tsx scripts/verify-neon.ts",
+    "verify:vercel-preview": "node --env-file=.env.local --import tsx scripts/verify-vercel-preview.ts"
   },
-  "overrides": { "esbuild": "0.28.2" },
+  "overrides": {
+    "esbuild": "0.28.2"
+  },
   "dependencies": {
     "@fontsource/inter": "5.2.8",
     "@fontsource/jetbrains-mono": "5.2.8",
+    "@neondatabase/serverless": "1.2.0",
     "lucide-react": "0.468.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
@@ -27,5 +37,8 @@
     "tsx": "4.21.0",
     "typescript": "5.9.3",
     "vite": "8.3.2"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }

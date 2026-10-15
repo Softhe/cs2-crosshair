@@ -5,8 +5,12 @@ export function write(key:string,value:unknown):boolean {try{localStorage.setIte
 export function limitLibrary(entries:Saved[]):Saved[]{return [...entries.filter(item=>item.favorite).slice(0,50),...entries.filter(item=>!item.favorite).slice(0,20)];}
 export function validateLibrary(value:unknown):Saved[]{
   if(!Array.isArray(value)||value.length>70)throw Error('A library may contain up to 70 crosshairs.');
+  const ids=new Set<string>();
   return value.map((item)=>{
     if(!item||typeof item!=='object'||typeof item.name!=='string'||!item.name.trim()||item.name.length>80||typeof item.favorite!=='boolean')throw Error('Invalid library entry.');
-    return {id:crypto.randomUUID(),name:item.name,alias:safeAlias(typeof item.alias==='string'?item.alias:''),favorite:item.favorite,date:typeof item.date==='string'?item.date:new Date().toISOString(),settings:validateSettings(item.settings)};
+    const id=typeof item.id==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(item.id)&&!ids.has(item.id)?item.id:crypto.randomUUID();ids.add(id);
+    return {id,name:item.name,alias:safeAlias(typeof item.alias==='string'?item.alias:''),favorite:item.favorite,date:typeof item.date==='string'?item.date:new Date().toISOString(),settings:validateSettings(item.settings)};
   });
 }
+
+export function settingsKey(settings:Settings):string {return JSON.stringify(Object.keys(settings).sort().map(key=>[key,settings[key as keyof Settings]]));}

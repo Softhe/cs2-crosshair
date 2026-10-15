@@ -1,0 +1,16 @@
+.agents
+.skills
+skills-lock.json
+.tools
+research
+data
+node_modules
+dist
+test-results
+playwright-report
+.env*
+.vercel
+.git
+docs
+e2e
+tests

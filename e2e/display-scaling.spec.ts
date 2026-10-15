@@ -11,7 +11,7 @@ for (const dpr of [1, 2]) test(`1440p display mapping and page centering at DPR 
   try {
     const settings = { ...defaults, cl_crosshairstyle: 6, cl_crosshair_thickness: 3, cl_crosshair_drawoutline: 0 };
     await page.goto('/?settings=' + encodeURIComponent(JSON.stringify(settings)));
-    const canvas = page.locator('.map-preview canvas');
+    const canvas = page.locator('.map-preview > canvas');
     await expect.poll(() => canvas.evaluate(element => {
       const rect = element.getBoundingClientRect();
       return Math.abs(rect.left + rect.width / 2 - document.documentElement.getBoundingClientRect().width / 2);
@@ -34,6 +34,7 @@ for (const dpr of [1, 2]) test(`1440p display mapping and page centering at DPR 
     await expect.poll(async () => (await pixels()).width).toBe(8);
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
     await page.getByRole('button', { name: '1x preview zoom' }).click();
+    await page.getByRole('button', {name:'Preview settings',exact:true}).click();
     const displayHeight = page.getByLabel('Display height in physical pixels');
     await displayHeight.fill('');
     await expect(displayHeight).toHaveValue('');
@@ -49,6 +50,7 @@ for (const dpr of [1, 2]) test(`1440p display mapping and page centering at DPR 
     await displayHeight.press('Enter');
     await expect(displayHeight).toHaveValue('2160');
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
+    await page.getByRole('button', {name:'Close dialog'}).click();
     await page.getByRole('button', { name: 'Fullscreen game-size preview' }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.className)).toBe('map-preview');
     await expect.poll(() => canvas.evaluate(element => {
