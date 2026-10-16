@@ -41,7 +41,18 @@ export function encode(s: Settings): string {
 }
 export type Decoded = {settings: Settings; legacy: boolean; note?: string};
 export function decode(input: string, legacyHeight=1080): Decoded {
-  const code=input.trim();
+  const text=input.trim();
+  if(/^https?:\/\//i.test(text)) {
+    const url=new URL(text);
+    const shared=url.searchParams.get('code')??url.searchParams.get('crosshair')??(url.pathname.startsWith('/CS')?url.pathname.slice(1):null);
+    const complete=url.searchParams.get('settings');
+    if(!shared&&!complete)throw Error('This link does not contain crosshair settings.');
+    if(shared&&!shared.startsWith('CS'))throw Error('This link does not contain a supported crosshair code.');
+    const parsed=shared?decode(shared,legacyHeight):null;
+    if(complete){const settings=validateSettings(JSON.parse(complete));if(parsed&&encode(settings)!==encode(parsed.settings))throw Error('The link contains conflicting crosshair settings.');return {settings,legacy:parsed?.legacy??false,note:parsed?.note};}
+    return parsed!;
+  }
+  const code=text;
   if(/^CS[A-Za-z0-9]{44}$/.test(code)) {
     const b=unpack(code.slice(2),32);const view=new DataView(b.buffer);
     if(b[1]!==1) throw Error('This CS code uses an unsupported format version.');
