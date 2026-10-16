@@ -55,12 +55,14 @@ test('production refuses ephemeral fallback and requires an explicit HTTPS origi
 
 test('Node handler accepts Vercel parsed JSON and redacts database failures',async()=>{
   const store=createSqliteStore(':memory:');const id='opaque-session',csrf='test-csrf';
-  await store.addSession({id:createHash('sha256').update(id).digest('hex'),owner:'account-a',csrf,expires:Date.now()+60000});
-  const handler=createHandler({store});
+  let t=Date.now();
+  await store.addSession({id:createHash('sha256').update(id).digest('hex'),owner:'account-a',csrf,expires:t+3600000});
+  const handler=createHandler({store,now:()=>t});
   const server=createServer((req,res)=>{if(req.method==='PUT')(req as IncomingMessage&{body:unknown}).body={revision:0,entries:[]};void handler(req,res);});
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
   try{
     const response=await fetch(base+'/api/library',{method:'PUT',headers:{Cookie:`delli_session=${id}`,Origin:'http://127.0.0.1:4181','X-CSRF-Token':csrf,'Content-Type':'application/json'}});assert.equal(response.status,200);assert.deepEqual(await response.json(),{revision:1,entries:[]});
+    t+=6*60*1000;
     store.cleanup=async()=>{throw Error('postgres://sensitive-user:secret-password@private-host/database');};
     const failure=await fetch(base+'/api/session');assert.equal(failure.status,400);assert.ok(!(await failure.text()).includes('secret-password'));
   }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));await handler.close();}
