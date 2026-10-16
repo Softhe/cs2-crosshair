@@ -48,18 +48,19 @@ export function useLibrarySync(guestLibrary:Saved[],setGuestLibrary:Dispatch<Set
   const guestRef=useRef(guestLibrary);useEffect(()=>{guestRef.current=guestLibrary;},[guestLibrary]);
   const fail=(cause:unknown)=>{setError(syncErrorMessage(cause));setStatus('error');};
   const [user,setUser]=useState<{steamId:string}|null>(null),[status,setStatus]=useState<SyncStatus>('loading'),[accountLibrary,setAccountLibrary]=useState<Saved[]>([]);
+  const [syncing,setSyncing]=useState(false);
   const [tick,setTick]=useState(0);const csrf=useRef(''),active=useRef<string|null>(null),queue=useRef<Queue|null>(null),generation=useRef(0),busy=useRef(false);
   const publish=(q:Queue)=>setAccountLibrary([...saved(q.entries),...q.history]);
   async function synchronize(id:string,epoch:number){
-    if(busy.current)return;busy.current=true;
+    if(busy.current)return false;busy.current=true;setSyncing(true);
     try{
       const sessionResponse=await fetch('/api/session',{credentials:'same-origin'});if(!sessionResponse.ok)throw Error('Session unavailable.');const session=await sessionResponse.json();if(generation.current!==epoch||active.current!==id)return;
-      if(session.user?.steamId!==id){generation.current++;active.current=null;queue.current=null;setUser(null);setAccountLibrary([]);setStatus('loading');setTick(t=>t+1);return;}csrf.current=session.csrfToken;
+      if(session.user?.steamId!==id){generation.current++;active.current=null;queue.current=null;setUser(null);setAccountLibrary([]);setSyncing(false);setStatus('loading');setTick(t=>t+1);return;}csrf.current=session.csrfToken;
       const response=await fetch('/api/library',{credentials:'same-origin',headers:{'X-CSRF-Token':csrf.current}});if(!response.ok)throw Error('Library unavailable.');const remote=validateSnapshot(await response.json());if(generation.current!==epoch||active.current!==id)return;
       let q=queue.current??{base:remote,entries:remote.entries,history:[]};const disk=restoreQueue(id);if(disk)q={base:disk.base,entries:mergeConflict(q.base.entries,q.entries,disk.entries),history:disk.history};
       q={...q,entries:mergeConflict(q.base.entries,q.entries,remote.entries),base:remote};persistQueue(id,q);queue.current=q;publish(q);
       for(let attempt=0;attempt<3;attempt++){
-        if(JSON.stringify(q.entries)===JSON.stringify(q.base.entries)){setError(null);setStatus('synced');return;}
+        if(JSON.stringify(q.entries)===JSON.stringify(q.base.entries)){setError(null);setStatus('synced');return true;}
         setStatus('pending');const sent=q;const put=await fetch('/api/library',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf.current},body:JSON.stringify({revision:sent.base.revision,entries:sent.entries})});
         if(generation.current!==epoch||active.current!==id)return;
         if(!put.ok&&put.status!==409)throw Error('Library sync failed.');const latest=validateSnapshot(await put.json());
@@ -67,7 +68,7 @@ export function useLibrarySync(guestLibrary:Saved[],setGuestLibrary:Dispatch<Set
         q={base:latest,entries:mergeConflict(put.status===409?sent.base.entries:sent.entries,current.entries,latest.entries),history:current.history};persistQueue(id,q);queue.current=q;publish(q);
       }
       setStatus('pending');
-    }catch(cause){if(generation.current===epoch)fail(cause);}finally{busy.current=false;}
+    }catch(cause){if(generation.current===epoch)fail(cause);}finally{busy.current=false;if(generation.current===epoch)setSyncing(false);}
   }
   useEffect(()=>{
     const epoch=++generation.current;let disposed=false;
@@ -86,7 +87,7 @@ export function useLibrarySync(guestLibrary:Saved[],setGuestLibrary:Dispatch<Set
       const updated={...q,entries:cloudFavorites(next),history:next.filter(e=>!e.favorite).slice(0,20)};persistQueue(id,updated);queue.current=updated;publish(updated);setError(null);setStatus('pending');void synchronize(id,generation.current);return true;
     }catch(cause){fail(cause);return false;}
   };
-  async function signOut(){try{const response=await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf.current}});if(!response.ok){fail(Error('Sign out failed.'));return;}generation.current++;active.current=null;queue.current=null;setUser(null);setAccountLibrary([]);setError(null);setStatus('local');busy.current=false;}catch(cause){fail(cause);}}
+  async function signOut(){try{const response=await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf.current}});if(!response.ok){fail(Error('Sign out failed.'));return;}generation.current++;active.current=null;queue.current=null;setUser(null);setAccountLibrary([]);setError(null);setStatus('local');busy.current=false;setSyncing(false);}catch(cause){fail(cause);}}
   function mergeGuest(){if(!active.current||!queue.current)return false;try{return setLibrary(previous=>[...saved(mergeGuestFavorites(cloudFavorites(previous),cloudFavorites(guestLibrary))),...previous.filter(e=>!e.favorite)]);}catch(cause){fail(cause);return false;}}
-  return {user,status,error:status==='error'?error:null,canSync:available,available,library:user?accountLibrary:guestLibrary,setLibrary,mergeGuest,hasGuestFavorites:!!user&&hasUnmergedGuestFavorites(guestLibrary,accountLibrary),signIn:'/api/auth/steam',signOut,retry:()=>{const id=active.current;if(id)void synchronize(id,generation.current);else setTick(t=>t+1);}};
+  return {user,status,syncing,error:status==='error'?error:null,canSync:available,available,library:user?accountLibrary:guestLibrary,setLibrary,mergeGuest,hasGuestFavorites:!!user&&hasUnmergedGuestFavorites(guestLibrary,accountLibrary),signIn:'/api/auth/steam',signOut,retry:async()=>{const id=active.current;if(id)return await synchronize(id,generation.current);setTick(t=>t+1);return false;}};
 }

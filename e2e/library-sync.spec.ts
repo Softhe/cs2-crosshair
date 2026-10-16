@@ -158,3 +158,12 @@ test('mock API: a browser storage failure never reports a successful save',async
   await page.getByRole('button',{name:'Library',exact:true}).click();
   await expect(page.getByRole('button',{name:'Preview Unsaved favorite'})).toHaveCount(0);
 });
+
+test('manual sync shows progress, prevents duplicate clicks, and confirms completion',async({page})=>{
+  await mockApi(page,{signedIn:true});await page.goto('/?view=library');await expect(page.getByLabel('Library sync status')).toHaveText('Synced');
+  let release!:()=>void;const held=new Promise<void>(resolve=>release=resolve);
+  await page.route('**/api/library',async route=>{if(route.request().method()==='GET'){await held;await route.fulfill({json:{revision:0,entries:[]}});}else await route.fallback();});
+  await page.getByRole('button',{name:'Sync now',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Syncing…',exact:true})).toBeDisabled();await expect(page.getByLabel('Library sync status')).toHaveText('Syncing your library…');
+  release();await expect(page.getByRole('status')).toContainText('Library is up to date.');await expect(page.getByRole('button',{name:'Sync now',exact:true})).toBeEnabled();
+});
