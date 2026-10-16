@@ -2,7 +2,7 @@
 // Layout as described by patriqcs/cursed-crosshair-generator (MIT, commit fa88525,
 // public/js/sharecode.js); attribution: THIRD_PARTY_NOTICES.md. Independent implementation.
 // Both reference tools state the layout comes from the game binary; that is not verified here.
-import { ALPHABET } from './sharecode.js';
+import { ALPHABET, ALPHABET_INDEX } from './sharecode.js';
 
 export const CS_DIGITS = 44, CS_BYTES = 32, CS_VERSION = 1;
 
@@ -28,12 +28,12 @@ export function decodeCS(code) {
   code = code.trim();
   if (!/^CS[A-Za-z0-9]+$/.test(code)) throw new Error('Expected CS followed by 44 characters.');
   const digits = code.slice(2);
-  const bad = [...digits].find(ch => !ALPHABET.includes(ch));
+  const bad = [...digits].find(ch => !ALPHABET_INDEX.has(ch));
   if (bad) throw new Error(`Invalid share-code character: ${bad}.`);
   if (digits.length !== CS_DIGITS) throw new Error(`CS share code payload is not ${CS_BYTES} bytes: expected ${CS_DIGITS} characters ` +
     `after CS, got ${digits.length}.`);
   let n = 0n;
-  for (const ch of [...digits].reverse()) n = n * BigInt(ALPHABET.length) + BigInt(ALPHABET.indexOf(ch));
+  for (const ch of [...digits].reverse()) n = n * BigInt(ALPHABET.length) + BigInt(ALPHABET_INDEX.get(ch));
   if (n >> BigInt(CS_BYTES * 8)) throw new Error('CS share code overflows 32 bytes; it is damaged or mistyped.');
   const b = new Array(CS_BYTES);
   for (let i = CS_BYTES - 1; i >= 0; i--) { b[i] = Number(n & 255n); n >>= 8n; }

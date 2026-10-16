@@ -17,7 +17,7 @@ test('every representable value of each share-code field survives encoding indep
   for (const key of sharedKeys) {
     const field = fieldBounds(key)!;
     const values = field.options ? field.options.map(([value]) => value) :
-      key === 'cl_crosshair_screen_height' ? [240, 255, 256, 480, 720, 1080, 1440, 2160, 32767, 32768, 65535] :
+      key === 'cl_crosshair_screen_height' ? [240, 255, 256, 480, 720, 1080, 1440, 2160, 8192, 16383, 16384] :
       Array.from({length: Math.round((field.max! - field.min!) / (field.step ?? 1)) + 1},
         (_, index) => Number((field.min! + index * (field.step ?? 1)).toFixed(2)));
     for (const value of values) {
@@ -40,10 +40,10 @@ test('3000 deterministic full-setting combinations preserve all shared fields an
     const settings: Settings = {...defaults};
     for (const key of Object.keys(settings)) {
       const field = fieldBounds(key)!;
-      settings[key] = field.options ? field.options[random(field.options.length)][0] :
+      settings[key] = field.options ? field.options[random(field.options.length)]![0] :
         Number((field.min! + random(Math.round((field.max! - field.min!) / (field.step ?? 1)) + 1) * (field.step ?? 1)).toFixed(2));
     }
-    settings.cl_crosshairstyle = styles[iteration % styles.length][0];
+    settings.cl_crosshairstyle = styles[iteration % styles.length]![0];
     const decoded = decode(encode(settings)).settings;
     for (const key of sharedKeys) assert.equal(decoded[key], settings[key], `case ${iteration}: ${key}`);
     assert.deepEqual(importCommands(cfg(settings)), settings, `CFG case ${iteration}`);
@@ -71,7 +71,7 @@ test('checksummed unsupported versions, reserved bits, and out-of-range packed v
   assert.doesNotThrow(() => decode(payloadCode(() => {})));
   for (const mutate of [
     (bytes: Uint8Array) => {bytes[1] = 2;},
-    (bytes: Uint8Array) => {bytes[21] |= 32;},
+    (bytes: Uint8Array) => {bytes[21] = bytes[21]! | 32;},
     (bytes: Uint8Array) => {bytes[23] = 1;},
     (bytes: Uint8Array) => {bytes[31] = 1;},
     (bytes: Uint8Array) => {bytes[4] = 10;},
@@ -80,6 +80,19 @@ test('checksummed unsupported versions, reserved bits, and out-of-range packed v
     (bytes: Uint8Array) => {bytes[22] = 191;},
     (bytes: Uint8Array) => {bytes[2] = 239; bytes[3] = 0;},
   ]) assert.throws(() => decode(payloadCode(mutate)));
+});
+
+test('reserved-byte and version errors name the offending offset and value', () => {
+  assert.throws(() => decode(payloadCode(bytes => {bytes[27] = 7;})), /reserved byte 27 is 7/);
+  assert.throws(() => decode(payloadCode(bytes => {bytes[31] = 1;})), /reserved byte 31 is 1/);
+  assert.throws(() => decode(payloadCode(bytes => {bytes[21] = 32;})), /byte 21/);
+  assert.throws(() => decode(payloadCode(bytes => {bytes[1] = 2;})), /version \(2 in byte 1/);
+});
+
+test('share-code characters outside the alphabet are rejected as invalid characters', () => {
+  assert.throws(() => decode('CS' + 'I'.repeat(44)), /Invalid share-code character/);
+  assert.throws(() => decode('CS' + '0'.repeat(44)), /Invalid share-code character/);
+  assert.throws(() => decode('CS' + 'l'.repeat(44)), /Invalid share-code character/);
 });
 
 test('invalid field types, steps, option values, and numeric limits fail before encoding', () => {

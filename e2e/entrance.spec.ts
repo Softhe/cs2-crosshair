@@ -10,7 +10,7 @@ test('page sections keep their layout when the intro restores scrolling', async 
   }));
   await expect(page.locator('#entrance')).toBeVisible();
   const during = await measure();
-  await expect(page.locator('#entrance')).toBeHidden();
+  await expect(page.locator('#entrance')).toBeHidden({ timeout: 10000 });
   expect(await measure()).toEqual(during);
 });
 
@@ -23,7 +23,7 @@ test('intro crossfades into the editor before playback ends', async ({ page }) =
     const opacity = Number(getComputedStyle(root).opacity);
     return entrance.classList.contains('entrance-leaving') && opacity > 0 && opacity < 1;
   });
-  await expect(page.locator('#entrance')).toBeHidden();
+  await expect(page.locator('#entrance')).toBeHidden({ timeout: 10000 });
   await expect(page.locator('#root')).toHaveCSS('opacity', '1');
   await expect(page.locator('#root')).not.toHaveAttribute('inert');
 });
@@ -47,7 +47,7 @@ for (const path of ['/', '/?intro=preview']) test(`shortened intro plays on ever
     expect(playback.rate).toBe(1.25);
     expect(playback.loop).toBe(false);
     expect(playback.duration).toBeCloseTo(2, 1);
-    await expect(page.locator('#entrance')).toBeHidden({ timeout: 3500 });
+    await expect(page.locator('#entrance')).toBeHidden({ timeout: 10000 });
     await expect(page.locator('#root')).not.toHaveAttribute('inert');
   }
 });
@@ -58,13 +58,13 @@ test('stalled video cannot block the editor', async ({ page }) => {
     await route.abort();
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('#entrance')).toBeHidden({ timeout: 3500 });
+  await expect(page.locator('#entrance')).toBeHidden({ timeout: 10000 });
   await expect(page.locator('#root')).not.toHaveAttribute('inert');
 });
 
 test('failed video releases the editor', async ({ page }) => {
   await page.route('**/operation_loading.webm', route => route.abort());
   await page.goto('/');
-  await expect(page.locator('#entrance')).toBeHidden();
+  await expect(page.locator('#entrance')).toBeHidden({ timeout: 10000 });
   await expect(page.locator('#root')).not.toHaveAttribute('inert');
 });

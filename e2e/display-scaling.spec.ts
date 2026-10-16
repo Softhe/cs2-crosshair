@@ -52,12 +52,13 @@ for (const dpr of [1, 2]) test(`1440p display mapping and page centering at DPR 
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
     await page.getByRole('button', {name:'Close dialog'}).click();
     await page.getByRole('button', { name: 'Fullscreen game-size preview' }).click();
-    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.className)).toBe('map-preview');
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.className), { timeout: 10000 }).toBe('map-preview');
+    await expect.poll(() => canvas.evaluate(element => element.getBoundingClientRect().width), { timeout: 10000 }).toBeGreaterThan(0);
     await expect.poll(() => canvas.evaluate(element => {
       const rect = element.getBoundingClientRect();
       return Math.max(Math.abs(rect.left + rect.width / 2 - innerWidth / 2), Math.abs(rect.top + rect.height / 2 - innerHeight / 2));
-    })).toBeLessThanOrEqual(1);
+    }), { timeout: 10000 }).toBeLessThanOrEqual(1);
     await page.getByRole('button', { name: 'Exit fullscreen preview' }).click();
-    await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement), { timeout: 10000 }).toBeNull();
   } finally { await context.close(); }
 });

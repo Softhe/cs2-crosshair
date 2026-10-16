@@ -26,9 +26,9 @@ for (const dpr of [1, 1.25, 2]) test(`rectangular crosshairs keep mirrored pixel
         if (right < left || bottom < top) return -1;
         let mismatch = 0;
         for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) for (let c = 0; c < 4; c++) {
-          const value = data[(y * canvas.width + x) * 4 + c];
-          if (Math.abs(value - data[(y * canvas.width + left + right - x) * 4 + c]) > 1) mismatch++;
-          if (Math.abs(value - data[((top + bottom - y) * canvas.width + x) * 4 + c]) > 1) mismatch++;
+          const value = data[(y * canvas.width + x) * 4 + c]!;
+          if (Math.abs(value - data[(y * canvas.width + left + right - x) * 4 + c]!) > 1) mismatch++;
+          if (Math.abs(value - data[((top + bottom - y) * canvas.width + x) * 4 + c]!) > 1) mismatch++;
         }
         return mismatch;
       }), { message: `thickness ${thickness}, gap ${gap}, zoom ${zoom}` }).toBe(0);

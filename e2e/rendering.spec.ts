@@ -52,12 +52,14 @@ async function stats(page: import('@playwright/test').Page) {
         const c = element as HTMLCanvasElement, data = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
         let count = 0, max = 0;
         const alphas: number[] = [];
-        for (let i = 3; i < data.length; i += 4)
-            if (data[i]) {
+        for (let i = 3; i < data.length; i += 4) {
+            const alpha = data[i]!;
+            if (alpha) {
                 count++;
-                max = Math.max(max, data[i]);
-                alphas.push(data[i]);
+                max = Math.max(max, alpha);
+                alphas.push(alpha);
             }
+        }
         return { count, max, alphas, width: c.width, height: c.height, dpr: devicePixelRatio, cssWidth: c.clientWidth };
     });
 }
@@ -96,14 +98,14 @@ test('inspection warns about clipping and fit includes peak geometry', async ({ 
 });
 test('static dynamic mode stops drawing and reduced motion supports manual phase', async ({ page }) => {
     await load(page, { cl_crosshairstyle: 4 });
-    await page.evaluate(() => { const original = CanvasRenderingContext2D.prototype.clearRect; (window as any).__clears = 0; CanvasRenderingContext2D.prototype.clearRect = function (...args) { if (this.canvas.closest('.map-preview'))
+    await page.evaluate(() => { const original = CanvasRenderingContext2D.prototype.clearRect; (window as any).__clears = 0; CanvasRenderingContext2D.prototype.clearRect = function (this: CanvasRenderingContext2D, ...args: [number, number, number, number]) { if (this.canvas.closest('.map-preview'))
         (window as any).__clears++; return original.apply(this, args); }; });
     await page.getByRole('button',{name:'Preview settings',exact:true}).click();
     await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
-    await page.waitForTimeout(100);
-    const count = await page.evaluate(() => (window as any).__clears);
-    await page.waitForTimeout(150);
-    expect(await page.evaluate(() => (window as any).__clears)).toBe(count);
+    const clears = () => page.evaluate(() => (window as any).__clears as number);
+    await expect.poll(clears).toBeGreaterThan(0);
+    const count = await clears();
+    await expect.poll(clears).toBe(count);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await load(page, {});
     await page.getByRole('button',{name:'Preview settings',exact:true}).click();
@@ -114,7 +116,7 @@ test('static dynamic mode stops drawing and reduced motion supports manual phase
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped', 'true');
 });
 test('canvas context failure provides an export-safe fallback', async ({ page }) => {
-    await page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (...args: any[]) { if (args[0] === '2d')
+    await page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: any[]) { if (args[0] === '2d')
         return null; return (original as any).apply(this, args); } as any; });
     await page.goto('/');
     await expect(page.getByText('Canvas rendering is unavailable. Settings can still be exported.').first()).toBeVisible();

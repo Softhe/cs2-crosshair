@@ -4,8 +4,33 @@ export const styles = [
   [2, 'Dynamic Cross (Classic)'], [5, 'Dynamic Cross (Legacy/Shot Feedback)'], [7, 'Dynamic Quadrant'],
 ] as const;
 
-export type Settings = Record<string, number>;
+export type Settings = {
+  cl_crosshairstyle: number;
+  cl_crosshaircolor_r: number; cl_crosshaircolor_g: number; cl_crosshaircolor_b: number; cl_crosshaircolor_a: number;
+  cl_crosshairoutline_r: number; cl_crosshairoutline_g: number; cl_crosshairoutline_b: number; cl_crosshairoutline_a: number;
+  cl_crosshair_drawoutline: number; cl_crosshair_thickness: number; cl_crosshairdot: number;
+  cl_crosshair_length: number; cl_crosshair_gap: number;
+  cl_crosshair_dynamic_spread_limit: number; cl_crosshair_dynamic_splitdist: number;
+  cl_crosshair_dynamic_splitalpha_innermod: number; cl_crosshair_dynamic_splitalpha_outermod: number;
+  cl_crosshair_dynamic_maxdist_splitratio: number;
+  cl_crosshair_t: number; cl_ironsight_usecrosshaircolor: number; cl_ironsight_dot_scale: number;
+  cl_crosshair_recoil: number;
+  cl_crosshair_friendly_warning: number; cl_show_observer_crosshair: number; cl_observed_bot_crosshair: number;
+  cl_grenadecrosshair_keepusercrosshair: number;
+  cl_sniper_delay_unscope: number; cl_sniper_show_inaccuracy: number; cl_sniper_auto_rezoom: number;
+  cl_crosshair_sniper_width: number;
+  cl_crosshair_screen_height: number;
+  cl_grenadecrosshair_flash: number; cl_grenadecrosshairdelay_flash: number;
+  cl_grenadecrosshair_explosive: number; cl_grenadecrosshairdelay_explosive: number;
+  cl_grenadecrosshair_fire: number; cl_grenadecrosshairdelay_fire: number;
+  cl_grenadecrosshair_smoke: number; cl_grenadecrosshairdelay_smoke: number;
+  cl_grenadecrosshair_decoy: number; cl_grenadecrosshairdelay_decoy: number;
+  [key: string]: number;
+};
 export type Field = { key: string; label: string; min?: number; max?: number; step?: number; options?: readonly (readonly [number, string])[]; hint?: string };
+/** Supported game resolution height. Matches the upstream validator (settings/validation.js); CS codes store a uint16. */
+export const HEIGHT_MIN = 240;
+export const HEIGHT_MAX = 16384;
 const yesNo = [[1, 'Yes'], [0, 'No']] as const;
 export const defaults: Settings = {
   cl_crosshairstyle: 7, cl_crosshaircolor_r: 0, cl_crosshaircolor_g: 255, cl_crosshaircolor_b: 0, cl_crosshaircolor_a: 255,
@@ -18,7 +43,11 @@ export const defaults: Settings = {
   cl_grenadecrosshair_keepusercrosshair: 1,
   cl_sniper_delay_unscope: 0, cl_sniper_show_inaccuracy: 1, cl_sniper_auto_rezoom: 1, cl_crosshair_sniper_width: 1,
   cl_crosshair_screen_height: 1080,
-  ...Object.fromEntries(['flash','explosive','fire','smoke','decoy'].flatMap(k=>[[`cl_grenadecrosshair_${k}`,1],[`cl_grenadecrosshairdelay_${k}`,2]])),
+  cl_grenadecrosshair_flash: 1, cl_grenadecrosshairdelay_flash: 2,
+  cl_grenadecrosshair_explosive: 1, cl_grenadecrosshairdelay_explosive: 2,
+  cl_grenadecrosshair_fire: 1, cl_grenadecrosshairdelay_fire: 2,
+  cl_grenadecrosshair_smoke: 1, cl_grenadecrosshairdelay_smoke: 2,
+  cl_grenadecrosshair_decoy: 1, cl_grenadecrosshairdelay_decoy: 2,
 };
 const toggle = (key: string, label: string): Field => ({key,label,options:yesNo});
 const slider = (key: string, label: string, min: number, max: number, step=1): Field => ({key,label,min,max,step});
@@ -50,32 +79,72 @@ export const grenadeKeep = toggle('cl_grenadecrosshair_keepusercrosshair','Keep 
 export const sniperFields: Field[] = [toggle('cl_sniper_delay_unscope','Delay Sniper Rifle Un-Scope after Shot'),toggle('cl_sniper_show_inaccuracy','Show Scoped Sniper Rifle Inaccuracy'),toggle('cl_sniper_auto_rezoom','Auto Re-Zoom Sniper Rifle after Shot'),slider('cl_crosshair_sniper_width','Sniper Crosshair Thickness',1,6)];
 export function fieldBounds(key: string): Field | undefined {
   if(/^cl_crosshair(color|outline)_[rgba]$/.test(key)) return slider(key,key,0,255);
-  if(key==='cl_crosshair_screen_height') return slider(key,key,240,65535);
+  if(key==='cl_crosshair_screen_height') return slider(key,key,HEIGHT_MIN,HEIGHT_MAX);
   if(key==='cl_crosshair_gap') return slider(key,key,-10,128);
   if(key.startsWith('cl_grenadecrosshairdelay_')) return slider(key,key,0,5,.01);
   if(key.startsWith('cl_grenadecrosshair_')) return toggle(key,key);
-  return [...styles.flatMap(([style])=>styleFields({...defaults,cl_crosshairstyle:style})),...crosshairFields,...sniperFields].find(f=>f.key===key);
+  return boundsCache().get(key);
+}
+/** Lazily built lookup over every style's fields plus the menu sections. First definition wins, matching find(). */
+let cachedBounds: Map<string, Field> | null = null;
+function boundsCache(): Map<string, Field> {
+  if(!cachedBounds) {
+    cachedBounds = new Map();
+    for(const [style] of styles) for(const field of styleFields({...defaults,cl_crosshairstyle:style})) {
+      if(!cachedBounds.has(field.key)) cachedBounds.set(field.key,field);
+    }
+    for(const field of [...crosshairFields,...sniperFields]) if(!cachedBounds.has(field.key)) cachedBounds.set(field.key,field);
+  }
+  return cachedBounds;
 }
 export function validateSettings(value: unknown): Settings {
   if(!value || typeof value!=='object' || Array.isArray(value)) throw Error('Settings must be an object.');
   const out = {...defaults};
   for(const [key,val] of Object.entries(value)) {
-    if(!(key in defaults)) throw Error(`Unknown setting: ${key}`);
+    if(!Object.hasOwn(defaults,key)) throw Error(`Unknown setting: ${key}`);
     const field=fieldBounds(key);
-    if(typeof val!=='number'||!Number.isFinite(val)||!field) throw Error(`Invalid value for ${key}.`);
-    if(field.options ? !field.options.some(([n])=>n===val) : val<(field.min??0)||val>(field.max??255)||Math.abs(val/(field.step??1)-Math.round(val/(field.step??1)))>1e-6) throw Error(`Value outside supported range for ${key}.`);
+    if(typeof val!=='number'||!Number.isFinite(val)||!field) throw Error(`Invalid value for ${key}: got ${String(val)}.`);
+    if(field.options) {
+      if(!field.options.some(([n])=>n===val)) throw Error(`Invalid value for ${key}: got ${val}; allowed values are ${field.options.map(([n])=>n).join(', ')}.`);
+    } else {
+      const min=field.min??0,max=field.max??255,step=field.step??1;
+      const offStep=Math.abs(val/step-Math.round(val/step))>1e-6;
+      if(val<min||val>max||offStep) {
+        const why=offStep&&val>=min&&val<=max?`not a multiple of step ${step}`:`outside the supported CS-code range ${min}..${max}`;
+        let note='';
+        if(key==='cl_crosshair_gap') note=' The game cvar accepts -3840..3840, but this CS-code range is all that can be encoded here.';
+        else if(key==='cl_crosshair_screen_height') note=` CS share codes store a uint16 (up to 65535), but heights above ${HEIGHT_MAX} are outside the supported game range.`;
+        throw Error(`Invalid value for ${key}: got ${val}, ${why}.${note}`);
+      }
+    }
     out[key]=val;
   }
   return out;
 }
+/** Bare command words that cannot be an alias. Prefixes (exit_strategy, crosshair_fan) are fine. */
+const reservedCommands = new Set(['exec','alias','bind','unbind','quit','exit','clear','echo','crosshair']);
 export function safeAlias(name: string): string {
   const alias=name.trim();
   if(alias && !/^[a-zA-Z_][a-zA-Z0-9_]{0,47}$/.test(alias)) throw Error('Use letters, numbers and underscores. Start with a letter or underscore, up to 48 characters.');
-  if(alias && /^(exec|alias|bind|unbind|quit|exit|clear|echo|crosshair|cl_|sv_|host_)/i.test(alias)) throw Error('Choose an alias that does not conflict with a game command.');
+  if(reservedCommands.has(alias.toLowerCase())) throw Error('Choose an alias that does not conflict with a game command.');
+  if(/^(cl|sv|host)_/i.test(alias)) throw Error('Choose an alias that does not conflict with a game command.');
   return alias;
 }
-export function commands(s: Settings): string { return Object.entries(validateSettings(s)).map(([key,val])=>`${key} "${val}"`).join('; '); }
-export function cfg(s: Settings): string { return '// delli.cc Crosshair Studio | CS2 September 2026\n'+commands(s).split('; ').join('\n')+'\n'; }
+export function commandsArray(s: Settings): string[] { return Object.entries(validateSettings(s)).map(([key,val])=>`${key} "${val}"`); }
+export function commands(s: Settings): string { return commandsArray(s).join('; '); }
+/** Settings carried by a CS share code. Link conflict checks compare only these: menu extras live in `settings`, not the code. */
+export const codeSettingKeys = [
+  'cl_crosshairstyle','cl_crosshair_recoil','cl_crosshairdot','cl_crosshair_t',
+  'cl_crosshaircolor_r','cl_crosshaircolor_g','cl_crosshaircolor_b','cl_crosshaircolor_a',
+  'cl_crosshairoutline_r','cl_crosshairoutline_g','cl_crosshairoutline_b','cl_crosshairoutline_a',
+  'cl_crosshair_thickness','cl_crosshair_drawoutline','cl_crosshair_gap','cl_crosshair_length',
+  'cl_crosshair_dynamic_spread_limit','cl_crosshair_dynamic_splitdist',
+  'cl_crosshair_dynamic_splitalpha_innermod','cl_crosshair_dynamic_splitalpha_outermod',
+  'cl_crosshair_dynamic_maxdist_splitratio',
+  'cl_ironsight_usecrosshaircolor','cl_ironsight_dot_scale','cl_crosshair_screen_height',
+];
+export function sameCodeSettings(a: Settings, b: Settings): boolean { return codeSettingKeys.every(key=>a[key]===b[key]); }
+export function cfg(s: Settings): string { return '// delli.cc Crosshair Studio | CS2 September 2026\n'+commandsArray(s).join('\n')+'\n'; }
 export function autoexec(s: Settings, name: string): string { const alias=safeAlias(name); return alias?`alias ${alias} "exec crosshair_${alias}.cfg"`:commands(s); }
 export const presets = [
   {name:'Small static',settings:{...defaults,cl_crosshairstyle:4,cl_crosshair_length:4,cl_crosshair_thickness:1,cl_crosshair_gap:2,cl_crosshair_recoil:0}},
