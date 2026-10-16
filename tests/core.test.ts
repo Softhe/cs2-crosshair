@@ -67,6 +67,16 @@ test('alias and file names cannot inject commands or traverse directories',()=>{
   assert.equal(autoexec(defaults,'team_green'),'alias team_green "exec crosshair_team_green.cfg"');
   assert.equal(safeAlias(''), '');
 });
+test('alias blocklist only rejects exact command words, not names that start with them',()=>{
+  for(const name of ['exit_strategy','crosshair_fan','quit_claim','bind_menu','echo_location','clear_sight']) assert.equal(safeAlias(name),name);
+  for(const name of ['quit','exit','exec','alias','bind','unbind','clear','echo','crosshair','QUIT','cl_test','sv_cheats','host_map']) assert.throws(()=>safeAlias(name));
+});
+test('range errors name the setting, the value, and the supported range',()=>{
+  assert.throws(()=>validateSettings({...defaults,cl_crosshair_gap:-11}),/cl_crosshair_gap.*-11.*-10\.\.128.*-3840\.\.3840/);
+  assert.throws(()=>validateSettings({...defaults,cl_crosshair_gap:129}),/cl_crosshair_gap.*129.*-10\.\.128/);
+  assert.throws(()=>validateSettings({...defaults,cl_crosshair_screen_height:20000}),/cl_crosshair_screen_height.*20000.*240\.\.16384/);
+  assert.throws(()=>validateSettings({...defaults,cl_crosshair_screen_height:239}),/240\.\.16384/);
+});
 test('menu visibility follows the game style contract',()=>{
   const keys=(style:number)=>styleFields({...defaults,cl_crosshairstyle:style}).map(f=>f.key);
   assert.ok(!keys(6).includes('cl_crosshairdot'));assert.ok(!keys(3).includes('cl_crosshair_length'));
@@ -77,7 +87,7 @@ test('menu visibility follows the game style contract',()=>{
 test('library validates hostile and malformed backups without executing content',()=>{
   assert.throws(()=>validateLibrary({entries:[]}));assert.throws(()=>validateLibrary([{name:'Bad',favorite:true,settings:{quit:1}}]));
   const safe=validateLibrary([{name:'<script>quit</script>',favorite:true,alias:'team_green',settings:defaults}]);
-  assert.equal(safe[0].name,'<script>quit</script>');assert.deepEqual(safe[0].settings,defaults);
+  assert.equal(safe[0]!.name,'<script>quit</script>');assert.deepEqual(safe[0]!.settings,defaults);
 });
 
 test('classic dynamic negative gaps preserve the game-accepted fixture and UI bounds',()=>{

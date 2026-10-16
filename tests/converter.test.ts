@@ -22,9 +22,14 @@ test('version-one codes use the same converter through the normal import path',(
   const code=encodeLegacy({...GAME_DEFAULTS_2000908,style:4,size:2,thickness:.5,gap:-2});
   assert.deepEqual(decode(code).settings,convertLegacy(code).settings);
 });
+test('version-one decode preserves caller preferences through the base parameter',()=>{
+  const code=encodeLegacy({...GAME_DEFAULTS_2000908,style:4,size:2,thickness:.5,gap:-2});
+  assert.equal(decode(code,1080,{...defaults,cl_sniper_auto_rezoom:0}).settings.cl_sniper_auto_rezoom,0);
+  assert.equal(decode(code).settings.cl_sniper_auto_rezoom,defaults.cl_sniper_auto_rezoom);
+});
 test('conversion blocks default legacy reticles, damaged codes, and current codes',()=>{
   for(const text of ['cl_crosshairstyle 0; cl_crosshairsize 2','cl_crosshairstyle 1; cl_crosshairsize 2','CSGO-aaaaa-aaaaa-aaaaa-aaaaa-aaaaa',encode(defaults),'quit']) assert.throws(()=>convertLegacy(text));
-  for(const height of [0,239,Infinity,1080.5,65536]) assert.throws(()=>convertLegacy(old,height));
+  for(const height of [0,239,Infinity,1080.5,16385,20000,65536]) assert.throws(()=>convertLegacy(old,height));
 });
 test('old dynamic families explicitly become static cross and report the loss',()=>{
   for(const style of [2,3,5]){

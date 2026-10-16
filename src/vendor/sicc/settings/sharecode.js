@@ -2,6 +2,8 @@
 // Attribution and license: THIRD_PARTY_NOTICES.md, licenses/akiver-MIT.txt.
 import { integer, finite, bool } from './validation.js';
 export const ALPHABET = 'ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
+/** Ordinal of each alphabet character for O(1) lookups while decoding. */
+export const ALPHABET_INDEX = new Map([...ALPHABET].map((ch, index) => [ch, index]));
 const signed = b => b >= 128 ? b - 256 : b;
 /** Old `CSGO-` codes: 25 base-57 digits, least-significant first, give 18 bytes. */
 export const DIGITS = 25, BYTES = 18;
@@ -19,14 +21,14 @@ export function decodeLegacy(code) {
   code = code.trim();
   if (!/^CSGO(?:-[A-Za-z0-9]+)+$/.test(code)) throw new Error('Expected CSGO- followed by five groups of five characters.');
   const digits = code.slice(5).replaceAll('-', '');
-  const bad = [...digits].find(ch => !ALPHABET.includes(ch));
+  const bad = [...digits].find(ch => !ALPHABET_INDEX.has(ch));
   if (bad) throw new Error(`Invalid share-code character: ${bad}.`);
   if (digits.length !== DIGITS) {
     throw new Error(`Share code payload is not ${BYTES} bytes: expected ${DIGITS} characters, got ${digits.length}.`);
   }
   if (!/^CSGO(?:-[A-Za-z0-9]{5}){5}$/.test(code)) throw new Error('Expected CSGO- followed by five groups of five characters.');
   let n = 0n;
-  for (const ch of [...digits].reverse()) n = n * BigInt(ALPHABET.length) + BigInt(ALPHABET.indexOf(ch));
+  for (const ch of [...digits].reverse()) n = n * BigInt(ALPHABET.length) + BigInt(ALPHABET_INDEX.get(ch));
   if (n >= 1n << 144n) throw new Error('Share code overflows 18 bytes; it is damaged or mistyped.');
   const bytes = new Array(BYTES);
   for (let i = BYTES - 1; i >= 0; i--) { bytes[i] = Number(n & 255n); n >>= 8n; }
