@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { styles, type Settings } from './model';
-import { motionEligible, previewGeometry, renderingSettings, renderingKeys, type PreviewMode } from './preview-geometry';
+import { motionEligible, previewGeometry, renderingSettings, renderingKeys, type Geometry, type PreviewMode, type RenderingSettings } from './preview-geometry';
 import { createPreviewRenderer, fitScale, type RenderStatus } from './preview-renderer';
 import { previewScale } from './display';
 type Props = {
@@ -18,10 +18,17 @@ type Props = {
 };
 export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mode = 'crosshair', phase = 0, fit = false, inspectSplit = false, decorative = false, paused = false, onStatus }: Props) {
     const ref = useRef<HTMLCanvasElement>(null), description = useId(), [unavailable, setUnavailable] = useState(false);
-    const latest = useRef({ settings, zoom, targetHeight, dynamic, mode, phase, fit, inspectSplit, paused, onStatus });
-    latest.current = { settings, zoom, targetHeight, dynamic, mode, phase, fit, inspectSplit, paused, onStatus };
-    const invalidate = useRef<() => void>(() => { });
     const settingsKey = JSON.stringify([...renderingKeys.map(key => settings[key]),targetHeight?settings.cl_crosshair_screen_height:null]);
+    // Extracted visual settings, cached on settingsKey so the rAF loop reuses one
+    // object instead of running Object.fromEntries per frame.
+    const visualKey = useRef(''), visual = useRef<RenderingSettings | null>(null);
+    if (visual.current === null || visualKey.current !== settingsKey) {
+        visual.current = renderingSettings(settings);
+        visualKey.current = settingsKey;
+    }
+    const latest = useRef({ settings, visual: visual.current, zoom, targetHeight, dynamic, mode, phase, fit, inspectSplit, paused, onStatus });
+    latest.current = { settings, visual: visual.current, zoom, targetHeight, dynamic, mode, phase, fit, inspectSplit, paused, onStatus };
+    const invalidate = useRef<() => void>(() => { });
     useEffect(() => {
         const canvas = ref.current;
         if (!canvas)
@@ -39,7 +46,27 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
             setUnavailable(true);
             return;
         }
-        let frame = 0, start: number | null = null, visible = true, signature = '', active = false, lastStatus = '';
+        let frame = 0, start: number | null = null, visible = true, active = false;
+        // Render guard without per-frame JSON.stringify: animating frames always
+        // render (the phase advances every tick); settled frames compare primitives
+        // plus the cached geometry identity below.
+        let guard: { mode: PreviewMode; scale: number; cw: number; ch: number; dpr: number; geometry: Geometry; ink: number[]; } | null = null, lastStatus: RenderStatus | null = null;
+        // Geometry caches keyed on value inputs (visual by identity). The peak entry
+        // feeds fit scaling and is untouched by per-tick animation; the still entry
+        // serves every non-animating draw. Animating draws bypass the still cache
+        // because phase/elapsed change every tick.
+        const peakCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, split: false, geometry: null as Geometry | null };
+        const stillCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, split: false, geometry: null as Geometry | null };
+        const cachedGeometry = (cache: typeof peakCache, v: RenderingSettings, m: PreviewMode, p: number, split: boolean) => {
+            if (cache.geometry === null || cache.visual !== v || cache.mode !== m || cache.phase !== p || cache.split !== split) {
+                cache.visual = v;
+                cache.mode = m;
+                cache.phase = p;
+                cache.split = split;
+                cache.geometry = previewGeometry(v, m, p, 0, split);
+            }
+            return cache.geometry;
+        };
         let resolution: MediaQueryList;
         const reduced = matchMedia('(prefers-reduced-motion: reduce)');
         const schedule = () => { if (!frame)
@@ -55,25 +82,29 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
             if (animate && start === null)
                 start = time;
             const elapsed = animate ? time - start! : 0, phaseNow = animate ? (1 - Math.cos(elapsed / 550)) / 2 : p.phase;
-            const visual = renderingSettings(p.settings);
-            const geometry = previewGeometry(visual, p.mode, phaseNow, elapsed, p.inspectSplit), peak = previewGeometry(visual, p.mode, p.dynamic ? 1 : p.phase, 0, p.inspectSplit);
+            const geometry = animate ? previewGeometry(p.visual, p.mode, phaseNow, elapsed, p.inspectSplit) : cachedGeometry(stillCache, p.visual, p.mode, phaseNow, p.inspectSplit);
+            let peak = cachedGeometry(peakCache, p.visual, p.mode, p.dynamic ? 1 : p.phase, p.inspectSplit);
             if (p.dynamic && p.mode === 'crosshair' && p.settings.cl_crosshair_recoil) {
-                peak.bounds[0] -= 3;
-                peak.bounds[2] += 3;
-                peak.bounds[1] -= 7;
-                peak.bounds[3] += 7;
+                // Recoil sweeps the crosshair up to 3 CSS px sideways and 7 up. Widen a
+                // copy of the cached peak bounds (never the cached object itself) so
+                // fit scaling and clipping cover the full sweep.
+                const b = peak.bounds;
+                peak = { ...peak, bounds: [b[0] - 3, b[1] - 7, b[2] + 3, b[3] + 7] };
             }
             // Optional estimated game-pixel size, converted to CSS pixels at the current DPR.
             // This mapping is explicitly uncalibrated against game captures.
             const requested = previewScale(p.zoom, p.targetHeight, p.settings.cl_crosshair_screen_height, devicePixelRatio);
             const scale = p.fit ? fitScale(peak.bounds, canvas!.clientWidth, canvas!.clientHeight, requested) : requested;
-            const key = JSON.stringify([geometry, p.mode, scale, canvas!.clientWidth, canvas!.clientHeight, devicePixelRatio, ...['color', 'outline'].flatMap(prefix => ['r', 'g', 'b', 'a'].map(c => p.settings[`cl_crosshair${prefix}_${c}`])), p.settings.cl_ironsight_usecrosshaircolor]);
-            if (key !== signature) {
-                signature = key;
+            const cw = canvas!.clientWidth, ch = canvas!.clientHeight, dpr = devicePixelRatio;
+            const ink = [p.settings.cl_crosshaircolor_r, p.settings.cl_crosshaircolor_g, p.settings.cl_crosshaircolor_b, p.settings.cl_crosshaircolor_a, p.settings.cl_crosshairoutline_r, p.settings.cl_crosshairoutline_g, p.settings.cl_crosshairoutline_b, p.settings.cl_crosshairoutline_a, p.settings.cl_ironsight_usecrosshaircolor];
+            let dirty = animate || guard === null;
+            if (!dirty && guard !== null)
+                dirty = guard.mode !== p.mode || guard.scale !== scale || guard.cw !== cw || guard.ch !== ch || guard.dpr !== dpr || guard.geometry !== geometry || guard.ink.length !== ink.length || guard.ink.some((v, i) => v !== ink[i]);
+            if (dirty) {
+                guard = { mode: p.mode, scale, cw, ch, dpr, geometry, ink };
                 const status = render(geometry, p.settings, p.mode, scale);
-                const statusKey = JSON.stringify(status);
-                if (statusKey !== lastStatus) {
-                    lastStatus = statusKey;
+                if (!lastStatus || lastStatus.clipped !== status.clipped || lastStatus.scale !== status.scale) {
+                    lastStatus = status;
                     p.onStatus?.(status);
                 }
                 canvas!.dataset.clipped = String(status.clipped);
@@ -82,12 +113,12 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
             if (animate)
                 schedule();
         }
-        const invalidateDraw = () => { signature = ''; schedule(); };
+        const invalidateDraw = () => { guard = null; schedule(); };
         invalidate.current = invalidateDraw;
         const observeResolution = () => { resolution?.removeEventListener('change', observeResolution); resolution = matchMedia(`(resolution: ${devicePixelRatio}dppx)`); resolution.addEventListener('change', observeResolution); invalidateDraw(); };
         const resize = new ResizeObserver(invalidateDraw);
         resize.observe(canvas);
-        const intersection = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; schedule(); });
+        const intersection = new IntersectionObserver(entries => { visible = entries[0]!.isIntersecting; schedule(); });
         intersection.observe(canvas);
         document.addEventListener('visibilitychange', schedule);
         reduced.addEventListener('change', schedule);
