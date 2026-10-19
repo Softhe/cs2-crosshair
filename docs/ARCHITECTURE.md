@@ -7,8 +7,11 @@ The site is a static React and TypeScript application built with Vite. It runs i
 | `src/main.tsx` | Editor controls, imports, exports, navigation, dialogs, and library actions |
 | `src/model.ts` | Settings, validation, style visibility, presets, config commands, and aliases |
 | `src/codec.ts` | Current and legacy share-code decoding, encoding, and config parsing |
-| `src/Preview.tsx` | Canvas rendering, zoom, scope dots, and resize handling |
+| `src/Preview.tsx` | Canvas lifecycle, animated scheduling, and cached geometry/scale guards |
+| `src/preview-geometry.ts` | CSS-pixel crosshair geometry, visual-settings extraction, and motion eligibility |
+| `src/preview-renderer.ts` | Coverage-buffer canvas renderer, pixel snapping, and fit scaling |
 | `src/preview-motion.ts` | Synthetic dynamic spread |
+| `src/display.ts` | Preview magnification mapping and display-size estimates |
 | `src/storage.ts` | Local preferences and validated library backups |
 | `src/clipboard.ts` | Clipboard writes, readback when already permitted, and copy fallback |
 | `src/style.css` | Editor layout, themes, and responsive styles |

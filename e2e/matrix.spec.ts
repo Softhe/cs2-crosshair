@@ -13,7 +13,7 @@ for(const [style,name] of styles){test(`matrix: ${name} edits, clipboard code, c
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.getByLabel('Style',{exact:true}).selectOption(String(style));
   for(const field of styleFields({...defaults,cl_crosshairstyle:style}).slice(1)){
-    if(field.options){await page.getByLabel(field.label,{exact:true}).selectOption(String(field.options[field.options.length-1][0]));}
+    if(field.options){await page.getByLabel(field.label,{exact:true}).selectOption(String(field.options[field.options.length-1]![0]));}
     else {const value=field.label==='Gap'&&style===2?-7:(field.step??1)<1?.73:Math.min(field.max!,11);await number(page,field.label,value);}
   }
   await page.getByRole('button',{name:'Edit Color and Transparency',exact:true}).click();

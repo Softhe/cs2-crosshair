@@ -25,6 +25,28 @@ export function createHandler(options:Options={}){
     ?import('./neon-store.js').then(module=>module.createNeonStore(databaseUrl))
     :options.store?Promise.resolve(options.store):import('./sqlite-store.js').then(module=>module.createSqliteStore(options.databasePath??process.env.DATABASE_PATH??resolve('data/library.sqlite')));
   const now=options.now??Date.now,requestFetch=options.fetch??fetch,dist=resolve(options.distPath??'dist');
+  let lastCleanup=0;
+  // In-memory rate-limit buckets: single-instance only. On Vercel serverless
+  // each instance gets its own buckets (cold starts reset them), so this is
+  // abuse friction rather than strict enforcement.
+  const hits=new Map<string,number[]>();
+  function pruneBuckets(t:number){
+    for(const [key,times] of hits){
+      const fresh=times.filter(ts=>t-ts<3600000);
+      if(fresh.length)hits.set(key,fresh);else hits.delete(key);
+    }
+  }
+  function allowed(key:string,limit:number,windowMs:number,t:number):boolean{
+    const times=hits.get(key)??[];
+    const fresh=times.filter(ts=>t-ts<windowMs);
+    if(fresh.length>=limit){hits.set(key,fresh);return false;}
+    fresh.push(t);hits.set(key,fresh);return true;
+  }
+  function clientIp(req:IncomingMessage):string{
+    const forwarded=req.headers['x-forwarded-for'];
+    const first=(Array.isArray(forwarded)?forwarded[0]:forwarded)?.split(',')[0]?.trim();
+    return first||req.socket.remoteAddress||'unknown';
+  }
   const cookie=(name:string,value:string,maxAge:number)=>`${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${parsedOrigin.protocol==='https:'?'; Secure':''}`;
   function cookies(req:IncomingMessage){return Object.fromEntries((req.headers.cookie??'').split(';').map(p=>p.trim().split('=').slice(0,2)));}
   async function session(req:IncomingMessage){const id=cookies(req).delli_session;if(!id)return undefined;return (await storage()).session(hash(id),now());}
@@ -39,9 +61,12 @@ export function createHandler(options:Options={}){
     const url=new URL(req.url??'/',origin),path=url.pathname;
     if(path.startsWith('/api/')){
       res.setHeader('Cache-Control','no-store');
-      const db=await storage();await db.cleanup(now());
+      const t=now();
+      const db=await storage();
+      if(t-lastCleanup>5*60*1000){lastCleanup=t;pruneBuckets(t);await db.cleanup(t);}
       if(path==='/api/session'&&req.method==='GET'){const s=await session(req);json(res,200,s?{user:{steamId:s.owner},csrfToken:s.csrf}:{user:null});return;}
       if(path==='/api/auth/steam'&&req.method==='GET'){
+        if(!allowed('steam:'+clientIp(req),60,60000,t)){json(res,429,{error:'Too many sign-in attempts. Try again later.'});return;}
         const state=token(),destination=signInReturn(url.searchParams.get('returnTo'));
         // Bind the destination to the one-use state without storing an extra cookie or database field.
         await db.addState(hash(state+'\n'+destination),now()+600000);
@@ -72,11 +97,13 @@ export function createHandler(options:Options={}){
         res.writeHead(302,{Location:destination, 'Set-Cookie':[cookie('delli_session',id,30*86400),cookie('delli_auth_state','',0)]});res.end();return;
       }
       const s=await session(req);if(!s){json(res,401,{error:'Sign in with Steam first.'});return;}
-      if(path==='/api/library'&&req.method==='GET'&&(typeof req.headers['x-csrf-token']!=='string'||!equal(s.csrf,req.headers['x-csrf-token']))){json(res,403,{error:'The library session changed. Refresh your session before syncing.'});return;}
+      if(path==='/api/library'&&req.method==='GET'){json(res,200,await db.latest(s.owner));return;}
+      // Safe-method GETs skip the Origin/CSRF-token check below: they are
+      // read-only with no state change, and the session cookie is SameSite=Lax.
       if(req.method!=='GET'&&(req.headers.origin!==origin||typeof req.headers['x-csrf-token']!=='string'||!equal(s.csrf,req.headers['x-csrf-token']))){json(res,403,{error:'Invalid request origin or CSRF token.'});return;}
       if(path==='/api/auth/logout'&&req.method==='POST'){await db.deleteSession(s.id);res.setHeader('Set-Cookie',cookie('delli_session','',0));json(res,200,{user:null});return;}
-      if(path==='/api/library'&&req.method==='GET'){json(res,200,await db.latest(s.owner));return;}
       if(path==='/api/library'&&req.method==='PUT'){
+        if(!allowed('put-ip:'+clientIp(req),60,60000,t)||!allowed('put-owner:'+s.owner,30,3600000,t)){json(res,429,{error:'Too many sync attempts. Try again later.'});return;}
         const input=await body(req);if(!Number.isSafeInteger(input.revision)||input.revision<0||!Array.isArray(input.entries)||input.entries.length>50)throw Error('Invalid library revision or favorite count.');
         const ids=new Set<string>();const entries=input.entries.map((item:Record<string,unknown>)=>{
           if(!item||typeof item.id!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(item.id)||ids.has(item.id)||typeof item.name!=='string'||!item.name.trim()||item.name.length>80||(item.favorite!==undefined&&item.favorite!==true))throw Error('Invalid favorite.');

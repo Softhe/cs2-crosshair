@@ -13,7 +13,7 @@ test('Steam returns to the originating view and rejects destination tampering',a
     const response=await request('/api/auth/steam?returnTo='+encodeURIComponent(destination));
     assert.equal(response.status,302);
     const provider=new URL(response.headers.get('location')!);
-    return {callback:new URL(provider.searchParams.get('openid.return_to')!),cookie:response.headers.getSetCookie()[0].split(';')[0]};
+    return {callback:new URL(provider.searchParams.get('openid.return_to')!),cookie:response.headers.getSetCookie()[0]!.split(';')[0]!};
   }
   function proof(callback:URL){
     const returnTo=callback.href,identity='https://steamcommunity.com/openid/id/76561198000000001';
@@ -63,7 +63,7 @@ test('Steam verification, private favorites, conflict, CSRF, validation and logo
     const identity=`https://steamcommunity.com/openid/id/${steamId}`;
     for(const [key,value] of Object.entries({ns:'http://specs.openid.net/auth/2.0',mode:'id_res',op_endpoint:'https://steamcommunity.com/openid/login',identity,claimed_id:identity,return_to:returnTo,response_nonce:new Date().toISOString().replace(/\.\d{3}Z$/,'Z')+Math.random(),assoc_handle:'test',signed:'op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle',sig:'test'}))params.set('openid.'+key,value);
     change?.(params);
-    const response=await request(callback.pathname+callback.search,{headers:{Cookie:start.headers.getSetCookie()[0].split(';')[0]}});
+    const response=await request(callback.pathname+callback.search,{headers:{Cookie:start.headers.getSetCookie()[0]!.split(';')[0]!}});
     return {response,cookie:response.headers.getSetCookie().find(value=>value.startsWith('delli_session='))?.split(';')[0]??''};
   }
   try{
@@ -87,8 +87,8 @@ test('Steam verification, private favorites, conflict, CSRF, validation and logo
     assert.equal((await request('/api/library',{method:'PUT',headers:{...headers,'X-CSRF-Token':'wrong'},body:'{}'})).status,403);
     const saved=await (await put(0,[entry])).json();assert.equal(saved.revision,1);assert.equal(saved.entries[0].id,entry.id);assert.deepEqual(Object.keys(saved.entries[0]).sort(),['id','name','settings']);
     const bSession=await (await request('/api/session',{headers:{Cookie:b.cookie}})).json();
-    assert.equal((await request('/api/library',{headers:{Cookie:b.cookie,'X-CSRF-Token':session.csrfToken}})).status,403);
-    assert.equal((await request('/api/library',{headers:{Cookie:b.cookie}})).status,403);
+    assert.deepEqual(await (await request('/api/library',{headers:{Cookie:b.cookie,'X-CSRF-Token':session.csrfToken}})).json(),{revision:0,entries:[]});
+    assert.deepEqual(await (await request('/api/library',{headers:{Cookie:b.cookie}})).json(),{revision:0,entries:[]});
     assert.deepEqual(await (await request('/api/library',{headers:{Cookie:b.cookie,'X-CSRF-Token':bSession.csrfToken}})).json(),{revision:0,entries:[]});
     const conflict=await put(0,[]);assert.equal(conflict.status,409);assert.deepEqual(await conflict.json(),saved);
     assert.equal((await put(1,[{...entry,name:'x'.repeat(81)}])).status,400);assert.equal((await put(1,[{...entry,settings:{cl_crosshair_length:999}}])).status,400);

@@ -1,8 +1,14 @@
-import { convertLegacy } from './converter';
-import { defaults, validateSettings, type Settings } from './model';
+import { convertLegacy, COMMUNITY_MODEL_VERSION } from './converter';
+import { defaults, validateSettings, sameCodeSettings, type Settings } from './model';
 
 // CS2 1.41.8.8. Byte layout verified against codes exported by the game.
 const alphabet='ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
+/** Ordinal of each alphabet character for O(1) lookups while decoding. */
+const alphabetIndex: Uint8Array = (()=>{
+  const table=new Uint8Array(128).fill(255);
+  for(let i=0;i<alphabet.length;i++) table[alphabet.charCodeAt(i)]=i;
+  return table;
+})();
 function checksum(bytes: Uint8Array): number {return bytes.slice(1).reduce((sum,b)=>sum+b,0)&255;}
 function pack(bytes: Uint8Array, count: number): string {
   let number=0n;
@@ -14,7 +20,7 @@ function pack(bytes: Uint8Array, count: number): string {
 }
 function unpack(text: string, length: number): Uint8Array {
   let number=0n;
-  for(let i=text.length-1;i>=0;i--){const digit=alphabet.indexOf(text[i]);if(digit<0)throw Error('Invalid share-code character.');number=number*57n+BigInt(digit);}
+  for(let i=text.length-1;i>=0;i--){const unit=text.charCodeAt(i);const digit=unit<128?alphabetIndex[unit]:undefined;if(digit===undefined||digit===255)throw Error('Invalid share-code character.');number=number*57n+BigInt(digit);}
   if(number>>(BigInt(length)*8n)) throw Error('Share code exceeds supported size.');
   const bytes=new Uint8Array(length);
   for(let i=length-1;i>=0;i--){bytes[i]=Number(number&255n);number>>=8n;}
@@ -26,7 +32,7 @@ export function encode(s: Settings): string {
   const b=new Uint8Array(32);const view=new DataView(b.buffer);
   b[1]=1;view.setUint16(2,s.cl_crosshair_screen_height,true);
   b[4]=s.cl_crosshairstyle|(s.cl_crosshair_recoil<<5)|(s.cl_crosshairdot<<6)|(s.cl_crosshair_t<<7);
-  ['r','g','b','a'].forEach((c,i)=>{b[5+i]=s[`cl_crosshaircolor_${c}`];b[9+i]=s[`cl_crosshairoutline_${c}`];});
+  (['r','g','b','a'] as const).forEach((c,i)=>{b[5+i]=s[`cl_crosshaircolor_${c}`];b[9+i]=s[`cl_crosshairoutline_${c}`];});
   b[13]=s.cl_crosshair_thickness|(s.cl_crosshair_drawoutline<<6);
   view.setInt16(14,s.cl_crosshair_gap,true);b[16]=s.cl_crosshair_length;b[17]=s.cl_crosshair_dynamic_spread_limit;
   const packed=BigInt(s.cl_crosshair_dynamic_splitdist)
@@ -40,7 +46,7 @@ export function encode(s: Settings): string {
   return 'CS'+pack(b,44);
 }
 export type Decoded = {settings: Settings; legacy: boolean; note?: string};
-export function decode(input: string, legacyHeight=1080): Decoded {
+export function decode(input: string, legacyHeight=1080, base: Settings=defaults): Decoded {
   const text=input.trim();
   if(/^https?:\/\//i.test(text)) {
     const url=new URL(text);
@@ -48,39 +54,46 @@ export function decode(input: string, legacyHeight=1080): Decoded {
     const complete=url.searchParams.get('settings');
     if(!shared&&!complete)throw Error('This link does not contain crosshair settings.');
     if(shared&&!shared.startsWith('CS'))throw Error('This link does not contain a supported crosshair code.');
-    const parsed=shared?decode(shared,legacyHeight):null;
-    if(complete){const settings=validateSettings(JSON.parse(complete));if(parsed&&encode(settings)!==encode(parsed.settings))throw Error('The link contains conflicting crosshair settings.');return {settings,legacy:parsed?.legacy??false,note:parsed?.note};}
+    const parsed=shared?decode(shared,legacyHeight,base):null;
+    if(complete){
+      let raw: unknown;
+      try{ raw=JSON.parse(complete); }catch{ throw Error("The link's settings are not valid JSON."); }
+      const settings=validateSettings(raw);
+      if(parsed&&!sameCodeSettings(settings,parsed.settings))throw Error('The link contains conflicting crosshair settings.');
+      return {settings,legacy:parsed?.legacy??false,note:parsed?.note};
+    }
     return parsed!;
   }
   const code=text;
   if(/^CS[A-Za-z0-9]{44}$/.test(code)) {
     const b=unpack(code.slice(2),32);const view=new DataView(b.buffer);
-    if(b[1]!==1) throw Error('This CS code uses an unsupported format version.');
-    if((b[21]&224)||b.slice(23).some(x=>x!==0)) throw Error('This code contains unknown settings. It cannot be safely edited yet.');
+    if(b[1]!==1) throw Error(`This CS code uses an unsupported format version (${b[1]} in byte 1; expected 1).`);
+    const reservedByte=b.findIndex((x,i)=>i>=23&&x!==0);
+    if((b[21]!&224)||reservedByte>=0) throw Error(`This code contains unknown settings${reservedByte>=0?` (reserved byte ${reservedByte} is ${b[reservedByte]!})`:' (reserved bits set in byte 21)'}. It cannot be safely edited yet.`);
     const s={...defaults};s.cl_crosshair_screen_height=view.getUint16(2,true);
-    s.cl_crosshairstyle=b[4]&31;s.cl_crosshair_recoil=(b[4]>>5)&1;s.cl_crosshairdot=(b[4]>>6)&1;s.cl_crosshair_t=b[4]>>7;
-    ['r','g','b','a'].forEach((c,i)=>{s[`cl_crosshaircolor_${c}`]=b[5+i];s[`cl_crosshairoutline_${c}`]=b[9+i];});
-    s.cl_crosshair_thickness=b[13]&63;s.cl_crosshair_drawoutline=b[13]>>6;s.cl_crosshair_gap=view.getInt16(14,true);s.cl_crosshair_length=b[16];s.cl_crosshair_dynamic_spread_limit=b[17];
+    s.cl_crosshairstyle=b[4]!&31;s.cl_crosshair_recoil=(b[4]!>>5)&1;s.cl_crosshairdot=(b[4]!>>6)&1;s.cl_crosshair_t=b[4]!>>7;
+    ['r','g','b','a'].forEach((c,i)=>{s[`cl_crosshaircolor_${c}`]=b[5+i]!;s[`cl_crosshairoutline_${c}`]=b[9+i]!;});
+    s.cl_crosshair_thickness=b[13]!&63;s.cl_crosshair_drawoutline=b[13]!>>6;s.cl_crosshair_gap=view.getInt16(14,true);s.cl_crosshair_length=b[16]!;s.cl_crosshair_dynamic_spread_limit=b[17]!;
     const bits=BigInt(view.getUint32(18,true));
     s.cl_crosshair_dynamic_splitdist=Number(bits&127n);s.cl_crosshair_dynamic_splitalpha_innermod=Number(bits>>7n&127n)/100;
     s.cl_crosshair_dynamic_splitalpha_outermod=(Number(bits>>14n&127n)+30)/100;s.cl_crosshair_dynamic_maxdist_splitratio=Number(bits>>21n&127n)/100;
-    s.cl_ironsight_usecrosshaircolor=Number(bits>>28n&1n);s.cl_ironsight_dot_scale=(b[22]+10)/100;
+    s.cl_ironsight_usecrosshaircolor=Number(bits>>28n&1n);s.cl_ironsight_dot_scale=(b[22]!+10)/100;
     return {settings:validateSettings(s),legacy:false};
   }
   if(/^CSGO(-[A-Za-z0-9]{5}){5}$/.test(code)) {
     const b=unpack(code.slice(5).replaceAll('-',''),18);const view=new DataView(b.buffer);const s={...defaults};
-    if(![1,3,4].includes(b[1])) throw Error('This is not a supported crosshair code. Match codes cannot be imported.');
+    if(![1,3,4].includes(b[1]!)) throw Error('This is not a supported crosshair code. Match codes cannot be imported.');
     if(b[1]===1){
-      const converted=convertLegacy(code,legacyHeight);
-      return {settings:converted.settings,legacy:true,note:'Converted with the community-static-v6 reconstruction. Pixel matching is approximate; check it in CS2. Use the converter panel to review warnings.'};
+      const converted=convertLegacy(code,legacyHeight,legacyHeight,base);
+      return {settings:converted.settings,legacy:true,note:`Converted with the ${COMMUNITY_MODEL_VERSION} reconstruction. Pixel matching is approximate; check it in CS2. Use the converter panel to review warnings.`};
     }
     const bits=view.getUint32(10,true);
-    s.cl_crosshairstyle=b[2]&15;s.cl_crosshair_recoil=(b[2]>>4)&1;s.cl_crosshairdot=(b[2]>>6)&1;s.cl_crosshair_t=b[2]>>7;
-    ['r','g','b','a'].forEach((c,i)=>s[`cl_crosshaircolor_${c}`]=b[3+i]);
-    s.cl_crosshair_gap=b[7];s.cl_crosshair_length=b[8];s.cl_crosshair_dynamic_spread_limit=b[9];
+    s.cl_crosshairstyle=b[2]!&15;s.cl_crosshair_recoil=(b[2]!>>4)&1;s.cl_crosshairdot=(b[2]!>>6)&1;s.cl_crosshair_t=b[2]!>>7;
+    ['r','g','b','a'].forEach((c,i)=>s[`cl_crosshaircolor_${c}`]=b[3+i]!);
+    s.cl_crosshair_gap=b[7]!;s.cl_crosshair_length=b[8]!;s.cl_crosshair_dynamic_spread_limit=b[9]!;
     s.cl_crosshair_dynamic_splitdist=bits&127;s.cl_crosshair_dynamic_splitalpha_innermod=((bits>>>7)&31)/20;
     s.cl_crosshair_dynamic_splitalpha_outermod=(((bits>>>12)&15)+6)/20;s.cl_crosshair_dynamic_maxdist_splitratio=((bits>>>16)&127)/100;
-    s.cl_crosshair_thickness=(bits>>>23)&31;s.cl_crosshair_drawoutline=b[1]===4?(b[13]>>4)&3:(b[2]>>5)&1;s.cl_crosshair_screen_height=view.getUint16(14,true);
+    s.cl_crosshair_thickness=(bits>>>23)&31;s.cl_crosshair_drawoutline=b[1]===4?(b[13]!>>4)&3:(b[2]!>>5)&1;s.cl_crosshair_screen_height=view.getUint16(14,true);
     return {settings:validateSettings(s),legacy:true,note:'Imported a September CSGO code. Outline color and scope dot settings were absent and use defaults.'};
   }
   throw Error('Paste a complete CS crosshair code or a supported CSGO crosshair code.');
@@ -90,7 +103,8 @@ export function importCommands(text: string, base=defaults): Settings {
   const s={...base};let count=0;
   for(const command of text.replace(/\/\/[^\n]*/g,'').split(/[;\r\n]/)) {
     const match=/^\s*"?(cl_[a-z0-9_]+)"?\s+"?(-?\d+(?:\.\d+)?|true|false)"?\s*$/i.exec(command);
-    if(match && match[1] in defaults){s[match[1]]=match[2]==='true'?1:match[2]==='false'?0:Number(match[2]);count++;}
+    const key=match?.[1];
+    if(key!==undefined && Object.hasOwn(defaults,key)){s[key]=match?.[2]==='true'?1:match?.[2]==='false'?0:Number(match?.[2]);count++;}
   }
   if(!count) throw Error('No current CS2 crosshair settings found. Unrelated commands are ignored.');
   return validateSettings(s);

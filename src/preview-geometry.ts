@@ -82,7 +82,12 @@ export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase =
     const bounds: Geometry['bounds'] = [Infinity, Infinity, -Infinity, -Infinity];
     for (const shape of shapes) {
         const r = shape.kind === 'rect' ? 0 : shape.radius + (shape.kind === 'arc' ? shape.thickness / 2 : 0);
-        const b = shape.kind === 'rect' ? [shape.x, shape.y, shape.x + shape.width, shape.y + shape.height] : [-r, -r, r, r];
+        const b: [number, number, number, number] = shape.kind === 'rect' ? [shape.x, shape.y, shape.x + shape.width, shape.y + shape.height] : [-r, -r, r, r];
+        // Outline halo in CSS units. This must mirror preview-renderer's device-pixel
+        // expansion exactly: the outline pass grows rects by `unit` (1 CSS unit) on the
+        // min sides, plus another `unit` on the max sides only when outline === 1.
+        // Outline === 2 shifts arc strokes inward instead, which the conservative
+        // full-circle bounds already cover, so no separate max-side term is needed.
         const before = outline ? 1 : 0, after = outline === 1 ? 1 : 0;
         bounds[0] = Math.min(bounds[0], b[0] - before + offset[0]);
         bounds[1] = Math.min(bounds[1], b[1] - before + offset[1]);

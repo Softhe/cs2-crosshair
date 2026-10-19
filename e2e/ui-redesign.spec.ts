@@ -36,7 +36,7 @@ test('one consistent appearance keeps readable text without an extra heading',as
   const result=await page.evaluate(()=>{
    const root=getComputedStyle(document.documentElement),panel=document.querySelector('.preview-section')!,input=document.querySelector('#import-text')!;
    const rgb=(v:string)=>{const m=v.match(/[\d.]+/g)!;return m.slice(0,3).map(Number);};
-   const lum=(v:string)=>rgb(v).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((sum,n,i)=>sum+n*[.2126,.7152,.0722][i],0);
+   const lum=(v:string)=>rgb(v).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((sum,n,i)=>sum+n*([.2126,.7152,.0722][i]??0),0);
    const contrast=(fg:string,bg:string)=>{const a=lum(fg),b=lum(bg);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);};
    const helper=document.querySelector('.preview-caption')!,button=document.querySelector('.primary-button')!;
    return {panel:getComputedStyle(panel).backgroundColor,input:getComputedStyle(input).backgroundColor,token:root.getPropertyValue('--panel'),textContrast:contrast(getComputedStyle(helper).color,getComputedStyle(document.body).backgroundColor),buttonContrast:contrast(getComputedStyle(button).color,getComputedStyle(button).backgroundColor)};

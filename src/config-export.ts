@@ -1,5 +1,5 @@
 import { encode } from './codec';
-import { commands, safeAlias, type Settings } from './model';
+import { commandsArray, safeAlias, type Settings } from './model';
 
 export function downloadConfig(settings: Settings, name: string): string {
   const alias = safeAlias(name), shortcut = alias || 'my_crosshair';
@@ -11,7 +11,7 @@ export function downloadConfig(settings: Settings, name: string): string {
     `// alias ${shortcut} "exec ${filename}"`,
     `// Add the alias line to autoexec.cfg without //, then type ${shortcut} in the console to load this file.`,
     '',
-    commands(settings).split('; ').join('\n'),
+    commandsArray(settings).join('\n'),
     '',
   ].join('\n');
 }

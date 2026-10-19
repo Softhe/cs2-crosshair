@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState,type Dispatch,type SetStateAction} from 'react';
 import {read,write,validateLibrary,settingsKey,type Saved} from './storage';
+import {newId} from './ids';
 import {validateSettings,type Settings} from './model';
 export type CloudEntry={id:string;name:string;settings:Settings};
 export type Snapshot={revision:number;entries:CloudEntry[]};
@@ -11,7 +12,7 @@ export function persistGuest(entries:Saved[]):void {if(!write('library',entries)
 export function hasUnmergedGuestFavorites(guest:Saved[],account:Saved[]):boolean {const keys=new Set(account.filter(e=>e.favorite).map(e=>settingsKey(e.settings)));return guest.some(e=>e.favorite&&!keys.has(settingsKey(e.settings)));}
 export type SyncStatus='local'|'loading'|'synced'|'pending'|'error';
 const API_TIMEOUT_MS=12_000;
-function apiRequest(path:string,options:RequestInit={}){return fetch(path,{...options,signal:AbortSignal.timeout(API_TIMEOUT_MS)});}
+function apiRequest(path:string,options:RequestInit={}){return fetch(path,{...options,signal:timeoutSignal()});}
 export function validateSnapshot(value:unknown):Snapshot{
   const v=value as Snapshot;
   if(!v||!Number.isSafeInteger(v.revision)||v.revision<0||!Array.isArray(v.entries)||v.entries.length>50)throw Error('Invalid cloud library.');
@@ -25,7 +26,7 @@ export function cloudFavorites(entries:Saved[]):CloudEntry[]{return entries.filt
 const equal=(a:CloudEntry|undefined,b:CloudEntry|undefined)=>a===b||!!a&&!!b&&a.name===b.name&&settingsKey(a.settings)===settingsKey(b.settings);
 export function mergeGuestFavorites(remote:CloudEntry[],guest:CloudEntry[]):CloudEntry[]{
   const result=[...remote];const keys=new Set(remote.map(e=>settingsKey(e.settings)));const ids=new Set(remote.map(e=>e.id));
-  for(const entry of guest)if(!keys.has(settingsKey(entry.settings))){const e={...entry,id:ids.has(entry.id)?crypto.randomUUID():entry.id};result.push(e);keys.add(settingsKey(e.settings));ids.add(e.id);}
+  for(const entry of guest)if(!keys.has(settingsKey(entry.settings))){const e={...entry,id:ids.has(entry.id)?newId():entry.id};result.push(e);keys.add(settingsKey(e.settings));ids.add(e.id);}
   if(result.length>50)throw Error('Merge exceeds the 50 favorite limit. Remove some favorites first.');return result;
 }
 export function mergeConflict(base:CloudEntry[],local:CloudEntry[],remote:CloudEntry[]):CloudEntry[]{
@@ -34,7 +35,7 @@ export function mergeConflict(base:CloudEntry[],local:CloudEntry[],remote:CloudE
     const before=b.get(id),ours=l.get(id),theirs=r.get(id);
     if(equal(ours,before)){if(theirs)out.push(theirs);}
     else if(equal(theirs,before)||equal(ours,theirs)){if(ours)out.push(ours);}
-    else {if(theirs)out.push(theirs);if(ours)out.push({...ours,id:theirs?crypto.randomUUID():ours.id});}
+    else {if(theirs)out.push(theirs);if(ours)out.push({...ours,id:theirs?newId():ours.id});}
   }
   if(out.length>50)throw Error('Conflicting changes exceed the favorite limit. Your pending library is retained.');return out;
 }
@@ -45,6 +46,37 @@ function restoreQueue(id:string):Queue|null{
   return {base:validateSnapshot(q.base),entries:validateSnapshot({revision:0,entries:q.entries}).entries,history:validateLibrary(q.history).filter(e=>!e.favorite)};
 }
 function saved(entries:CloudEntry[]):Saved[]{return entries.map(e=>({...e,alias:'',favorite:true,date:''}));}
+function timeoutSignal(): AbortSignal | undefined {
+  try {
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+      return AbortSignal.timeout(API_TIMEOUT_MS);
+    }
+  } catch {
+    /* Fall through to manual controller. */
+  }
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    return controller.signal;
+  } catch {
+    return undefined;
+  }
+}
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+async function fetchLibrary(url: string, init: RequestInit = {}, retries = 3): Promise<Response> {
+  let error: unknown = null;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    if (attempt > 0) await sleep(300 * 2 ** (attempt - 1));
+    try {
+      const response = await apiRequest(url, init);
+      if (response.ok || ![502, 503, 504].includes(response.status)) return response;
+      error = new Error('Library sync failed.');
+    } catch (cause) {
+      error = cause;
+    }
+  }
+  throw error instanceof Error ? error : new Error('Library sync failed.');
+}
 export function useLibrarySync(guestLibrary:Saved[],setGuestLibrary:Dispatch<SetStateAction<Saved[]>>){
   const [sessionState,setSessionState]=useState<'checking'|'ready'|'unavailable'>('checking');
   const [available,setAvailable]=useState(false),[error,setError]=useState<string|null>(null);
@@ -57,14 +89,15 @@ export function useLibrarySync(guestLibrary:Saved[],setGuestLibrary:Dispatch<Set
   async function synchronize(id:string,epoch:number){
     if(busy.current)return false;busy.current=true;setSyncing(true);
     try{
-      const sessionResponse=await apiRequest('/api/session',{credentials:'same-origin'});if(!sessionResponse.ok)throw Error('Session unavailable.');const session=await sessionResponse.json();if(generation.current!==epoch||active.current!==id)return;
+      const sessionResponse=await fetchLibrary('/api/session',{credentials:'same-origin'});if(!sessionResponse.ok)throw Error('Session unavailable.');const session=await sessionResponse.json();if(generation.current!==epoch||active.current!==id)return;
       if(session.user?.steamId!==id){generation.current++;active.current=null;queue.current=null;setUser(null);setAccountLibrary([]);setSyncing(false);setStatus('loading');setTick(t=>t+1);return;}csrf.current=session.csrfToken;
-      const response=await apiRequest('/api/library',{credentials:'same-origin',headers:{'X-CSRF-Token':csrf.current}});if(!response.ok)throw Error('Library unavailable.');const remote=validateSnapshot(await response.json());if(generation.current!==epoch||active.current!==id)return;
+      const response=await fetchLibrary('/api/library',{credentials:'same-origin',headers:{'X-CSRF-Token':csrf.current}});if(!response.ok)throw Error('Library unavailable.');const remote=validateSnapshot(await response.json());if(generation.current!==epoch||active.current!==id)return;
       let q=queue.current??{base:remote,entries:remote.entries,history:[]};const disk=restoreQueue(id);if(disk)q={base:disk.base,entries:mergeConflict(q.base.entries,q.entries,disk.entries),history:disk.history};
       q={...q,entries:mergeConflict(q.base.entries,q.entries,remote.entries),base:remote};persistQueue(id,q);queue.current=q;publish(q);
       for(let attempt=0;attempt<3;attempt++){
         if(JSON.stringify(q.entries)===JSON.stringify(q.base.entries)){setError(null);setStatus('synced');return true;}
-        setStatus('pending');const sent=q;const put=await apiRequest('/api/library',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf.current},body:JSON.stringify({revision:sent.base.revision,entries:sent.entries})});
+        if(attempt>0)await sleep(300*2**(attempt-1));
+        setStatus('pending');const sent=q;const put=await fetchLibrary('/api/library',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf.current},body:JSON.stringify({revision:sent.base.revision,entries:sent.entries})},1);
         if(generation.current!==epoch||active.current!==id)return;
         if(!put.ok&&put.status!==409)throw Error('Library sync failed.');const latest=validateSnapshot(await put.json());
         let current=queue.current!;const disk=restoreQueue(id);if(disk)current={base:disk.base,entries:mergeConflict(current.base.entries,current.entries,disk.entries),history:disk.history};
@@ -81,7 +114,7 @@ export function useLibrarySync(guestLibrary:Saved[],setGuestLibrary:Dispatch<Set
     }catch{if(!disposed){setStatus('local');setAvailable(false);setSessionState('unavailable');}}})();
     return()=>{disposed=true;generation.current++;};
   },[tick]);
-  useEffect(()=>{const retry=()=>{const id=active.current;if(id)void synchronize(id,generation.current);else setTick(t=>t+1);};const changed=(event:StorageEvent)=>{if(active.current&&event.key==='delli.v3.'+queueKey(active.current)){generation.current++;busy.current=false;try{queue.current=restoreQueue(active.current);if(queue.current)publish(queue.current);setStatus('pending');void synchronize(active.current,generation.current);}catch(cause){fail(cause);}}};window.addEventListener('online',retry);window.addEventListener('focus',retry);document.addEventListener('visibilitychange',retry);window.addEventListener('storage',changed);return()=>{window.removeEventListener('online',retry);window.removeEventListener('focus',retry);document.removeEventListener('visibilitychange',retry);window.removeEventListener('storage',changed);};},[]);
+  useEffect(()=>{const retry=()=>{const id=active.current;if(id)void synchronize(id,generation.current);else setTick(t=>t+1);};const changed=(event:StorageEvent)=>{if(active.current&&event.key==='delli.v3.'+queueKey(active.current)){generation.current++;try{queue.current=restoreQueue(active.current);if(queue.current)publish(queue.current);setStatus('pending');const id=active.current;const epoch=generation.current;queueMicrotask(()=>{void synchronize(id,epoch);});}catch(cause){fail(cause);}}};window.addEventListener('online',retry);window.addEventListener('focus',retry);document.addEventListener('visibilitychange',retry);window.addEventListener('storage',changed);return()=>{window.removeEventListener('online',retry);window.removeEventListener('focus',retry);document.removeEventListener('visibilitychange',retry);window.removeEventListener('storage',changed);};},[]);
   const setLibrary:UpdateLibrary=(update)=>{
     const id=active.current;
     if(!id){try{const previous=guestRef.current;const next=typeof update==='function'?update(previous):update;persistGuest(next);guestRef.current=next;setGuestLibrary(next);setError(null);setStatus('local');return true;}catch(cause){fail(cause);return false;}}

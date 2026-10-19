@@ -7,8 +7,8 @@ const item=(id:string,name=id,length=8):CloudEntry=>({id,name,settings:{...defau
 const account='76561198000000001';
 test('library validation preserves IDs and migrates legacy entries',()=>{
  const entry={...item('stable'),favorite:true,alias:'',date:'2026-10-15'};
- assert.equal(validateLibrary([entry])[0].id,'stable');
- const migrated=validateLibrary([{...entry,id:undefined}])[0];assert.match(migrated.id,/^[a-z0-9-]+$/i);assert.equal(validateLibrary([migrated])[0].id,migrated.id);
+ assert.equal(validateLibrary([entry])[0]!.id,'stable');
+ const migrated=validateLibrary([{...entry,id:undefined}])[0]!;assert.match(migrated!.id,/^[a-z0-9-]+$/i);assert.equal(validateLibrary([migrated])[0]!.id,migrated!.id);
 });
 test('settings identity ignores insertion order',()=>{
  const reversed=Object.fromEntries(Object.entries(defaults).reverse());assert.equal(settingsKey(defaults),settingsKey(reversed as typeof defaults));
@@ -28,7 +28,7 @@ test('three-way merge preserves independent edits and both deletions',()=>{
 });
 test('three-way merge duplicates divergent edits rather than losing a version',()=>{
  const merged=mergeConflict([item('a')],[item('a','Local',9)],[item('a','Remote',10)]);
- assert.equal(merged.length,2);assert.equal(merged[0].id,'a');assert.equal(merged[0].name,'Remote');assert.notEqual(merged[1].id,'a');assert.equal(merged[1].name,'Local');
+ assert.equal(merged.length,2);assert.equal(merged[0]!.id,'a');assert.equal(merged[0]!.name,'Remote');assert.notEqual(merged[1]!.id,'a');assert.equal(merged[1]!.name,'Local');
 });
 test('delete against concurrent edit preserves the edited version',()=>{
  assert.deepEqual(mergeConflict([item('a')],[],[item('a','Changed')]),[item('a','Changed')]);

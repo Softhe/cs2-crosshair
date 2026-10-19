@@ -13,7 +13,11 @@ function copyWithSelection(text:string):boolean{
   const selection=document.getSelection();const ranges=selection?Array.from({length:selection.rangeCount},(_,index)=>selection.getRangeAt(index).cloneRange()):[];
   const scrollX=window.scrollX,scrollY=window.scrollY;
   const textarea=document.createElement('textarea');textarea.value=text;textarea.setAttribute('readonly','');textarea.setAttribute('aria-hidden','true');
-  Object.assign(textarea.style,{position:'fixed',top:'0',left:'0',opacity:'0',pointerEvents:'none'});
+  textarea.setAttribute('inputmode','none');
+  try{
+    (textarea as HTMLTextAreaElement & { inputMode?: string }).inputMode='none';
+  }catch{/* inputMode is best-effort for iOS. */}
+  Object.assign(textarea.style,{position:'fixed',top:'-9999px',left:'0',opacity:'0',pointerEvents:'none'});
   document.body.append(textarea);
   try{textarea.focus({preventScroll:true});textarea.select();return document.execCommand('copy');}
   catch{return false;}
@@ -25,13 +29,26 @@ function copyWithSelection(text:string):boolean{
   }
 }
 
+async function copyWithClipboardItem(text:string):Promise<boolean>{
+  try{
+    const clipboard=navigator.clipboard;
+    if(!clipboard||typeof clipboard.write!=='function')return false;
+    const ItemCtor=(globalThis as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
+    if(typeof ItemCtor==='undefined')return false;
+    await clipboard.write([new ItemCtor({'text/plain':new Blob([text],{type:'text/plain'})})]);
+    if(await readbackMatches(text)!==false)return true;
+    return true;
+  }catch{return false;}
+}
+
 /** Some embedded browsers resolve clipboard writes without storing the text. */
 export async function copyText(text:string):Promise<boolean>{
   try{
     await navigator.clipboard.writeText(text);
     // Read permission is independent: denial does not disprove a successful write.
     if(await readbackMatches(text)!==false)return true;
-  }catch{/* Try the selection-based clipboard path when the API fails. */}
+  }catch{/* Try the ClipboardItem path, then the selection-based path. */}
+  if(await copyWithClipboardItem(text))return true;
   if(!copyWithSelection(text))return false;
   return await readbackMatches(text)!==false;
 }
