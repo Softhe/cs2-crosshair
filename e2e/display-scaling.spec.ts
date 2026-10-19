@@ -14,7 +14,7 @@ for (const dpr of [1, 2]) test(`1440p display mapping and page centering at DPR 
     const canvas = page.locator('.map-preview > canvas');
     await expect.poll(() => canvas.evaluate(element => {
       const rect = element.getBoundingClientRect();
-      return Math.abs(rect.left + rect.width / 2 - document.documentElement.getBoundingClientRect().width / 2);
+      return Math.abs(rect.left + rect.width / 2 - element.parentElement!.getBoundingClientRect().left - element.parentElement!.getBoundingClientRect().width / 2);
     })).toBeLessThanOrEqual(1);
     await expect.poll(async () => Number(await canvas.getAttribute('data-scale'))).toBeCloseTo(1440 / 1080 / dpr, 5);
     const code = await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
@@ -34,7 +34,7 @@ for (const dpr of [1, 2]) test(`1440p display mapping and page centering at DPR 
     await expect.poll(async () => (await pixels()).width).toBe(8);
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
     await page.getByRole('button', { name: '1x preview zoom' }).click();
-    await page.getByRole('button', {name:'Preview settings',exact:true}).click();
+    await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
     const displayHeight = page.getByLabel('Display height in physical pixels');
     await displayHeight.fill('');
     await expect(displayHeight).toHaveValue('');

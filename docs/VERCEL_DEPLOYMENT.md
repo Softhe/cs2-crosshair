@@ -41,7 +41,7 @@ After preview deployment, verify the following on its actual origin:
 1. The editor and a direct code link load with their static assets.
 2. `/api/session` returns JSON, and an unknown `/api/` route does not return the SPA.
 3. Steam sign-in redirects to Steam Community with the exact preview callback URL.
-4. A real sign-in creates a secure session and returns to Library.
+4. A real sign-in creates a secure session and returns to the originating editor or Library view.
 5. A favorite saved in one signed-in browser appears in another signed-in browser for the same Steam account. A different account cannot access it.
 6. Guest favorites remain local until the user chooses to add them. Drafts, history, aliases, and display preferences stay local.
 7. Logout ends access to the private account library. Pending saves and retry remain truthful during network failure.

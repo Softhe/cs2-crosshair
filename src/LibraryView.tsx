@@ -1,17 +1,35 @@
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import type {UpdateLibrary} from './library-sync';
 import {Bookmark,Copy,Download,Pencil,Search,Star,Trash2,Upload} from 'lucide-react';
 import {Preview} from './Preview';
 import {encode} from './codec';
 import {limitLibrary,type Saved} from './storage';
 
-type Props={library:Saved[];setLibrary:UpdateLibrary;onLoad:(item:Saved)=>void;onCopy:(text:string,label:string)=>void;onBackup:()=>void;onRestore:()=>void;notify:(text:string)=>void;user:{steamId:string}|null;status:string;syncing:boolean;error:string;available:boolean;hasGuestFavorites:boolean;onMerge:()=>void;onRetry:()=>void;onSignOut:()=>void;signIn:string};
+type Props={library:Saved[];setLibrary:UpdateLibrary;onLoad:(item:Saved)=>void;onCopy:(text:string,label:string)=>void;onBackup:()=>void;onRestore:()=>void;notify:(text:string,tone?:'success'|'warning'|'error'|'info')=>void;user:{steamId:string}|null;status:string;syncing:boolean;error:string;available:boolean;hasGuestFavorites:boolean;onMerge:()=>void;onRetry:()=>void;onSignOut:()=>void;signIn:string};
 export function LibraryView(p:Props){
   const [search,setSearch]=useState('');
   const [filter,setFilter]=useState('favorites');
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [renaming,setRenaming]=useState<string|null>(null);
   const [rename,setRename]=useState('');
+  const [removed,setRemoved]=useState<Saved[]>([]);
+  useEffect(()=>setRemoved([]),[p.user?.steamId]);
+  function remove(item:Saved){
+    let deleted:Saved|undefined;
+    if(p.setLibrary(items=>{deleted=items.find(entry=>entry.id===item.id);return items.filter(entry=>entry.id!==item.id);})) {if(deleted){setRemoved(items=>[deleted!,...items.filter(entry=>entry.id!==item.id)].slice(0,70));p.notify(deleted.name+' removed. Use Undo to restore it.','info');}}
+    else p.notify('Removal could not be saved on this device.','error');
+  }
+  function undo(item:Saved){
+    let issue='';
+    const saved=p.setLibrary(items=>{
+      if(items.some(entry=>entry.id===item.id))return items;
+      if(items.filter(entry=>entry.favorite===item.favorite).length>=(item.favorite?50:20)){issue='This collection is full. Remove an entry before restoring this crosshair.';return items;}
+      return [item,...items];
+    });
+    if(issue){p.notify(issue,'warning');return;}
+    if(!saved){p.notify('The crosshair could not be restored on this device.','error');return;}
+    setRemoved(items=>items.filter(entry=>entry.id!==item.id));setSelectedId(item.id);p.notify('Crosshair restored.','success');
+  }
   const favorites=p.library.filter(item=>item.favorite);
   const visible=p.library.filter(item=>(filter==='all'||(filter==='favorites'?item.favorite:!item.favorite))&&item.name.toLowerCase().includes(search.toLowerCase()));
   const stored=p.library.find(item=>item.id===selectedId)??null;
@@ -19,12 +37,12 @@ export function LibraryView(p:Props){
   const syncLabel=p.syncing?'Syncing your library…':p.error.startsWith('Changes could not be saved')?'Changes could not be saved':p.status==='error'&&!p.user?'Local save failed':p.user?(p.status==='synced'?'Synced':p.status==='loading'?'Loading your Steam library…':'Saved on this device · waiting to sync'):'Saved on this device';
   function finishRename(item:Saved){
     const name=rename.trim();
-    if(!name){p.notify('Give your crosshair a name.');return;}
+    if(!name){p.notify('Give your crosshair a name.','warning');return;}
     if(p.setLibrary(items=>items.map(entry=>entry.id===item.id?{...entry,name,date:new Date().toISOString()}:entry)))setRenaming(null);
-    else p.notify('Rename could not be saved on this device.');
+    else p.notify('Rename could not be saved on this device.','error');
   }
   function toggleFavorite(item:Saved){
-    if(!item.favorite&&favorites.length>=50){p.notify('Favorite limit reached.');return;}
+    if(!item.favorite&&favorites.length>=50){p.notify('Favorite limit reached.','warning');return;}
     p.setLibrary(items=>limitLibrary(items.map(entry=>entry.id===item.id?{...entry,favorite:!entry.favorite,date:new Date().toISOString()}:entry)));
   }
   return <main className="collection-page" aria-label="Crosshair library">
@@ -48,7 +66,7 @@ export function LibraryView(p:Props){
             {p.syncing?'Syncing…':p.status==='synced'?'Sync now':'Retry sync'}
           </button>
           <button onClick={p.onSignOut}>Sign out</button>
-        </>:p.available?<a className="steam-login" href={p.signIn}>Sign in with Steam</a>:<span className="section-note">Steam sign-in is unavailable on this host. Local saving and backups still work.</span>}
+        </>:p.available?<span className="library-sign-in-hint">Sign in with Steam using the button in the header.</span>:<span className="section-note">Steam sign-in is unavailable on this host. Local saving and backups still work.</span>}
       </div>
     </section>
     {p.user&&p.hasGuestFavorites&&<section className="guest-merge">
@@ -76,22 +94,24 @@ export function LibraryView(p:Props){
             </button>
             <div className="library-info">
               {renaming===item.id?<input autoFocus aria-label="Rename crosshair" value={rename} maxLength={80} onChange={e=>setRename(e.target.value)} onBlur={()=>finishRename(item)} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape')setRenaming(null);}}/>:<strong>{item.name}</strong>}
-              <span>{item.favorite?'Saved crosshair':'Recent import'}</span>
+              <span className={`library-badge ${item.favorite?'favorite':'history'}`}>{item.favorite?'Favorite':'Recent history'}</span>
             </div>
             <div className="library-item-actions">
               <button onClick={()=>p.onLoad(item)}>Load</button>
               <button className="icon-button" aria-label={`Copy ${item.name}`} title="Copy crosshair code" onClick={()=>p.onCopy(encode(item.settings),'Share code')}><Copy size={16}/></button>
               <button className="icon-button" aria-label={`Rename ${item.name}`} onClick={()=>{setRename(item.name);setRenaming(item.id);}}><Pencil size={15}/></button>
               <button className={`icon-button ${item.favorite?'favorite':''}`} aria-label={`${item.favorite?'Unfavorite':'Favorite'} ${item.name}`} onClick={()=>toggleFavorite(item)}><Star size={15}/></button>
-              <button className="icon-button" aria-label={`Remove ${item.name}`} onClick={()=>p.setLibrary(items=>items.filter(entry=>entry.id!==item.id))}><Trash2 size={15}/></button>
+              <button className="icon-button" aria-label={`Remove ${item.name}`} onClick={()=>remove(item)}><Trash2 size={15}/></button>
             </div>
           </article>)}
           {!visible.length&&<div className="empty-library">
             <Bookmark size={32}/>
             <h2>{search?'No matching crosshairs.':filter==='history'?'No recent imports.':'Your collection starts here.'}</h2>
-            <p>{search?'Try another name.':'Import a code in the editor, then save it with a name or player nickname.'}</p>
+            <p>{search?'Try another name or clear the filters to see your collection.':'Import a code in the editor, then save it with a name or player nickname.'}</p>
+            {search&&<button onClick={()=>{setSearch('');setFilter('all');}}>Clear filters</button>}
           </div>}
         </div>
+        {removed.length>0&&<section className="library-recovery" aria-label="Recently removed crosshairs"><p>Removed crosshairs can be restored while this library stays open.</p>{removed.map(item=><div key={item.id}><span>Removed {item.name}</span><button aria-label={`Undo removal of ${item.name}`} onClick={()=>undo(item)}>Undo</button></div>)}</section>}
         <div className="collection-backups">
           <button onClick={p.onRestore}><Upload size={15}/>Restore backup</button>
           <button onClick={p.onBackup}><Download size={15}/>Export library</button>

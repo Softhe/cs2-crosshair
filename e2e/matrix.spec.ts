@@ -37,11 +37,11 @@ for(const [style,name] of styles){test(`matrix: ${name} edits, clipboard code, c
   expect(errors).toEqual([]);
 });}
 
-test('matrix: all presets, undo, reset, themes, settings visibility',async({page,context})=>{
+test('matrix: all presets, undo, reset, settings visibility',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/');const initial=await consoleText(page);
   await expect(page.getByRole('button',{name:'Undo Changes',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'Reset crosshair',exact:true})).toHaveCount(1);
-  for(const preset of presets){await page.locator('button.preset').filter({hasText:preset.name}).click();await expect(page.getByLabel('Style',{exact:true})).toHaveValue(String(preset.settings.cl_crosshairstyle));await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);}
-  for(const theme of ['tactical','crimson','cs2']){await page.getByLabel('Appearance').selectOption(theme);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);await page.reload();await expect(page.getByLabel('Appearance')).toHaveValue(theme);}
+  await page.locator('.starting-presets > summary').click();for(const preset of presets){await page.locator('button.preset').filter({hasText:preset.name}).click();await expect(page.getByLabel('Style',{exact:true})).toHaveValue(String(preset.settings.cl_crosshairstyle));await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);}
+  await expect(page.locator('html')).toHaveAttribute('data-theme','cs2');await expect(page.getByRole('group',{name:'Appearance',exact:true})).toHaveCount(0);
   await number(page,'Thickness',6);const changed=await consoleText(page);
   await page.getByRole('button',{name:'Copy link',exact:true}).click();await page.goto(await clipboard(page));expect(await consoleText(page)).toBe(changed);
   await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();expect(await consoleText(page)).toBe(initial);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(changed);
@@ -54,7 +54,7 @@ test('matrix: numeric bounds, slider synchronization, clipboard paste, code reje
   await gap.fill('');await gap.press('Enter');await expect(gap).toHaveValue('128');
   await page.getByLabel('Gap slider',{exact:true}).fill('31');await expect(gap).toHaveValue('31');
   const code=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);await page.getByRole('button',{name:'Copy crosshair code',exact:true}).click();await page.getByLabel('Crosshair code or config').focus();
-  await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();await expect(page.getByRole('status')).toContainText('Crosshair imported');await expect(page.getByLabel('Crosshair code or config')).toHaveValue(code);await expect(page.getByRole('button',{name:'Use current code',exact:true})).toBeDisabled();await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
+  if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();await expect(page.locator('.toast')).toContainText('Crosshair imported');await expect(page.getByLabel('Crosshair code or config')).toHaveValue(code);await expect(page.getByRole('button',{name:'Use current code',exact:true})).toBeDisabled();await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
   for(const invalid of ['CSINVALID','cl_crosshair_length 999','quit','cl_crosshair_thickness 1.5']){await page.getByLabel('Crosshair code or config').fill(invalid);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);}
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
   await importText(page,'cl_crosshair_thickness 1; quit');await expect(page.getByRole('spinbutton',{name:'Thickness',exact:true})).toHaveValue('1');

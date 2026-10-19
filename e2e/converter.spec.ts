@@ -6,7 +6,7 @@ test('convert old config, copy new code, invalidate stale output and apply',asyn
   const previous=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
   await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 4; cl_crosshairsize 2; cl_crosshairthickness 0.5; cl_crosshairgap -2');
-  await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
+  if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
   await page.getByLabel('New game height').selectOption('1440');
   await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
   const code=await page.getByLabel('NEW CS CODE',{exact:true}).inputValue();
@@ -25,7 +25,7 @@ test('convert old config, copy new code, invalidate stale output and apply',asyn
 test('blocked legacy styles show an error without offering a new code',async({page})=>{
   await page.goto('/');await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 0; cl_crosshairsize 2');
-  await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
+  if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
   await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
   await expect(page.getByText(/Old styles 0 and 1 \(the default styles\)/)).toBeVisible();
   await expect(page.getByLabel('NEW CS CODE',{exact:true})).toHaveCount(0);

@@ -10,6 +10,7 @@ const namespace='http://specs.openid.net/auth/2.0';
 const token=()=>randomBytes(32).toString('hex');
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
 const equal=(a:string,b:string)=>a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
+const signInReturn=(value:string|null)=>value==='/?view=library'?'/?view=library':'/';
 export type Options={origin?:string;databasePath?:string;databaseUrl?:string;store?:Store;distPath?:string;fetch?:typeof fetch;now?:()=>number};
 export function createHandler(options:Options={}){
   const origin=options.origin??process.env.PUBLIC_ORIGIN??'http://127.0.0.1:4181';
@@ -66,19 +67,24 @@ export function createHandler(options:Options={}){
       if(path==='/api/session'&&req.method==='GET'){const s=await session(req);json(res,200,s?{user:{steamId:s.owner},csrfToken:s.csrf}:{user:null});return;}
       if(path==='/api/auth/steam'&&req.method==='GET'){
         if(!allowed('steam:'+clientIp(req),60,60000,t)){json(res,429,{error:'Too many sign-in attempts. Try again later.'});return;}
-        const state=token();await db.addState(hash(state),now()+600000);
-        const target=new URL(provider);const returnTo=`${origin}/api/auth/steam/callback?state=${state}`;
+        const state=token(),destination=signInReturn(url.searchParams.get('returnTo'));
+        // Bind the destination to the one-use state without storing an extra cookie or database field.
+        await db.addState(hash(state+'\n'+destination),now()+600000);
+        const callback=new URL('/api/auth/steam/callback',origin);callback.searchParams.set('state',state);callback.searchParams.set('returnTo',destination);
+        const target=new URL(provider),returnTo=callback.href;
         for(const [key,value] of Object.entries({'openid.ns':namespace,'openid.mode':'checkid_setup','openid.return_to':returnTo,'openid.realm':origin,'openid.identity':'http://specs.openid.net/auth/2.0/identifier_select','openid.claimed_id':'http://specs.openid.net/auth/2.0/identifier_select'}))target.searchParams.set(key,value);
         res.writeHead(302,{Location:target.href,'Set-Cookie':cookie('delli_auth_state',state,600)});res.end();return;
       }
       if(path==='/api/auth/steam/callback'&&req.method==='GET'){
-        const params=url.searchParams,state=params.get('state')??'',stateCookie=cookies(req).delli_auth_state??'';
+        const params=url.searchParams,state=params.get('state')??'',stateCookie=cookies(req).delli_auth_state??'',destination=signInReturn(params.get('returnTo'));
+        if(params.getAll('returnTo').length!==1||params.get('returnTo')!==destination)throw Error('Invalid sign-in destination.');
         if(!/^[a-f0-9]{64}$/.test(state)||!equal(state,stateCookie))throw Error('Invalid sign-in state.');
-        const stored=await db.consumeState(hash(state),now());if(!stored)throw Error('Expired or reused sign-in state.');
+        const stored=await db.consumeState(hash(state+'\n'+destination),now());if(!stored)throw Error('Expired or reused sign-in state.');
         const get=(key:string)=>{if(params.getAll('openid.'+key).length!==1)throw Error('Missing or duplicated OpenID parameter.');return params.get('openid.'+key)!;};
         if(get('ns')!==namespace||get('mode')!=='id_res'||get('op_endpoint')!==provider)throw Error('Invalid OpenID provider.');
         const identity=get('claimed_id');if(!/^https:\/\/steamcommunity\.com\/openid\/id\/[0-9]{17}$/.test(identity)||get('identity')!==identity)throw Error('Invalid Steam identity.');
-        if(get('return_to')!==`${origin}/api/auth/steam/callback?state=${state}`)throw Error('Invalid return URL.');
+        const callback=new URL('/api/auth/steam/callback',origin);callback.searchParams.set('state',state);callback.searchParams.set('returnTo',destination);
+        if(get('return_to')!==callback.href)throw Error('Invalid return URL.');
         const signed=get('signed').split(',');for(const field of ['op_endpoint','claimed_id','identity','return_to','response_nonce','assoc_handle'])if(!signed.includes(field))throw Error('Unsigned OpenID field.');
         get('sig');get('assoc_handle');const nonce=get('response_nonce'),timestamp=Date.parse(nonce.slice(0,20));
         if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ.+$/.test(nonce)||!Number.isFinite(timestamp)||Math.abs(now()-timestamp)>300000||await db.hasNonce(nonce))throw Error('Expired or reused OpenID response.');
@@ -88,7 +94,7 @@ export function createHandler(options:Options={}){
         if(!await db.addNonce(nonce,now()+600000))throw Error('Reused OpenID response.');
         const old=await session(req);if(old)await db.deleteSession(old.id);
         const id=token(),csrf=token();await db.addSession({id:hash(id),owner:identity.split('/').at(-1)!,csrf,expires:now()+30*86400000});
-        res.writeHead(302,{Location:'/?view=library', 'Set-Cookie':[cookie('delli_session',id,30*86400),cookie('delli_auth_state','',0)]});res.end();return;
+        res.writeHead(302,{Location:destination, 'Set-Cookie':[cookie('delli_session',id,30*86400),cookie('delli_auth_state','',0)]});res.end();return;
       }
       const s=await session(req);if(!s){json(res,401,{error:'Sign in with Steam first.'});return;}
       if(path==='/api/library'&&req.method==='GET'){json(res,200,await db.latest(s.owner));return;}
@@ -113,7 +119,7 @@ export function createHandler(options:Options={}){
     try{if(!statSync(file).isFile())file=resolve(dist,'index.html');}catch{if(extname(file)){res.writeHead(404);res.end();return;}file=resolve(dist,'index.html');}
     const content=readFileSync(file);const mime:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.ico':'image/x-icon'};
     res.writeHead(200,{'Content-Type':mime[extname(file)]??'application/octet-stream','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Cache-Control':extname(file)==='.html'?'no-cache':'public, max-age=3600'});res.end(req.method==='HEAD'?undefined:content);
-  }catch(error){if(req.method==='GET'&&req.url?.split('?')[0]==='/api/auth/steam/callback'&&req.headers.accept?.includes('text/html')){res.writeHead(302,{Location:'/?view=library&steam=failed','Set-Cookie':cookie('delli_auth_state','',0),'Cache-Control':'no-store'});res.end();return;}json(res,400,{error:'The request could not be completed. Check your input or try again.'});}};
+  }catch(error){if(req.method==='GET'&&req.url?.split('?')[0]==='/api/auth/steam/callback'&&req.headers.accept?.includes('text/html')){const destination=new URL(signInReturn(new URL(req.url,origin).searchParams.get('returnTo')),origin);destination.searchParams.set('steam','failed');res.writeHead(302,{Location:destination.pathname+destination.search,'Set-Cookie':cookie('delli_auth_state','',0),'Cache-Control':'no-store'});res.end();return;}json(res,400,{error:'The request could not be completed. Check your input or try again.'});}};
   handler.close=async()=>{if(pendingStore)(await pendingStore).close();};return handler;
 }
 

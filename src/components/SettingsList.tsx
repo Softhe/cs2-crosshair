@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react';
-import { styleFields, type Field, type Settings } from '../model';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { presets, styleFields, type Field, type Settings } from '../model';
+import { Preview } from '../Preview';
+import { settingsKey } from '../storage';
+
+const shapeKeys = new Set(['cl_crosshair_thickness', 'cl_crosshairdot', 'cl_crosshair_length', 'cl_crosshair_gap', 'cl_crosshair_t', 'cl_crosshair_dynamic_maxdist_splitratio']);
 
 export function NumberControl({
   field,
@@ -29,6 +33,7 @@ export function NumberControl({
     <div className="number-controls">
       <input
         type="range"
+        style={{ '--range-fill': `${100 * (value - (field.min ?? 0)) / (((field.max ?? 255) - (field.min ?? 0)) || 1)}%` } as CSSProperties}
         aria-label={`${field.label} slider`}
         min={field.min}
         max={field.max}
@@ -39,6 +44,7 @@ export function NumberControl({
       />
       <input
         className="numeric"
+        id={field.key}
         type="number"
         aria-label={field.label}
         min={field.min}
@@ -69,9 +75,6 @@ export function Row({
     <div className="setting-row">
       <label htmlFor={field.key}>
         {field.label}
-        {['Style', 'Thickness', 'Length', 'Gap'].includes(field.label) && (
-          <small>{field.label === 'Style' ? 'NEW' : 'UPDATED'}</small>
-        )}
       </label>
       {field.options ? (
         <select
@@ -112,7 +115,6 @@ export function ColorRow({
       <div className="setting-row">
         <span>
           {label}
-          {!outline && <small>UPDATED</small>}
         </span>
         <button className="swatch" aria-label={`Edit ${label}`} aria-expanded={open} onClick={() => toggle(!open)}>
           <span style={{ backgroundColor: hex, opacity: channel('a') / 255 }} />
@@ -135,7 +137,8 @@ export function ColorRow({
                 <button
                   key={color}
                   aria-label={`Set ${outline ? 'outline' : 'crosshair'} ${color}`}
-                  style={{ backgroundColor: color }}
+                  aria-pressed={hex === color}
+                  style={{ '--swatch-color': color } as CSSProperties}
                   onClick={() =>
                     ['r', 'g', 'b'].forEach((c, i) => set(prefix + c, parseInt(color.slice(1 + i * 2, 3 + i * 2), 16)))
                   }
@@ -164,23 +167,46 @@ export function ColorRow({
   );
 }
 
-export function SettingsList({ s, set }: { s: Settings; set: (key: string, value: number) => void }) {
+export function SettingsList({ s, set, load, notify, draftSaved }: {
+  s: Settings;
+  set: (key: string, value: number) => void;
+  load: (settings: Settings) => void;
+  notify: (text: string, tone?: 'success' | 'warning' | 'error' | 'info') => void;
+  draftSaved: boolean;
+}) {
   const visibleFields = styleFields(s);
   const [first, second, ...rest] = visibleFields;
   if (!first || !second) return null;
+  const isShapeField = (field: Field) => shapeKeys.has(field.key) && (field.key !== 'cl_crosshair_dynamic_maxdist_splitratio' || s.cl_crosshairstyle === 9);
   return (
-    <section className="settings-section">
-      <div className="section-title">
-        <h2>Style Settings</h2>
-        <span>01</span>
-      </div>
-      <Row field={first} s={s} set={set} />
-      <ColorRow s={s} set={set} />
-      <Row field={second} s={s} set={set} />
-      {s.cl_crosshair_drawoutline !== 0 && <ColorRow s={s} set={set} outline />}
-      {rest.map((field) => (
-        <Row key={field.key} field={field} s={s} set={set} />
-      ))}
-    </section>
+    <div className="editor">
+      <section className="settings-section" aria-labelledby="shape-heading">
+        <div className="section-title"><h2 id="shape-heading">Shape</h2><span>01</span></div>
+        <Row field={first} s={s} set={set} />
+        <details className="starting-presets">
+          <summary>Choose a starting point</summary>
+          <div className="preset-grid">
+            {presets.map(preset => (
+              <button className="preset" key={preset.name} aria-pressed={settingsKey(preset.settings) === settingsKey(s)} onClick={() => { load(preset.settings); notify(`${preset.name} preset loaded.`, 'success'); }}>
+                <div className="preset-preview"><Preview settings={preset.settings} zoom={1} decorative /></div>
+                <span>{preset.name}</span>
+              </button>
+            ))}
+          </div>
+        </details>
+        {rest.filter(isShapeField).map(field => <Row key={field.key} field={field} s={s} set={set} />)}
+      </section>
+      <section className="settings-section" aria-labelledby="color-heading">
+        <div className="section-title"><h2 id="color-heading">Color and outline</h2><span>02</span></div>
+        <ColorRow s={s} set={set} />
+        <Row field={second} s={s} set={set} />
+        {s.cl_crosshair_drawoutline !== 0 && <ColorRow s={s} set={set} outline />}
+      </section>
+      <section className="settings-section" aria-labelledby="behavior-heading">
+        <div className="section-title"><h2 id="behavior-heading">Behavior and scope</h2><span>03</span></div>
+        {rest.filter(field => !isShapeField(field)).map(field => <Row key={field.key} field={field} s={s} set={set} />)}
+      </section>
+      <p className="draft-state" role="status">{draftSaved ? 'Draft saved on this device.' : 'Draft could not be saved. Export a config to keep your changes.'}</p>
+    </div>
   );
 }

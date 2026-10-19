@@ -1,8 +1,7 @@
-import { Copy, Download, FileCode2, Link } from 'lucide-react';
+import { Copy, Download, Link } from 'lucide-react';
 import { autoexec, commands, type Settings } from '../model';
 
 export type ExportCardProps = {
-  code: string;
   s: Settings;
   alias: string;
   aliasError: string;
@@ -14,27 +13,7 @@ export type ExportCardProps = {
 
 export function ExportCard(p: ExportCardProps) {
   return (
-    <section className="export-card">
-      <div className="card-heading">
-        <FileCode2 size={18} />
-        <h2>Share and export</h2>
-      </div>
-      <label className="field-label" htmlFor="share-code">
-        CS2 SHARE CODE<span className="current-tag">CURRENT FORMAT</span>
-      </label>
-      <div className="code-box">
-        <textarea id="share-code" readOnly value={p.code} aria-label="Current CS2 share code" />
-        <button
-          className="icon-button"
-          aria-label="Copy share code"
-          title="Copy the current applied crosshair code"
-          onClick={() => {
-            void p.copy(p.code, 'Share code');
-          }}
-        >
-          <Copy size={17} />
-        </button>
-      </div>
+    <>
       <div className="split-actions">
         <button
           onClick={() => {
@@ -97,6 +76,6 @@ export function ExportCard(p: ExportCardProps) {
           </button>
         </div>
       </details>
-    </section>
+    </>
   );
 }

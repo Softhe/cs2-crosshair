@@ -2,14 +2,14 @@ import {test,expect} from '@playwright/test';
 test('preview settings start closed, retain values, and leave detail visible',async({page})=>{
   await page.route('**/api/session',route=>route.fulfill({json:{user:null}}));
   await page.route('**/entrance.js*',route=>route.fulfill({contentType:'text/javascript',body:''}));
-  await page.goto('/');
-  const trigger=page.getByRole('button',{name:'Preview settings',exact:true});
-  const dialog=page.getByRole('dialog',{name:'Preview settings',exact:true});
+  await page.goto('/');if(await page.getByRole('button',{name:'Expand preview',exact:true}).isVisible())await page.getByRole('button',{name:'Expand preview',exact:true}).click();
+  const trigger=page.getByRole('button',{name:'Inspect preview',exact:true});
+  const dialog=page.getByRole('dialog',{name:'Inspect preview',exact:true});
   await expect(dialog).toBeHidden();
   await expect(page.locator('.detail-preview')).toBeVisible();
   await expect(page.locator('.preview-inspection')).toHaveCount(0);
   await expect(page.locator('.map-preview > .detail-preview')).toBeVisible();
-  await expect(page.locator('.map-preview').getByRole('button',{name:'Start Dynamic Preview'})).toHaveCount(0);
+  await expect(dialog.getByRole('button',{name:'Start Dynamic Preview'})).toHaveCount(0);
   await trigger.click();
   await expect(dialog).toBeVisible();
   await page.getByLabel('Preview scale',{exact:true}).selectOption('1440');
