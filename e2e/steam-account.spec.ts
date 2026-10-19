@@ -24,7 +24,7 @@ test('Steam sign-in has the same prominent header placement in editor and librar
 
 test('signed-in header opens account actions and handles failed then successful sign-out',async({page})=>{
  const state=await accountApi(page,true);await page.goto('/?layout=combined');const trigger=page.getByRole('button',{name:'Steam account',exact:true});
- await expect(trigger).toContainText('Synced');await expect(page.getByRole('link',{name:'Sign in with Steam',exact:true})).toHaveCount(0);
+ await expect(trigger).not.toContainText('Synced');await trigger.click();await expect(page.getByRole('region',{name:'Steam account details'})).toContainText('Synced');await trigger.press('Escape');await expect(page.getByRole('link',{name:'Sign in with Steam',exact:true})).toHaveCount(0);
  await trigger.click();await expect(page.getByRole('region',{name:'Steam account details'})).toContainText(steamId);await trigger.press('Escape');await expect(trigger).toBeFocused();await expect(trigger).toHaveAttribute('aria-expanded','false');
  await trigger.click();await page.getByRole('button',{name:'Open your library',exact:true}).click();await expect(page.getByRole('main',{name:'Crosshair library'})).toBeVisible();await expect(trigger).toHaveAttribute('aria-expanded','false');
  await trigger.click();state.failLogout=true;await page.getByRole('button',{name:'Sign out of Steam',exact:true}).click();await expect(page.getByRole('region',{name:'Steam account details'}).getByRole('alert')).toContainText('Could not sign out');await expect(trigger).toBeVisible();
