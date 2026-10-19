@@ -1,6 +1,6 @@
 # UI and UX redesign
 
-Current review state, October 19, 2026. Source lives in the `cs2-crosshair-replacement` checkout. The neighboring `crosshair-delli` directory is an older preview copy.
+Current review state, October 20, 2026. Source lives in the `cs2-crosshair-replacement` checkout. The neighboring `crosshair-delli` directory is an older preview copy.
 
 ## Editor layout
 
@@ -48,4 +48,6 @@ The server also returned the expected local cancellation redirect for both edito
 
 The final account follow-up includes pending-state brand bounds at 320, 360 and 390 pixels. The full suite is serialized because native clipboard operations can interfere across parallel browser contexts. Logs include `release-check.log`, `final-suite.log`, `firefox-final.log`, `webkit-final.log` and the three `*-account-final.log` files in `.tools/steam-header`.
 
-The local frontend is available at http://localhost:4186 while its development server is running. Screenshots and logs are retained in the ignored `.tools/steam-header` directory. No Git commit, push or production deployment has been made. A hosted preview must still verify its HTTPS public origin and session cookies before release.
+The local frontend is available at http://localhost:4186 while its development server is running. Screenshots and logs are retained in the ignored `.tools/steam-header` directory. The work is committed on `ui/steam-account-editor-redesign` in [PR #9](https://github.com/Softhe/cs2-crosshair/pull/9), including the latest main component split, strict typing, codec/rendering changes and server hardening. After integration, 67 unit/server tests and the production build passed, the full Chromium suite passed 194 checks with 4 viewport-specific skips, and focused Firefox and WebKit suites each passed 30 checks with 4 viewport-specific skips.
+
+Hosted preview: https://delli-crosshair-93iijt7sv-softhe.vercel.app. Automated checks using the actual Preview Neon environment passed cross-context save/update synchronization, synthetic-account isolation, sign-out, guest Steam redirects and desktop/mobile rendering. Exact temporary fixture sessions, libraries and auth state were cleaned up, with zero fixture sessions/libraries confirmed afterward. The user completed real Steam sign-in in Firefox and reported Steam connected and Synced on this hosted preview. This user-reported Firefox result is distinct from the automated synthetic-session evidence. Vercel protection settings were unchanged. Production deployment is verified separately after merge.
