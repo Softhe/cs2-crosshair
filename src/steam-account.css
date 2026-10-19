@@ -1,0 +1,66 @@
+/* Account access stays in the same place in both primary views. */
+.header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:24px;padding-inline:max(32px,calc((100vw - 2256px)/2));position:relative;z-index:40}
+.header .menu-nav{margin:0;min-width:0}.header .header-actions{gap:0;justify-self:end}
+.steam-account{position:relative;min-width:0}
+.steam-mark{display:block;width:22px;height:22px;flex:none}
+.steam-sign-in{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:10px 16px;border:1px solid var(--accent);border-radius:6px;background:var(--accent);color:var(--accent-ink);font-size:14px;font-weight:600;line-height:1.4;white-space:nowrap;box-shadow:0 2px 12px #0002}
+.steam-sign-in:hover{background:var(--accent-dark);border-color:var(--accent-dark);color:var(--accent-ink)}
+.steam-sign-in[disabled]{background:var(--panel);border-color:var(--line);color:var(--muted);opacity:1;cursor:progress}
+.steam-sign-in.steam-unavailable{background:var(--panel);border-color:var(--line);color:var(--muted)}
+.steam-sign-in.steam-unavailable:hover{color:var(--text);background:var(--hover)}
+.steam-account-trigger{display:flex;align-items:center;gap:10px;min-height:48px;min-width:192px;padding:7px 12px;border:1px solid var(--line);background:var(--panel);border-radius:6px;color:var(--text);text-align:left}
+.steam-account-trigger>.steam-mark{color:var(--accent)}
+.steam-account-trigger>span{display:flex;flex-direction:column;gap:3px;flex:1}
+.steam-account-trigger strong{font-size:13px;font-weight:600;line-height:1.3}
+.steam-account-trigger small{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;line-height:1.3}
+.steam-account-trigger small.needs-attention{color:var(--warning)}
+.steam-account-trigger[aria-expanded=true]{border-color:var(--accent);background:var(--selected)}
+.steam-account-panel{position:absolute;right:0;top:calc(100% + 12px);width:300px;max-width:calc(100vw - 24px);padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:0 16px 48px #0007;z-index:50;color:var(--text)}
+.steam-account-panel>p{font-size:13px;color:var(--muted);line-height:1.7;margin:0 0 12px}
+.steam-account-panel>.account-panel-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--heading)}
+.steam-account-panel .account-id{display:flex;flex-direction:column;gap:2px}
+.steam-account-panel code{font-size:12px;color:var(--text)}
+.steam-account-panel>button{width:100%;min-height:44px;justify-content:flex-start;margin-top:6px;background:var(--input);border:1px solid var(--line);font-size:13px}
+.steam-account-panel>button:hover{background:var(--hover);border-color:var(--accent)}
+.steam-account-panel>.error-text{color:var(--error);margin-top:12px;margin-bottom:0}
+.library-sign-in-hint{font-size:13px;color:var(--accent);line-height:1.7;max-width:240px}
+.account-spinner{animation:account-spin 1s linear infinite}
+@keyframes account-spin{to{transform:rotate(360deg)}}
+@media(max-width:1100px){
+ .header{padding-inline:24px;gap:14px}.header .brand-subtitle,.header .brand-divider{display:none}
+ .header .menu-nav button{padding-inline:12px;font-size:13px}
+ .steam-sign-in{font-size:13px;padding-inline:12px}
+}
+@media(max-width:820px){
+ .header{height:auto;min-height:118px;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:10px 16px 0}
+ .header .brand{grid-column:1;grid-row:1;min-width:0;gap:8px}.header .brand strong{font-size:23px}
+ .header .header-actions{grid-column:2;grid-row:1}
+ .header .menu-nav{grid-column:1/-1;grid-row:2;width:100%;height:48px;justify-content:stretch}
+ .header .menu-nav button{flex:1;max-width:none!important;min-height:44px;padding:7px 8px;font-size:12px;line-height:1.4}
+ .header .menu-nav button.active:after{left:8px;right:8px}
+ .steam-account-trigger{min-width:176px;min-height:48px}
+ .steam-account-trigger strong{font-size:12px}.steam-account-trigger small{font-size:11px}
+ .steam-sign-in{min-height:44px;font-size:13px;padding:9px 12px;gap:7px}
+ .steam-sign-in-extra{display:inline}.steam-sign-in[disabled]{font-size:12px;padding:8px}
+ .steam-sign-in.steam-unavailable{font-size:12px;padding:8px;gap:5px}
+ .steam-account-panel{top:calc(100% + 8px)}
+}
+@media(max-width:380px){
+ .header{padding-inline:12px;gap:6px 8px}.header .brand strong{font-size:20px}.header .brand>svg{width:20px}
+ .steam-account-trigger{min-width:166px;padding:7px 8px;gap:7px}.steam-sign-in.steam-unavailable{max-width:174px;white-space:normal;text-align:left}
+}
+@media(prefers-reduced-motion:reduce){.account-spinner{animation:none}}
+
+/* Keep account actions readable with keyboard input and short viewports. */
+.steam-sign-in,.steam-account-trigger,.steam-account-panel>button{transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease}
+.steam-sign-in:focus-visible{outline:2px solid var(--heading);outline-offset:4px;box-shadow:0 0 0 2px var(--back)}
+.steam-account-trigger:hover{background:var(--hover);border-color:var(--accent)}
+.steam-account-trigger>svg:last-child,.steam-unavailable>svg:last-child{transition:transform .15s ease}
+.steam-account-trigger[aria-expanded=true]>svg:last-child,.steam-unavailable[aria-expanded=true]>svg:last-child{transform:rotate(180deg)}
+.steam-account-panel{max-height:calc(100dvh - 100px);overflow-y:auto;overscroll-behavior:contain}
+.steam-account-panel .account-id{padding-bottom:12px;border-bottom:1px solid var(--line)}
+@media(max-width:380px){.steam-sign-in{padding-inline:9px;font-size:12px;gap:6px}.steam-sign-in .steam-mark{width:20px;height:20px}}
+@media(prefers-reduced-motion:reduce){.steam-sign-in,.steam-account-trigger,.steam-account-panel>button,.steam-account-trigger>svg:last-child,.steam-unavailable>svg:last-child{transition:none}}
+/* Keep sync status text from squeezing the brand out of narrow headers. */
+@media(max-width:820px){.steam-account-trigger{width:176px}.steam-account-trigger>span{min-width:0}.steam-account-trigger small>svg{flex-shrink:0}}
+@media(max-width:380px){.steam-account-trigger{width:170px}}

@@ -3,7 +3,7 @@ import {test,expect} from '@playwright/test';
 test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
 
 test('odd-width center dots remain concentric with square and circle at every zoom',async({page})=>{
-  await page.goto('/');
+  await page.goto('/');if(await page.getByRole('button',{name:'Expand preview',exact:true}).isVisible())await page.getByRole('button',{name:'Expand preview',exact:true}).click();
   await page.getByLabel('Outline',{exact:true}).selectOption('0');
   await page.getByLabel('Gap',{exact:true}).fill('6');
   await page.getByLabel('Gap',{exact:true}).press('Enter');

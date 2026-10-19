@@ -24,6 +24,18 @@ Pixel symmetry tests reject blank canvases and compare reflected RGBA pixels at 
 
 On October 3, 2026, Computer Use imported a website-generated code for each of the ten styles into CS2, then copied it back through the game's menu. All ten strings matched exactly. Probes included thickness 3, half outline, scope scale 1.37, and negative gap -4. The original game crosshair was restored and verified afterward.
 
-These checks establish menu import/export compatibility. Downloaded configs were compared with all 42 generated commands and imported back into the website; they were not executed in CS2. The tests do not establish identical gameplay rendering or physical mobile-device behavior. Chromium is the automated browser target.
+These checks establish menu import/export compatibility. Downloaded configs were compared with all 42 generated commands and imported back into the website; they were not executed in CS2. The tests do not establish identical gameplay rendering or physical mobile-device behavior. Chromium is the default automated browser target. The Steam/header, auth-navigation and UI redesign checks also run in Firefox and WebKit.
 
 Game screenshots and local test artifacts are retained in the development workspace. They are excluded from this public replacement to avoid publishing unrelated game account details.
+
+## Cross-browser UI checks
+
+Install the additional engines with `npx playwright install firefox webkit`. Set `PLAYWRIGHT_BROWSER` to `firefox` or `webkit`, and use an unused `PLAYWRIGHT_PORT`, then run:
+
+```sh
+npx playwright test e2e/steam-account.spec.ts e2e/auth-navigation.spec.ts e2e/ui-redesign.spec.ts
+```
+
+The default project names remain `desktop` and `mobile` in every engine so viewport-specific checks select the correct project. Touch-target assertions allow 0.01 CSS pixels for fractional bounding-box rounding. Simulated provider handoff uses a document redirect supported in every engine; actual HTTP 302 behavior is covered by the server tests.
+
+The browser suite defaults to one worker because native clipboard state is shared between browser contexts. `npx playwright test --workers=1` makes that choice explicit. Separate browser suites should not share the same output directory. A real Steam login and hosted HTTPS session-cookie checks remain manual release checks; simulated sessions do not establish those results.

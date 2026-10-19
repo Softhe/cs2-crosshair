@@ -39,7 +39,7 @@ test.beforeEach(async({page})=>{
 test('mock API: a signed-out session offers Steam sign-in without requiring an API key',async({page})=>{
   await mockApi(page);await page.goto('/');await page.getByRole('button',{name:'Library',exact:true}).click();
   const signIn=page.getByRole('link',{name:'Sign in with Steam',exact:true});await expect(signIn).toBeVisible();
-  await expect(signIn).toHaveAttribute('href','/api/auth/steam');
+  await expect(signIn).toHaveAttribute('href','/api/auth/steam?returnTo=%2F%3Fview%3Dlibrary');
   await expect(page.getByLabel(/API key/i)).toHaveCount(0);
 });
 
@@ -47,30 +47,30 @@ test('mock API: native code paste applies immediately and invalid paste preserve
   await mockApi(page);await page.goto('/');
   const field=page.getByLabel('Crosshair code or config',{exact:true});
   await field.evaluate((node,code)=>{const event=new Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{getData:()=>code}});node.dispatchEvent(event);},nativeCode);
-  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(nativeCode);
+  await expect(page.getByLabel('Crosshair code or config',{exact:true})).toHaveAttribute('data-current-code',nativeCode!);
   await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue('12');
   await field.evaluate(node=>{const event=new Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{getData:()=> 'CSinvalid'}});node.dispatchEvent(event);});
   await expect(page.getByRole('alert')).toBeVisible();
-  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(nativeCode);
+  await expect(page.getByLabel('Crosshair code or config',{exact:true})).toHaveAttribute('data-current-code',nativeCode!);
   await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue('12');
 });
 
 test('mock API: delayed clipboard reads do not overwrite text typed afterward',async({page})=>{
   await mockApi(page);await page.goto('/');
-  const field=page.getByLabel('Crosshair code or config',{exact:true});const before=await page.getByLabel('Current CS2 share code').inputValue();
+  const field=page.getByLabel('Crosshair code or config',{exact:true});const before=await page.getByLabel('Crosshair code or config',{exact:true}).getAttribute('data-current-code');
   await page.evaluate(()=>Object.defineProperty(navigator.clipboard,'readText',{configurable:true,value:()=>new Promise<string>(resolve=>Reflect.set(window,'resolveTestClipboard',resolve))}));
-  await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();
+  if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();
   await expect.poll(()=>page.evaluate(()=>typeof Reflect.get(window,'resolveTestClipboard'))).toBe('function');
   await field.fill('My pending config draft');
   await page.evaluate(code=>Reflect.get(window,'resolveTestClipboard')(code),nativeCode);
   await expect(field).toHaveValue('My pending config draft');
-  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(before);
+  await expect(page.getByLabel('Crosshair code or config',{exact:true})).toHaveAttribute('data-current-code',before!);
 });
 
 test('mock API: Library selection is read-only and copying a favorite does not load it',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);
   const entry=favorite('guest-one','Player one',12);await seedGuests(page,[entry]);await mockApi(page);await page.goto('/');
-  const applied=await page.getByLabel('Current CS2 share code').inputValue();
+  const applied=await page.getByLabel('Crosshair code or config',{exact:true}).getAttribute('data-current-code');
   await page.getByRole('button',{name:'Library',exact:true}).click();
   const library=page.getByRole('main',{name:'Crosshair library',exact:true});await expect(library).toBeVisible();
   await expect(page.getByRole('dialog')).not.toBeVisible();
@@ -82,7 +82,7 @@ test('mock API: Library selection is read-only and copying a favorite does not l
   expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(encode(entry.settings));
   expect(await page.evaluate(()=>localStorage.getItem('delli.v3.library'))).toBe(savedBefore);
   await page.getByRole('button',{name:'Crosshair / Scopes',exact:true}).click();
-  await expect(page.getByLabel('Current CS2 share code')).toHaveValue(applied);
+  await expect(page.getByLabel('Crosshair code or config',{exact:true})).toHaveAttribute('data-current-code',applied!);
 });
 
 test('mock API: guest history stays separate from permanent favorites and the navigation count',async({page})=>{
@@ -101,8 +101,8 @@ test('mock API: updating a loaded favorite and saving as new preserve distinct r
   await page.getByRole('button',{name:'Library',exact:true}).click();
   await page.getByRole('button',{name:'Load',exact:true}).click();
   const length=page.getByRole('spinbutton',{name:'Length',exact:true});await length.fill('10');await length.blur();
-  await page.getByRole('button',{name:'Update saved crosshair',exact:true}).click();
-  await length.fill('12');await length.blur();await page.getByLabel('Crosshair name',{exact:true}).fill('Separate copy');
+  if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();await page.getByRole('button',{name:'Update saved crosshair',exact:true}).click();
+  await length.fill('12');await length.blur();if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();await page.getByLabel('Crosshair name',{exact:true}).fill('Separate copy');
   await page.getByRole('button',{name:'Save as new',exact:true}).click();
   const entries=await page.evaluate(()=>JSON.parse(localStorage.getItem('delli.v3.library')??'[]')) as Saved[];
   expect(entries.filter(item=>item.favorite)).toHaveLength(2);
@@ -126,7 +126,7 @@ test('mock API: signing in does not silently merge guest favorites',async({page}
 test('mock API: offline account saves remain pending and retry uploads them',async({page})=>{
   const api=await mockApi(page,{signedIn:true});await page.goto('/');
   await expect.poll(()=>api.libraryReads).toBeGreaterThan(0);api.failWrites=true;
-  await page.getByLabel('Crosshair name',{exact:true}).fill('Pending favorite');
+  if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();await page.getByLabel('Crosshair name',{exact:true}).fill('Pending favorite');
   await page.getByRole('button',{name:'Save to favorites',exact:true}).click();
   await page.getByRole('button',{name:'Library',exact:true}).click();
   await expect(page.getByLabel('Library sync status')).toContainText(/pending|waiting|offline|retry|unable|failed/i);
@@ -140,7 +140,7 @@ test('mock API: offline account saves remain pending and retry uploads them',asy
 test('mock API: first account save works while its initial library fetch is offline',async({page})=>{
   const api=await mockApi(page,{signedIn:true});api.failReads=true;await page.goto('/');
   await expect.poll(()=>api.libraryReads).toBeGreaterThan(0);
-  await page.getByLabel('Crosshair name',{exact:true}).fill('First offline save');
+  if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();await page.getByLabel('Crosshair name',{exact:true}).fill('First offline save');
   await page.getByRole('button',{name:'Save to favorites',exact:true}).click();
   await page.getByRole('button',{name:'Library',exact:true}).click();
   await expect(page.getByRole('button',{name:'Preview First offline save'})).toBeVisible();
@@ -152,9 +152,9 @@ test('mock API: first account save works while its initial library fetch is offl
 
 test('mock API: a browser storage failure never reports a successful save',async({page})=>{
   await mockApi(page);await page.addInitScript(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='delli.v3.library')throw new DOMException('Storage is full','QuotaExceededError');return original.call(this,key,value);};});
-  await page.goto('/');await page.getByLabel('Crosshair name',{exact:true}).fill('Unsaved favorite');
+  await page.goto('/');if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();await page.getByLabel('Crosshair name',{exact:true}).fill('Unsaved favorite');
   await page.getByRole('button',{name:'Save to favorites',exact:true}).click();
-  await expect(page.getByRole('status')).toContainText('could not be saved');
+  await expect(page.locator('.toast')).toContainText('could not be saved');
   await page.getByRole('button',{name:'Library',exact:true}).click();
   await expect(page.getByRole('button',{name:'Preview Unsaved favorite'})).toHaveCount(0);
 });
@@ -165,5 +165,23 @@ test('manual sync shows progress, prevents duplicate clicks, and confirms comple
   await page.route('**/api/library',async route=>{if(route.request().method()==='GET'){await held;await route.fulfill({json:{revision:0,entries:[]}});}else await route.fallback();});
   await page.getByRole('button',{name:'Sync now',exact:true}).click();
   await expect(page.getByRole('button',{name:'Syncing…',exact:true})).toBeDisabled();await expect(page.getByLabel('Library sync status')).toHaveText('Syncing your library…');
-  release();await expect(page.getByRole('status')).toContainText('Library is up to date.');await expect(page.getByRole('button',{name:'Sync now',exact:true})).toBeEnabled();
+  release();await expect(page.locator('.toast')).toContainText('Library is up to date.');await expect(page.getByRole('button',{name:'Sync now',exact:true})).toBeEnabled();
+});
+
+test('mock API: resetting to current code cancels an outstanding clipboard paste',async({page})=>{
+  await mockApi(page);await page.goto('/');
+  const field=page.getByLabel('Crosshair code or config',{exact:true});
+  const applied=await field.getAttribute('data-current-code');
+  await field.fill('Pending config to discard');
+  await page.evaluate(()=>Object.defineProperty(navigator.clipboard,'readText',{configurable:true,value:()=>new Promise<string>(resolve=>Reflect.set(window,'resolveResetClipboard',resolve))}));
+  await page.locator('.import-options > summary').click();
+  await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>typeof Reflect.get(window,'resolveResetClipboard'))).toBe('function');
+  await page.getByRole('button',{name:'Use current code',exact:true}).click();
+  await expect(field).toHaveValue(applied!);
+  await page.evaluate(code=>Reflect.get(window,'resolveResetClipboard')(code),nativeCode);
+  await expect(field).toHaveValue(applied!);
+  await expect(field).toHaveAttribute('data-current-code',applied!);
+  await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue(String(defaults.cl_crosshair_length));
+  await expect(page.getByRole('button',{name:'Use current code',exact:true})).toBeDisabled();
 });

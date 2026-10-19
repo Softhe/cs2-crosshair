@@ -10,6 +10,6 @@ The original textures were decoded using [Source 2 Viewer](https://github.com/Va
 
 ## Fonts and icons
 
-Inter and JetBrains Mono are distributed by the corresponding Fontsource packages under the SIL Open Font License. Lucide icons use the ISC license. Their package licenses remain available in `node_modules` alongside their sources.
+Inter and JetBrains Mono are distributed by the corresponding Fontsource packages under the SIL Open Font License. Lucide icons use the ISC license. The filled Steam emblem in `src/SteamAccount.tsx` comes from [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/steam.svg), whose icon collection uses [CC0 1.0](https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md). Steam is a Valve trademark. Their package licenses remain available in `node_modules` alongside their sources.
 
 React and React DOM use the MIT license. All dependencies are recorded in `package-lock.json`.
