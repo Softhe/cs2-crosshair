@@ -29,7 +29,7 @@ test('unresolved write conflicts explicitly identify saved changes waiting to sy
   return route.fulfill({status:404});
  });
  await page.goto('/');
- await expect(page.getByRole('button',{name:'Steam account',exact:true})).toContainText('Saved changes waiting to sync');expect(writes).toBe(3);
+ await page.getByRole('button',{name:'Steam account',exact:true}).click();await expect(page.getByRole('region',{name:'Steam account details'})).toContainText('Saved changes waiting to sync');await page.keyboard.press('Escape');expect(writes).toBe(3);
  for(const width of [320,360,390]){
   await page.setViewportSize({width,height:844});
   const account=await page.getByRole('button',{name:'Steam account',exact:true}).boundingBox();
@@ -50,7 +50,7 @@ test('session expiry returns to guest controls while retaining the account queue
   if(path==='/api/library')return route.fulfill({json:{revision:0,entries:[]}});
   return route.fulfill({status:404});
  });
- await page.goto('/');await expect(page.getByRole('button',{name:'Steam account',exact:true})).toContainText('Synced');
+ await page.goto('/');await page.getByRole('button',{name:'Steam account',exact:true}).click();await expect(page.getByRole('region',{name:'Steam account details'})).toContainText('Synced');await page.keyboard.press('Escape');
  signedIn=false;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
  await expect(page.getByRole('link',{name:'Sign in with Steam',exact:true})).toBeVisible();
  expect(await page.evaluate(steamId=>localStorage.getItem('delli.v3.steam-library.'+steamId),steamId)).not.toBeNull();

@@ -23,6 +23,9 @@
 .steam-account-panel>button{width:100%;min-height:44px;justify-content:flex-start;margin-top:6px;background:var(--input);border:1px solid var(--line);font-size:13px}
 .steam-account-panel>button:hover{background:var(--hover);border-color:var(--accent)}
 .steam-account-panel>.error-text{color:var(--error);margin-top:12px;margin-bottom:0}
+.steam-account-panel>.account-sync{display:flex;align-items:flex-start;gap:6px}
+.steam-account-panel>.account-sync>svg{flex-shrink:0;margin-top:5px;color:var(--accent)}
+.steam-account-panel>.account-sync.needs-attention,.steam-account-panel>.account-sync.needs-attention>svg{color:var(--warning)}
 .library-sign-in-hint{font-size:13px;color:var(--accent);line-height:1.7;max-width:240px}
 .account-spinner{animation:account-spin 1s linear infinite}
 @keyframes account-spin{to{transform:rotate(360deg)}}
