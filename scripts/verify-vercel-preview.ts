@@ -3,6 +3,7 @@ import {createNeonStore} from '../server/neon-store.ts';
 import {neon} from '@neondatabase/serverless';
 import {randomBytes,createHash} from 'node:crypto';
 import {readFileSync,mkdirSync} from 'node:fs';
+import {cleanupPreviewFixtures} from './preview-cleanup.ts';
 
 const requestedOrigin=process.env.PREVIEW_ORIGIN;
 if(!requestedOrigin)throw Error('PREVIEW_ORIGIN must explicitly name the review deployment.');
@@ -20,6 +21,7 @@ async function openSave(page:Page){
   const disclosure=page.locator('.save-disclosure');
   if(await disclosure.getAttribute('open')===null)await disclosure.locator(':scope > summary').click();
 }
+let verificationFailure:{error:unknown}|null=null;
 try{
   // Refuse to overwrite prior fixtures; cleanup owns only identities proven empty before this run.
   for(const owner of owners){
@@ -82,12 +84,17 @@ try{
   await b.getByRole('button',{name:'Steam account',exact:true}).click();await b.getByRole('button',{name:'Sign out of Steam',exact:true}).click();
   await expect(b.getByRole('link',{name:'Sign in with Steam'})).toBeVisible();await expect(b.getByRole('button',{name:'Preview Hosted sync fixture'})).toHaveCount(0);
   console.log('Hosted Vercel + real Neon PASS: separate-browser-context save/update, private account isolation, header sign-out, desktop/mobile UI. Authentication used synthetic test sessions; an actual Steam user login is not claimed.');
+}catch(error){
+  verificationFailure={error};
 }finally{
-  try{await browser.close();}finally{
-    try{
-      for(const id of sessions)await sql.query('DELETE FROM sessions WHERE id=$1',[id]);
-      for(const id of states)await sql.query('DELETE FROM states WHERE id=$1',[id]);
-      for(const owner of fixtureOwners)await sql.query('DELETE FROM libraries WHERE owner=$1',[owner]);
-    }finally{store.close();}
-  }
+  const failures=await cleanupPreviewFixtures({
+    sessions,states,owners:fixtureOwners,
+    closeBrowser:()=>browser.close(),
+    deleteSession:id=>sql.query('DELETE FROM sessions WHERE id=$1',[id]),
+    deleteState:id=>sql.query('DELETE FROM states WHERE id=$1',[id]),
+    deleteLibrary:owner=>sql.query('DELETE FROM libraries WHERE owner=$1',[owner]),
+    closeStore:()=>store.close(),
+  });
+  if(verificationFailure)failures.unshift(verificationFailure.error instanceof Error?verificationFailure.error:new Error('Hosted preview verification failed.'));
+  if(failures.length)throw new AggregateError(failures,'Hosted preview verification or cleanup failed. All fixture cleanup operations were attempted.');
 }

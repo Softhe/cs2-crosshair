@@ -51,3 +51,11 @@ The final account follow-up includes pending-state brand bounds at 320, 360 and 
 The local frontend is available at http://localhost:4186 while its development server is running. Screenshots and logs are retained in the ignored `.tools/steam-header` directory. The work is committed on `ui/steam-account-editor-redesign` in [PR #9](https://github.com/Softhe/cs2-crosshair/pull/9), including the latest main component split, strict typing, codec/rendering changes and server hardening. After integration, 67 unit/server tests and the production build passed, the full Chromium suite passed 194 checks with 4 viewport-specific skips, and focused Firefox and WebKit suites each passed 30 checks with 4 viewport-specific skips.
 
 Hosted preview: https://delli-crosshair-93iijt7sv-softhe.vercel.app. Automated checks using the actual Preview Neon environment passed cross-context save/update synchronization, synthetic-account isolation, sign-out, guest Steam redirects and desktop/mobile rendering. Exact temporary fixture sessions, libraries and auth state were cleaned up, with zero fixture sessions/libraries confirmed afterward. The user completed real Steam sign-in in Firefox and reported Steam connected and Synced on this hosted preview. This user-reported Firefox result is distinct from the automated synthetic-session evidence. Vercel protection settings were unchanged. Production deployment is verified separately after merge.
+
+## Final review follow-up
+
+The failed-login query marker is consumed after displaying its initial notification, so it does not reappear on later reloads. Other query values, the view, hash and history state are preserved. The auth-navigation checks passed in Chromium, Firefox and WebKit.
+
+Hosted verification cleanup attempts every fixture deletion and closes both browser and storage even after individual errors, then reports the combined failures without exposing database error details. Fault-injection coverage brings the unit/server suite to 69 passing tests.
+
+The static-preview rendering test now allows bounded layout settling and then observes a full 500 ms interval with zero redraws. This replaces an assertion that captured the first redraw too early and could also pass before observing a quiet interval. The renderer itself is unchanged.

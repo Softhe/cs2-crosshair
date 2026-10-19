@@ -513,8 +513,13 @@ function App() {
     ) &&
       !start.current.error);
   useEffect(() => {
-    if (location.pathname === "/custom")
-      history.replaceState(null, "", "/" + location.search + location.hash);
+    const url = new URL(location.href);
+    const legacyPath = url.pathname === "/custom";
+    const failedSignIn = url.searchParams.getAll("steam").includes("failed");
+    if (!legacyPath && !failedSignIn) return;
+    if (legacyPath) url.pathname = "/";
+    url.searchParams.delete("steam", "failed");
+    history.replaceState(history.state, "", url.pathname + url.search + url.hash);
   }, []);
   if (!validPath)
     return (

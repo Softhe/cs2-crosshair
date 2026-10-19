@@ -103,8 +103,23 @@ test('static dynamic mode stops drawing and reduced motion supports manual phase
     await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
     const clears = () => page.evaluate(() => (window as any).__clears as number);
     await expect.poll(clears).toBeGreaterThan(0);
-    const count = await clears();
-    await expect.poll(clears).toBe(count);
+    // Prop changes and queued ResizeObserver notifications can each invalidate a
+    // static frame. Require bounded settling, then observe a full quiet interval.
+    const drawing = await page.evaluate(async () => {
+        const clears = () => (window as any).__clears as number;
+        const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        const deadline = performance.now() + 2000;
+        let last = clears(), quietSince = performance.now();
+        while (performance.now() - quietSince < 200) {
+            if (performance.now() >= deadline) return { settled: false, additionalDraws: 0 };
+            await frame();
+            if (clears() !== last) { last = clears(); quietSince = performance.now(); }
+        }
+        const before = clears(), start = performance.now();
+        while (performance.now() - start < 500) await frame();
+        return { settled: true, additionalDraws: clears() - before };
+    });
+    expect(drawing, 'Static mode must settle, then draw no frames for 500 ms').toEqual({ settled: true, additionalDraws: 0 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await load(page, {});
     await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();

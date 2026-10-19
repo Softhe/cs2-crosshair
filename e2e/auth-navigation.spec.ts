@@ -45,3 +45,28 @@ for(const outcome of ['success','cancelled'] as const)test(`Steam ${outcome} ret
  await expect(page.getByRole('textbox',{name:'Alias name'})).toHaveValue('returning_player');
 });
 
+
+test('failed Steam notification is consumed once without discarding the return URL state',async({page})=>{
+ await page.route('**/entrance.js*',route=>route.fulfill({contentType:'text/javascript',body:''}));
+ await page.route('**/api/session',route=>route.fulfill({json:{user:null}}));
+ await page.goto('/custom?view=library&steam=failed&keep=review#return-anchor');
+ await expect(page.locator('.toast')).toContainText('Steam sign-in was not completed');
+ await expect(page.getByRole('main',{name:'Crosshair library',exact:true})).toBeVisible();
+ await expect.poll(()=>page.url()).toMatch(/\/\?view=library&keep=review#return-anchor$/);
+ await page.reload();
+ await expect(page.getByRole('main',{name:'Crosshair library',exact:true})).toBeVisible();
+ await expect(page.locator('.toast').filter({hasText:'Steam sign-in was not completed'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Crosshair / Scopes',exact:true}).click();
+ await expect(page.locator('.toast').filter({hasText:'Steam sign-in was not completed'})).toHaveCount(0);
+});
+
+test('consuming a failure preserves other Steam parameters',async({page})=>{
+ await page.route('**/entrance.js*',route=>route.fulfill({contentType:'text/javascript',body:''}));
+ await page.route('**/api/session',route=>route.fulfill({json:{user:null}}));
+ await page.goto('/?steam=failed&steam=success&keep=review#return-anchor');
+ await expect(page.locator('.toast')).toContainText('Steam sign-in was not completed');
+ await expect.poll(()=>page.url()).toMatch(/\/\?steam=success&keep=review#return-anchor$/);
+ await page.reload();
+ await expect(page.getByRole('main',{name:'Crosshair editor',exact:true})).toBeVisible();
+ await expect(page.locator('.toast').filter({hasText:'Steam sign-in was not completed'})).toHaveCount(0);
+});
