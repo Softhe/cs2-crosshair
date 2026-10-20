@@ -9,13 +9,14 @@ const favorite=(id:string,name:string,length=8):Saved=>({id,name,settings:{...de
 
 // These tests mock the account API. They verify browser behavior, not Steam or SQLite.
 async function mockApi(page:Page,{signedIn=false,entries=[] as CloudEntry[]}={}){
-  const state={signedIn,entries,revision:0,libraryReads:0,writes:[] as {revision:number;entries:CloudEntry[]}[],failWrites:false,failReads:false};
+  const state={signedIn,entries,revision:0,libraryReads:0,writes:[] as {revision:number;entries:CloudEntry[]}[],failWrites:false,failReads:false,writeGate:null as Promise<void>|null};
   await page.route('**/api/**',async route=>{
     const request=route.request(),path=new URL(request.url()).pathname;
     const send=(status:number,body:unknown)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
     if(path==='/api/session')return send(200,state.signedIn?{user:{steamId:'76561198000000001'},csrfToken:'mock-csrf'}:{user:null});
     if(path==='/api/library'&&request.method()==='GET'){state.libraryReads++;if(state.failReads)return route.abort('failed');return send(200,{revision:state.revision,entries:state.entries});}
     if(path==='/api/library'&&request.method()==='PUT'){
+      if(state.writeGate)await state.writeGate;
       if(state.failWrites)return route.abort('failed');
       const body=request.postDataJSON() as {revision:number;entries:CloudEntry[]};
       expect(request.headers()['x-csrf-token']).toBe('mock-csrf');
@@ -76,6 +77,8 @@ test('mock API: Library selection is read-only and copying a favorite does not l
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await library.getByRole('button',{name:'Preview Player one',exact:true}).click();
   const selected=page.getByRole('region',{name:'Selected crosshair',exact:true});await expect(selected).toBeVisible();
+  const selectedCode=selected.getByLabel('Selected crosshair code',{exact:true});await selectedCode.click();
+  await expect.poll(()=>selectedCode.evaluate(node=>node instanceof HTMLTextAreaElement && node.selectionStart===0 && node.selectionEnd===node.value.length)).toBe(true);
   await expect(selected.getByRole('spinbutton')).toHaveCount(0);await expect(selected.getByRole('slider')).toHaveCount(0);
   const savedBefore=await page.evaluate(()=>localStorage.getItem('delli.v3.library'));
   await library.getByRole('button',{name:'Copy Player one',exact:true}).click();
@@ -128,6 +131,8 @@ test('mock API: offline account saves remain pending and retry uploads them',asy
   await expect.poll(()=>api.libraryReads).toBeGreaterThan(0);api.failWrites=true;
   if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();await page.getByLabel('Crosshair name',{exact:true}).fill('Pending favorite');
   await page.getByRole('button',{name:'Save to favorites',exact:true}).click();
+  await expect(page.getByLabel('Save sync status',{exact:true})).toContainText('Sync failed');
+  await expect(page.locator('.toast')).toContainText('saved on this device. Sync failed');
   await page.getByRole('button',{name:'Library',exact:true}).click();
   await expect(page.getByLabel('Library sync status')).toContainText(/pending|waiting|offline|retry|unable|failed/i);
   expect(api.entries).toHaveLength(0);
@@ -206,4 +211,37 @@ test('mock API: a sync requested while another is running runs afterwards instea
   release();
   await expect.poll(()=>state.writes.at(-1)?.entries.map(e=>e.id)).toEqual(['other-tab']);
   await expect(page.getByLabel('Library sync status')).toHaveText('Synced');
+});
+
+
+test('current code selects in full on focus, repeated clicks, dragging, and keyboard selection',async({page})=>{
+  await mockApi(page);await page.goto('/');
+  const field=page.getByLabel('Crosshair code or config',{exact:true});
+  const allSelected=()=>field.evaluate(node=>node instanceof HTMLTextAreaElement && node.selectionStart===0 && node.selectionEnd===node.value.length);
+  await field.focus();await expect.poll(allSelected).toBe(true);
+  await field.click({position:{x:35,y:15}});await expect.poll(allSelected).toBe(true);
+  await field.dblclick({position:{x:50,y:15}});await expect.poll(allSelected).toBe(true);
+  await field.press('ArrowRight');await field.press('Shift+ArrowLeft');await expect.poll(allSelected).toBe(true);
+  const box=await field.boundingBox();if(!box)throw Error('Missing code field');
+  await page.mouse.move(box.x+12,box.y+12);await page.mouse.down();await page.mouse.move(box.x+85,box.y+12,{steps:5});await page.mouse.up();await expect.poll(allSelected).toBe(true);
+  await field.fill('replacement draft');await expect(field).toHaveValue('replacement draft');
+});
+
+test('mock API: saving and updating automatically sync with honest progress and completion feedback',async({page})=>{
+  const api=await mockApi(page,{signedIn:true});await page.goto('/');
+  await expect.poll(()=>api.libraryReads).toBeGreaterThan(0);
+  let release=()=>{};api.writeGate=new Promise<void>(resolve=>{release=resolve;});
+  await page.locator('.save-disclosure > summary').click();
+  await page.getByLabel('Crosshair name',{exact:true}).fill('Automatic sync');
+  await page.getByRole('button',{name:'Save to favorites',exact:true}).click();
+  await expect(page.getByLabel('Save sync status',{exact:true})).toContainText('Syncing to Steam');
+  await expect(page.locator('.toast')).toContainText('Syncing to Steam');
+  expect(api.entries).toHaveLength(0);release();
+  await expect(page.getByLabel('Save sync status',{exact:true})).toContainText('Saved and synced to Steam');
+  await expect(page.locator('.toast')).toContainText('saved and synced to Steam');
+  expect(api.entries.map(item=>item.name)).toEqual(['Automatic sync']);
+  const length=page.getByRole('spinbutton',{name:'Length',exact:true});await length.fill('12');await length.blur();
+  await page.getByRole('button',{name:'Update saved crosshair',exact:true}).click();
+  await expect.poll(()=>api.entries[0]?.settings.cl_crosshair_length).toBe(12);
+  await expect(page.locator('.toast')).toContainText('saved and synced to Steam');
 });
