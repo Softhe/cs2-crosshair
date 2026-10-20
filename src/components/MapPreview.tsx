@@ -103,8 +103,20 @@ export function MapPreview({
         options.open = false;
       }
     };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      const options = optionsRef.current;
+      if (event.key === "Escape" && modal === null && options?.open) {
+        options.open = false;
+        options.querySelector("summary")?.focus();
+        event.stopPropagation();
+      }
+    };
     document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", dismissOnEscape);
+    };
   }, [modal]);
   return (
     <section className="preview-section" aria-label="Crosshair preview">
@@ -140,13 +152,6 @@ export function MapPreview({
         <details
           ref={optionsRef}
           className="preview-options"
-          onKeyDown={(event) => {
-            if (event.key === "Escape" && modal === null) {
-              event.currentTarget.open = false;
-              event.currentTarget.querySelector("summary")?.focus();
-              event.stopPropagation();
-            }
-          }}
         >
           <summary aria-label="Preview options">
             <span className="wide-label">Preview </span>options <ChevronDown size={14} aria-hidden="true" />
