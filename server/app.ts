@@ -11,7 +11,7 @@ const token=()=>randomBytes(32).toString('hex');
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
 const equal=(a:string,b:string)=>a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
 const signInReturn=(value:string|null)=>value==='/?view=library'?'/?view=library':'/';
-export type Options={origin?:string;databasePath?:string;databaseUrl?:string;store?:Store;distPath?:string;fetch?:typeof fetch;now?:()=>number};
+export type Options={origin?:string;databasePath?:string;databaseUrl?:string;store?:Store;distPath?:string;fetch?:typeof fetch;now?:()=>number;trustProxy?:boolean};
 export function createHandler(options:Options={}){
   const origin=options.origin??process.env.PUBLIC_ORIGIN??'http://127.0.0.1:4181';
   const parsedOrigin=new URL(origin);
@@ -26,24 +26,19 @@ export function createHandler(options:Options={}){
     :options.store?Promise.resolve(options.store):import('./sqlite-store.js').then(module=>module.createSqliteStore(options.databasePath??process.env.DATABASE_PATH??resolve('data/library.sqlite')));
   const now=options.now??Date.now,requestFetch=options.fetch??fetch,dist=resolve(options.distPath??'dist');
   let lastCleanup=0;
-  // In-memory rate-limit buckets: single-instance only. On Vercel serverless
-  // each instance gets its own buckets (cold starts reset them), so this is
-  // abuse friction rather than strict enforcement.
-  const hits=new Map<string,number[]>();
-  function pruneBuckets(t:number){
-    for(const [key,times] of hits){
-      const fresh=times.filter(ts=>t-ts<3600000);
-      if(fresh.length)hits.set(key,fresh);else hits.delete(key);
-    }
+  // Fixed-window counters live in the shared store, so every serverless instance
+  // enforces the same limits. Bucket ids are hashed so raw IPs are never stored.
+  async function allowed(db:Store,key:string,limit:number,windowMs:number,t:number):Promise<boolean>{
+    const windowStart=Math.floor(t/windowMs)*windowMs;
+    try{return await db.hit(hash(key+'\n'+windowStart),windowStart+windowMs)<=limit;}
+    // Limits are abuse friction: a store failure must not lock everyone out.
+    catch{console.error('Rate limit check failed.');return true;}
   }
-  function allowed(key:string,limit:number,windowMs:number,t:number):boolean{
-    const times=hits.get(key)??[];
-    const fresh=times.filter(ts=>t-ts<windowMs);
-    if(fresh.length>=limit){hits.set(key,fresh);return false;}
-    fresh.push(t);hits.set(key,fresh);return true;
-  }
+  // X-Forwarded-For is client-controlled unless a proxy overwrites it. Vercel does;
+  // a self-hosted reverse proxy must set it and opt in with TRUST_PROXY=1.
+  const trustProxy=options.trustProxy??(!!process.env.VERCEL||process.env.TRUST_PROXY==='1');
   function clientIp(req:IncomingMessage):string{
-    const forwarded=req.headers['x-forwarded-for'];
+    const forwarded=trustProxy?req.headers['x-forwarded-for']:undefined;
     const first=(Array.isArray(forwarded)?forwarded[0]:forwarded)?.split(',')[0]?.trim();
     return first||req.socket.remoteAddress||'unknown';
   }
@@ -64,10 +59,11 @@ export function createHandler(options:Options={}){
       res.setHeader('Cache-Control','no-store');
       const t=now();
       const db=await storage();
-      if(t-lastCleanup>5*60*1000){lastCleanup=t;pruneBuckets(t);await db.cleanup(t);}
+      // Expiry cleanup is housekeeping: its failure must not fail the user's request.
+      if(t-lastCleanup>5*60*1000){lastCleanup=t;try{await db.cleanup(t);}catch{console.error('Expired record cleanup failed.');}}
       if(path==='/api/session'&&req.method==='GET'){const s=await session(req);json(res,200,s?{user:{steamId:s.owner},csrfToken:s.csrf}:{user:null});return;}
       if(path==='/api/auth/steam'&&req.method==='GET'){
-        if(!allowed('steam:'+clientIp(req),60,60000,t)){json(res,429,{error:'Too many sign-in attempts. Try again later.'});return;}
+        if(!await allowed(db,'steam:'+clientIp(req),60,60000,t)){json(res,429,{error:'Too many sign-in attempts. Try again later.'});return;}
         const state=token(),destination=signInReturn(url.searchParams.get('returnTo'));
         // Bind the destination to the one-use state without storing an extra cookie or database field.
         await db.addState(hash(state+'\n'+destination),now()+600000);
@@ -104,7 +100,7 @@ export function createHandler(options:Options={}){
       if(req.method!=='GET'&&(req.headers.origin!==origin||typeof req.headers['x-csrf-token']!=='string'||!equal(s.csrf,req.headers['x-csrf-token']))){json(res,403,{error:'Invalid request origin or CSRF token.'});return;}
       if(path==='/api/auth/logout'&&req.method==='POST'){await db.deleteSession(s.id);res.setHeader('Set-Cookie',cookie('delli_session','',0));json(res,200,{user:null});return;}
       if(path==='/api/library'&&req.method==='PUT'){
-        if(!allowed('put-ip:'+clientIp(req),60,60000,t)||!allowed('put-owner:'+s.owner,30,3600000,t)){json(res,429,{error:'Too many sync attempts. Try again later.'});return;}
+        if(!await allowed(db,'put-ip:'+clientIp(req),60,60000,t)||!await allowed(db,'put-owner:'+s.owner,30,3600000,t)){json(res,429,{error:'Too many sync attempts. Try again later.'});return;}
         const input=await body(req);if(!Number.isSafeInteger(input.revision)||input.revision<0||!Array.isArray(input.entries)||input.entries.length>50)throw Error('Invalid library revision or favorite count.');
         const ids=new Set<string>();const entries=input.entries.map((item:Record<string,unknown>)=>{
           if(!item||typeof item.id!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(item.id)||ids.has(item.id)||typeof item.name!=='string'||!item.name.trim()||item.name.length>80||(item.favorite!==undefined&&item.favorite!==true))throw Error('Invalid favorite.');

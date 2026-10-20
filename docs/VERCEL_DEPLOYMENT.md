@@ -20,6 +20,8 @@ Vercel supports TypeScript functions under `/api` and native Node request/respon
 
 For a generated preview URL, leave `PUBLIC_ORIGIN` unset so each deployment uses its own `VERCEL_URL`. For a deliberately chosen stable preview alias, configure its exact origin and always open that origin during authentication. The application never derives its callback origin from an incoming Host or forwarded-host header.
 
+Run `npm run db:migrate` against each Neon database before deploying a release that adds tables (for example `rate_limits`). Until then, rate limits fail open and expired-record cleanup logs an error.
+
 Use a preview database or branch separated from future production data. The shared backend selects Neon when `DATABASE_URL` is configured. Local development can continue using SQLite. A Vercel deployment must not rely on a local SQLite file for durable sessions or favorites.
 
 Steam OpenID sign-in does not need a Steam Web API key. Optional profile-name/avatar enrichment is outside this deployment. Account records use SteamID and private saved crosshairs. See [the library contract](LIBRARY_SYNC.md) for authentication, merge consent, and storage scope.

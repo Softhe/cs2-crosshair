@@ -220,10 +220,6 @@ function App() {
     write("alias", alias);
   }, [alias]);
   useEffect(() => {
-    if (!write("library", guestLibrary))
-      notify("Library could not be saved. Download a backup.", "error");
-  }, [guestLibrary]);
-  useEffect(() => {
     document.documentElement.dataset.theme = "cs2";
     document
       .querySelector("meta[name=theme-color]")
@@ -267,7 +263,8 @@ function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   function change(key: string, value: number) {
-    undoHistory.push(s);
+    // Grouped by setting, so dragging a slider is one undo step rather than one per pixel.
+    undoHistory.push(s, key);
     setSettings((prev) => ({ ...prev, [key]: value }));
   }
   function load(settings: Settings) {

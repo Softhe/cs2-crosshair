@@ -9,7 +9,7 @@ const alphabetIndex: Uint8Array = (()=>{
   for(let i=0;i<alphabet.length;i++) table[alphabet.charCodeAt(i)]=i;
   return table;
 })();
-function checksum(bytes: Uint8Array): number {return bytes.slice(1).reduce((sum,b)=>sum+b,0)&255;}
+function checksum(bytes: Uint8Array, end=bytes.length): number {return bytes.slice(1,end).reduce((sum,b)=>sum+b,0)&255;}
 function pack(bytes: Uint8Array, count: number): string {
   let number=0n;
   for(const byte of bytes) number=(number<<8n)|BigInt(byte);
@@ -18,13 +18,14 @@ function pack(bytes: Uint8Array, count: number): string {
   if(number) throw Error('Share code exceeds supported size.');
   return text;
 }
-function unpack(text: string, length: number): Uint8Array {
+/** `partialChecksum`: CSGO version-3+ codes are reported to checksum only bytes 1..15 (matches the vendored decoder). */
+function unpack(text: string, length: number, partialChecksum=false): Uint8Array {
   let number=0n;
   for(let i=text.length-1;i>=0;i--){const unit=text.charCodeAt(i);const digit=unit<128?alphabetIndex[unit]:undefined;if(digit===undefined||digit===255)throw Error('Invalid share-code character.');number=number*57n+BigInt(digit);}
   if(number>>(BigInt(length)*8n)) throw Error('Share code exceeds supported size.');
   const bytes=new Uint8Array(length);
   for(let i=length-1;i>=0;i--){bytes[i]=Number(number&255n);number>>=8n;}
-  if(checksum(bytes)!==bytes[0]) throw Error('Invalid crosshair checksum. Check the entire code.');
+  if(checksum(bytes)!==bytes[0]&&!(partialChecksum&&bytes[1]!>=3&&checksum(bytes,16)===bytes[0])) throw Error('Invalid crosshair checksum. Check the entire code.');
   return bytes;
 }
 export function encode(s: Settings): string {
@@ -81,7 +82,7 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
     return {settings:validateSettings(s),legacy:false};
   }
   if(/^CSGO(-[A-Za-z0-9]{5}){5}$/.test(code)) {
-    const b=unpack(code.slice(5).replaceAll('-',''),18);const view=new DataView(b.buffer);const s={...defaults};
+    const b=unpack(code.slice(5).replaceAll('-',''),18,true);const view=new DataView(b.buffer);const s={...defaults};
     if(![1,3,4].includes(b[1]!)) throw Error('This is not a supported crosshair code. Match codes cannot be imported.');
     if(b[1]===1){
       const converted=convertLegacy(code,legacyHeight,legacyHeight,base);

@@ -104,3 +104,18 @@ test('classic dynamic negative gaps preserve the game-accepted fixture and UI bo
   }
   assert.throws(()=>validateSettings({...settings,cl_crosshair_gap:-11}));
 });
+test('September CSGO codes accept the version-3+ partial checksum and decode a signed gap',()=>{
+  const b=new Uint8Array(18),view=new DataView(b.buffer);
+  b[1]=4;b[2]=4;b.set([0,255,0,255],3);b[7]=254;b[8]=5;b[9]=0;
+  view.setUint32(10,3|2<<23|1<<28,true);view.setUint16(14,1080,true);b[16]=7;b[17]=9;
+  const toCode=(bytes:Uint8Array)=>{
+    const alphabet='ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
+    let n=bytes.reduce((v,x)=>v<<8n|BigInt(x),0n),out='';
+    for(let i=0;i<25;i++){out+=alphabet[Number(n%57n)];n/=57n;}
+    return 'CSGO-'+out.match(/.{5}/g)!.join('-');
+  };
+  b[0]=b.slice(1,16).reduce((s,x)=>s+x,0)&255; // bytes 16-17 are excluded, so the full-sum checksum differs
+  const {settings,legacy}=decode(toCode(b));
+  assert.equal(legacy,true);assert.equal(settings.cl_crosshair_gap,-2);assert.equal(settings.cl_crosshair_thickness,2);assert.equal(settings.cl_crosshair_drawoutline,1);
+  b[0]++;assert.throws(()=>decode(toCode(b)),/checksum/);
+});

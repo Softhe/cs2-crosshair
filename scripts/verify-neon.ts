@@ -10,8 +10,9 @@ try{
   await a.addState(prefix,Date.now()+60000);assert.equal(await b.consumeState(prefix,Date.now()),true);assert.equal(await a.consumeState(prefix,Date.now()),false);
   assert.equal(await a.addNonce(prefix,Date.now()+60000),true);assert.equal(await b.addNonce(prefix,Date.now()+60000),false);
   await a.addSession({id:prefix,owner,csrf:'fixture',expires:Date.now()+60000});assert.equal((await b.session(prefix,Date.now()))?.owner,owner);await b.deleteSession(prefix);assert.equal(await a.session(prefix,Date.now()),undefined);
-  console.log('Real Neon verification PASS: cross-connection persistence, atomic first-save conflict, stale revision rejection, owner isolation, one-time state/nonce, shared sessions.');
+  const counts=await Promise.all([a.hit(prefix,Date.now()+60000),b.hit(prefix,Date.now()+60000),a.hit(prefix,Date.now()+60000)]);assert.deepEqual([...counts].sort(),[1,2,3]);
+  console.log('Real Neon verification PASS: cross-connection persistence, atomic first-save conflict, stale revision rejection, owner isolation, one-time state/nonce, shared sessions, shared rate-limit counters.');
 }finally{
   // These rows belong exclusively to this verification run, never to a Steam account.
-  await sql.query('DELETE FROM libraries WHERE owner=$1 OR owner=$2',[owner,other]);await sql.query('DELETE FROM sessions WHERE id=$1',[prefix]);await sql.query('DELETE FROM states WHERE id=$1',[prefix]);await sql.query('DELETE FROM nonces WHERE nonce=$1',[prefix]);a.close();b.close();
+  await sql.query('DELETE FROM libraries WHERE owner=$1 OR owner=$2',[owner,other]);await sql.query('DELETE FROM sessions WHERE id=$1',[prefix]);await sql.query('DELETE FROM states WHERE id=$1',[prefix]);await sql.query('DELETE FROM nonces WHERE nonce=$1',[prefix]);await sql.query('DELETE FROM rate_limits WHERE id=$1',[prefix]);a.close();b.close();
 }
