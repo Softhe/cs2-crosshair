@@ -110,19 +110,23 @@ export function LibraryView(p: Props) {
       p.notify('Favorite limit reached.', 'warning');
       return;
     }
+    let full = false;
     // Move the toggled entry to the front so a full 20-entry history drops the oldest entry, not this one.
-    if (
-      !p.setLibrary((items) => {
-        const target = items.find((entry) => entry.id === item.id);
-        return target
-          ? limitLibrary([
-              { ...target, favorite: !target.favorite, date: new Date().toISOString() },
-              ...items.filter((entry) => entry.id !== item.id),
-            ])
-          : items;
-      })
-    )
-      p.notify('Change could not be saved on this device.', 'error');
+    const saved = p.setLibrary((items) => {
+      const target = items.find((entry) => entry.id === item.id);
+      if (!target) return items;
+      // Re-check against the merged library: another tab may have filled the last slot since this render.
+      if (!target.favorite && items.filter((entry) => entry.favorite).length >= 50) {
+        full = true;
+        return items;
+      }
+      return limitLibrary([
+        { ...target, favorite: !target.favorite, date: new Date().toISOString() },
+        ...items.filter((entry) => entry.id !== item.id),
+      ]);
+    });
+    if (full) p.notify('Favorite limit reached.', 'warning');
+    else if (!saved) p.notify('Change could not be saved on this device.', 'error');
   }
   return (
     <main className="collection-page" aria-label="Crosshair library">
