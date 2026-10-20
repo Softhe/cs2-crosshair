@@ -55,7 +55,8 @@ export function createHandler(options:Options={}){
     if(!req.headers['content-type']?.startsWith('application/json'))throw Error('Expected JSON.');
     const parsed=(req as IncomingMessage&{body?:unknown}).body;
     if(parsed!==undefined){const text=typeof parsed==='string'?parsed:JSON.stringify(parsed);if(!text||Buffer.byteLength(text)>200000)throw Error('Request is too large.');return JSON.parse(text);}
-    let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>200000)throw Error('Request is too large.');}return JSON.parse(text);
+    // Collect raw bytes: concatenating chunks as strings splits multi-byte UTF-8 characters at chunk boundaries.
+    const chunks:Buffer[]=[];let size=0;for await(const chunk of req){const data=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk);size+=data.length;if(size>200000)throw Error('Request is too large.');chunks.push(data);}return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   }
   const handler=async(req:IncomingMessage,res:ServerResponse)=>{try{
     const url=new URL(req.url??'/',origin),path=url.pathname;

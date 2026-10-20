@@ -75,9 +75,16 @@ function initial(): { settings: Settings; error?: string; note?: string } {
     }
     const full = params.get("settings");
     if (full) return { settings: validateSettings(JSON.parse(full)) };
+    let draft: Settings;
+    try {
+      draft = validateSettings(read("draft", defaults));
+    } catch {
+      // A stale or corrupt local draft is not the user's link error: start from defaults quietly.
+      draft = defaults;
+    }
     return {
       settings: {
-        ...validateSettings(read("draft", defaults)),
+        ...draft,
         cl_crosshair_recoil: 0,
         cl_crosshair_friendly_warning: 0,
       },

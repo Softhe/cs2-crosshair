@@ -43,7 +43,8 @@ export function LibraryView(p:Props){
   }
   function toggleFavorite(item:Saved){
     if(!item.favorite&&favorites.length>=50){p.notify('Favorite limit reached.','warning');return;}
-    p.setLibrary(items=>limitLibrary(items.map(entry=>entry.id===item.id?{...entry,favorite:!entry.favorite,date:new Date().toISOString()}:entry)));
+    // Move the toggled entry to the front so a full 20-entry history drops the oldest entry, not this one.
+    if(!p.setLibrary(items=>{const target=items.find(entry=>entry.id===item.id);return target?limitLibrary([{...target,favorite:!target.favorite,date:new Date().toISOString()},...items.filter(entry=>entry.id!==item.id)]):items;}))p.notify('Change could not be saved on this device.','error');
   }
   return <main className="collection-page" aria-label="Crosshair library">
     <div className="collection-heading">

@@ -58,6 +58,8 @@ test('config importer round trips all settings and ignores unrelated commands',(
   const s={...defaults,cl_crosshair_gap:-4,cl_crosshairstyle:2,cl_ironsight_dot_scale:.51,cl_grenadecrosshairdelay_smoke:.35,cl_grenadecrosshair_smoke:0};
   assert.deepEqual(importCommands(cfg(s)+'\nquit; bind x quit; fps_max 0'),s);
   assert.equal(importCommands('cl_crosshair_recoil "false"').cl_crosshair_recoil,0);
+  assert.equal(importCommands('cl_crosshair_recoil "TRUE"').cl_crosshair_recoil,1);
+  assert.equal(importCommands('cl_crosshair_recoil "False"').cl_crosshair_recoil,0);
   assert.throws(()=>importCommands('alias stolen "quit"; quit'));
   assert.throws(()=>importCommands('cl_crosshair_length "999"'));
   assert.ok(!commands(defaults).includes('cl_crosshairsize'));

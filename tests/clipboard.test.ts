@@ -110,3 +110,23 @@ test('selection fallback reports failure when the copy command fails', async () 
     uninstallDom();
   }
 });
+
+test('ClipboardItem writes that read back different text fall back to the selection path', async () => {
+  const input = new FakeInput();
+  const { textarea } = installDom(input, fakeSelection(), true);
+  const globals = globalThis as unknown as Record<string, unknown>;
+  let clipboardText = 'stale';
+  Object.defineProperty(globals, 'navigator', {configurable:true, writable:true, value:{
+    clipboard: { writeText: async () => {}, write: async () => {}, readText: async () => clipboardText },
+    permissions: { query: async () => ({ state: 'granted' }) },
+  }});
+  globals.ClipboardItem = class { constructor(_items: unknown) {} };
+  (globals.document as { execCommand: () => boolean }).execCommand = () => { clipboardText = 'hello'; return true; };
+  try {
+    assert.equal(await copyText('hello'), true);
+    assert.equal(textarea.selected, true);
+  } finally {
+    delete globals.ClipboardItem;
+    uninstallDom();
+  }
+});

@@ -100,16 +100,21 @@ export function ColorRow({
   outline = false,
   s,
   set,
+  setMany,
 }: {
   outline?: boolean;
   s: Settings;
   set: (key: string, value: number) => void;
+  setMany: (values: Record<string, number>) => void;
 }) {
   const [open, toggle] = useState(false);
   const prefix = outline ? 'cl_crosshairoutline_' : 'cl_crosshaircolor_';
   const label = outline ? 'Outline Color and Transparency' : 'Color and Transparency';
   const channel = (suffix: string): number => s[prefix + suffix] ?? 0;
   const hex = '#' + ['r', 'g', 'b'].map((c) => channel(c).toString(16).padStart(2, '0')).join('');
+  // Apply all three channels as one change so a single Undo restores the previous color.
+  const setHex = (color: string) =>
+    setMany(Object.fromEntries(['r', 'g', 'b'].map((c, i) => [prefix + c, parseInt(color.slice(1 + i * 2, 3 + i * 2), 16)])));
   return (
     <>
       <div className="setting-row">
@@ -127,9 +132,7 @@ export function ColorRow({
               type="color"
               aria-label={outline ? 'Outline color' : 'Crosshair color'}
               value={hex}
-              onChange={(e) =>
-                ['r', 'g', 'b'].forEach((c, i) => set(prefix + c, parseInt(e.target.value.slice(1 + i * 2, 3 + i * 2), 16)))
-              }
+              onChange={(e) => setHex(e.target.value)}
             />
             <code>{hex.toUpperCase()}</code>
             <div className="color-presets">
@@ -139,9 +142,7 @@ export function ColorRow({
                   aria-label={`Set ${outline ? 'outline' : 'crosshair'} ${color}`}
                   aria-pressed={hex === color}
                   style={{ '--swatch-color': color } as CSSProperties}
-                  onClick={() =>
-                    ['r', 'g', 'b'].forEach((c, i) => set(prefix + c, parseInt(color.slice(1 + i * 2, 3 + i * 2), 16)))
-                  }
+                  onClick={() => setHex(color)}
                 />
               ))}
             </div>
@@ -174,6 +175,7 @@ export function SettingsList({ s, set, load, notify, draftSaved }: {
   notify: (text: string, tone?: 'success' | 'warning' | 'error' | 'info') => void;
   draftSaved: boolean;
 }) {
+  const setMany = (values: Record<string, number>) => load({ ...s, ...values });
   const visibleFields = styleFields(s);
   const [first, second, ...rest] = visibleFields;
   if (!first || !second) return null;
@@ -198,9 +200,9 @@ export function SettingsList({ s, set, load, notify, draftSaved }: {
       </section>
       <section className="settings-section" aria-labelledby="color-heading">
         <div className="section-title"><h2 id="color-heading">Color and outline</h2><span>02</span></div>
-        <ColorRow s={s} set={set} />
+        <ColorRow s={s} set={set} setMany={setMany} />
         <Row field={second} s={s} set={set} />
-        {s.cl_crosshair_drawoutline !== 0 && <ColorRow s={s} set={set} outline />}
+        {s.cl_crosshair_drawoutline !== 0 && <ColorRow s={s} set={set} setMany={setMany} outline />}
       </section>
       <section className="settings-section" aria-labelledby="behavior-heading">
         <div className="section-title"><h2 id="behavior-heading">Behavior and scope</h2><span>03</span></div>

@@ -84,10 +84,11 @@ export function useLibrarySync(guestLibrary:Saved[],setGuestLibrary:Dispatch<Set
   const fail=(cause:unknown)=>{setError(syncErrorMessage(cause));setStatus('error');};
   const [user,setUser]=useState<{steamId:string}|null>(null),[status,setStatus]=useState<SyncStatus>('loading'),[accountLibrary,setAccountLibrary]=useState<Saved[]>([]);
   const [syncing,setSyncing]=useState(false);
-  const [tick,setTick]=useState(0);const csrf=useRef(''),active=useRef<string|null>(null),queue=useRef<Queue|null>(null),generation=useRef(0),busy=useRef(false);
+  const [tick,setTick]=useState(0);const csrf=useRef(''),active=useRef<string|null>(null),queue=useRef<Queue|null>(null),generation=useRef(0),busy=useRef(false),rerun=useRef(false);
   const publish=(q:Queue)=>setAccountLibrary([...saved(q.entries),...q.history]);
   async function synchronize(id:string,epoch:number){
-    if(busy.current)return false;busy.current=true;setSyncing(true);
+    // A request that arrives mid-sync (another tab's storage event, a retry) runs once the current pass ends instead of being dropped.
+    if(busy.current){rerun.current=true;return false;}busy.current=true;rerun.current=false;setSyncing(true);
     try{
       const sessionResponse=await fetchLibrary('/api/session',{credentials:'same-origin'});if(!sessionResponse.ok)throw Error('Session unavailable.');const session=await sessionResponse.json();if(generation.current!==epoch||active.current!==id)return;
       if(session.user?.steamId!==id){generation.current++;active.current=null;queue.current=null;setUser(null);setAccountLibrary([]);setSyncing(false);setStatus('loading');setTick(t=>t+1);return;}csrf.current=session.csrfToken;
@@ -104,7 +105,7 @@ export function useLibrarySync(guestLibrary:Saved[],setGuestLibrary:Dispatch<Set
         q={base:latest,entries:mergeConflict(put.status===409?sent.base.entries:sent.entries,current.entries,latest.entries),history:current.history};persistQueue(id,q);queue.current=q;publish(q);
       }
       setStatus('pending');
-    }catch(cause){if(generation.current===epoch)fail(cause);}finally{busy.current=false;if(generation.current===epoch)setSyncing(false);}
+    }catch(cause){if(generation.current===epoch)fail(cause);}finally{busy.current=false;if(generation.current===epoch)setSyncing(false);if(rerun.current&&active.current){rerun.current=false;const next=active.current;queueMicrotask(()=>{void synchronize(next,generation.current);});}}
   }
   useEffect(()=>{
     const epoch=++generation.current;let disposed=false;setSessionState('checking');

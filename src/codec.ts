@@ -90,7 +90,8 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
     const bits=view.getUint32(10,true);
     s.cl_crosshairstyle=b[2]!&15;s.cl_crosshair_recoil=(b[2]!>>4)&1;s.cl_crosshairdot=(b[2]!>>6)&1;s.cl_crosshair_t=b[2]!>>7;
     ['r','g','b','a'].forEach((c,i)=>s[`cl_crosshaircolor_${c}`]=b[3+i]!);
-    s.cl_crosshair_gap=b[7]!;s.cl_crosshair_length=b[8]!;s.cl_crosshair_dynamic_spread_limit=b[9]!;
+    // Gap is a signed byte: 0xFE is -2, not 254.
+    s.cl_crosshair_gap=b[7]!<<24>>24;s.cl_crosshair_length=b[8]!;s.cl_crosshair_dynamic_spread_limit=b[9]!;
     s.cl_crosshair_dynamic_splitdist=bits&127;s.cl_crosshair_dynamic_splitalpha_innermod=((bits>>>7)&31)/20;
     s.cl_crosshair_dynamic_splitalpha_outermod=(((bits>>>12)&15)+6)/20;s.cl_crosshair_dynamic_maxdist_splitratio=((bits>>>16)&127)/100;
     s.cl_crosshair_thickness=(bits>>>23)&31;s.cl_crosshair_drawoutline=b[1]===4?(b[13]!>>4)&3:(b[2]!>>5)&1;s.cl_crosshair_screen_height=view.getUint16(14,true);
@@ -104,7 +105,8 @@ export function importCommands(text: string, base=defaults): Settings {
   for(const command of text.replace(/\/\/[^\n]*/g,'').split(/[;\r\n]/)) {
     const match=/^\s*"?(cl_[a-z0-9_]+)"?\s+"?(-?\d+(?:\.\d+)?|true|false)"?\s*$/i.exec(command);
     const key=match?.[1];
-    if(key!==undefined && Object.hasOwn(defaults,key)){s[key]=match?.[2]==='true'?1:match?.[2]==='false'?0:Number(match?.[2]);count++;}
+    const raw=match?.[2]?.toLowerCase();
+    if(key!==undefined && Object.hasOwn(defaults,key)){s[key]=raw==='true'?1:raw==='false'?0:Number(raw);count++;}
   }
   if(!count) throw Error('No current CS2 crosshair settings found. Unrelated commands are ignored.');
   return validateSettings(s);
