@@ -189,6 +189,35 @@ function App() {
     setToastTone(tone);
     setToast(text);
   };
+  const awaitingSaveSync = useRef(false);
+  useEffect(() => {
+    if (!sync.user) awaitingSaveSync.current = false;
+    if (!awaitingSaveSync.current || sync.syncing) return;
+    if (sync.status === "synced" || sync.status === "error") {
+      awaitingSaveSync.current = false;
+      setToastTone(sync.status === "synced" ? "success" : "warning");
+      setToast(sync.status === "synced"
+        ? "Crosshair saved and synced to Steam."
+        : "Crosshair saved on this device. Sync failed. Retry sync in Library.");
+    }
+  }, [sync.status, sync.syncing, sync.user]);
+  function notifySaved(message: string) {
+    awaitingSaveSync.current = !!sync.user;
+    notify(sync.user ? message + " Syncing to Steam…" : message + " Sign in with Steam to sync across devices.", sync.user ? "info" : "success");
+  }
+  const saveSyncLabel = sync.error?.startsWith("Changes could not be saved")
+    ? "Local save failed"
+    : sync.user
+      ? sync.syncing
+        ? "Saved on this device · Syncing to Steam…"
+        : sync.status === "synced"
+          ? "Saved and synced to Steam"
+          : sync.status === "loading"
+            ? "Loading library…"
+            : sync.status === "error"
+              ? "Saved on this device · Sync failed. Retry in Library."
+              : "Saved on this device · Waiting to sync"
+    : "Saved on this device · Sign in with Steam to sync";
   useEffect(() => {
     const update = () =>
       setFullscreen(document.fullscreenElement === mapRef.current);
@@ -365,7 +394,7 @@ function App() {
       )
     ) {
       setEditingId(entry.id);
-      notify("Crosshair saved.", "success");
+      notifySaved("Crosshair saved.");
     } else
       notify(
         "Crosshair could not be saved on this device. Export a backup or free browser storage.",
@@ -392,7 +421,7 @@ function App() {
         ),
       )
     )
-      notify("Saved crosshair updated.", "success");
+      notifySaved("Saved crosshair updated.");
     else
       notify(
         "Update could not be saved on this device. Export a backup or free browser storage.",
@@ -673,7 +702,7 @@ function App() {
                   Save favorite
                   <span className="saved-state">
                     {currentFavorite
-                      ? "Saved as " + currentFavorite.name
+                      ? "Saved as " + currentFavorite.name + " · " + saveSyncLabel
                       : editingFavorite
                         ? "Editing " + editingFavorite.name
                         : "Keep a separate copy"}
@@ -692,16 +721,7 @@ function App() {
                               editingFavorite.name +
                               ". Your saved copy stays unchanged."
                             : "Save a name or player nickname. Your saved copy stays unchanged while you edit."}
-                        {sync.user &&
-                          (sync.status === "synced"
-                            ? " · Synced"
-                            : sync.status === "loading"
-                              ? " · Loading library…"
-                              : sync.error?.startsWith(
-                                    "Changes could not be saved",
-                                  )
-                                ? " · Local save failed"
-                                : " · Saved on this device · waiting to sync")}
+                        {currentFavorite && <span aria-label="Save sync status"> · {saveSyncLabel}</span>}
                       </p>
                     </div>
                   </div>

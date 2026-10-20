@@ -334,6 +334,10 @@ export function LibraryView(p: Props) {
                 id="selected-code"
                 className="selected-code"
                 aria-label="Selected crosshair code"
+                onPointerDown={(e) => { e.preventDefault(); e.currentTarget.focus(); e.currentTarget.select(); }}
+                onFocus={(e) => e.currentTarget.select()}
+                onClick={(e) => e.currentTarget.select()}
+                onSelect={(e) => e.currentTarget.select()}
                 value={encode(selected.settings)}
                 readOnly
               />
