@@ -31,3 +31,19 @@ test('combined advanced actions and responsive layout remain usable',async({page
  for(const width of [320,390,820,1462,2464]){await page.setViewportSize({width,height:1184});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`overflow ${width}`).toBe(true);}
 });
 
+
+test('transfer helper text occupies separate rows',async({page})=>{
+ await page.goto('/');
+ const panel=page.getByRole('region',{name:'Import, share and export',exact:true});
+ for(const width of [320,390,820,1440,2560]){
+  await page.setViewportSize({width,height:1392});
+  for(const draft of [false,true]){
+   const field=panel.getByLabel('Crosshair code or config',{exact:true});
+   if(draft)await field.fill('CSinvalid');
+   const hints=panel.locator(':scope > .code-hint');
+   const selection=await hints.nth(0).boundingBox(),exportHint=await hints.nth(1).boundingBox();
+   expect(selection!.y+selection!.height,`helper overlap at ${width}, draft=${draft}`).toBeLessThanOrEqual(exportHint!.y);
+   if(draft)await panel.getByRole('button',{name:'Discard import',exact:true}).click();
+  }
+ }
+});

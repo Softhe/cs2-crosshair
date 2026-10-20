@@ -172,7 +172,8 @@
 .transfer-panel>.export-advanced{grid-column:3;grid-row:3;align-self:start;padding:0;border:0}
 .transfer-panel>.import-options>summary,.transfer-panel>.export-advanced>summary{min-height:36px;display:flex;align-items:center;cursor:pointer;padding:6px 0}
 .transfer-panel>.import-options[open],.transfer-panel>.export-advanced[open]{grid-column:1/-1;grid-row:auto;border-top:1px solid var(--line);padding-top:8px}
-.transfer-panel>.code-hint{grid-column:1/-1;grid-row:4;font-size:12px;line-height:1.6;margin:0}
+.transfer-panel>.code-hint{grid-column:1/-1;grid-row:5;font-size:12px;line-height:1.6;margin:0}
+.transfer-panel>#code-selection-hint{grid-row:4}
 .transfer-panel>.transfer-pending-note{grid-column:1/-1;color:var(--warning);font-size:12px;line-height:1.6}
 .transfer-panel>.error-text{grid-column:1/-1}
 @media(min-width:1280px){
@@ -190,7 +191,8 @@
  .transfer-panel>.split-actions button{min-height:44px;font-size:13px}
  .transfer-panel>.import-options{grid-column:1;grid-row:5}.transfer-panel>.export-advanced{grid-column:2;grid-row:5}
  .transfer-panel>.import-options>summary,.transfer-panel>.export-advanced>summary{min-height:44px;font-size:12px}
- .transfer-panel>.code-hint{grid-row:6;font-size:12px}
+ .transfer-panel>.code-hint{grid-row:7;font-size:12px}
+ .transfer-panel>#code-selection-hint{grid-row:6}
  .transfer-panel>.import-options[open],.transfer-panel>.export-advanced[open]{grid-column:1/-1;grid-row:auto}
 }
 .transfer-panel>.transfer-pending-note{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0}.transfer-pending-note button{border:1px solid var(--warning);color:var(--warning);font-size:12px;padding:5px 9px}
