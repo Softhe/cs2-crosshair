@@ -36,8 +36,8 @@ async function copyWithClipboardItem(text:string):Promise<boolean>{
     const ItemCtor=(globalThis as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
     if(typeof ItemCtor==='undefined')return false;
     await clipboard.write([new ItemCtor({'text/plain':new Blob([text],{type:'text/plain'})})]);
-    if(await readbackMatches(text)!==false)return true;
-    return true;
+    // A mismatched readback means the write did not stick: fall back to the selection path.
+    return await readbackMatches(text)!==false;
   }catch{return false;}
 }
 

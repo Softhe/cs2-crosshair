@@ -25,7 +25,8 @@ test('Neon queries parameterize identities, use shared atomic replay records and
   rows=[{revision:'1',entries:[{id:'stable'}]}];assert.deepEqual(await store.save(hostile,0,[{id:'stable'}]),{revision:1,entries:[{id:'stable'}]});assert.match(calls.at(-1)!.text,/ON CONFLICT\(owner\) DO NOTHING RETURNING/);
   assert.deepEqual(calls.at(-1)!.params,[hostile,'[{"id":"stable"}]']);
   rows=[];assert.equal(await store.save(hostile,1,[]),null);assert.match(calls.at(-1)!.text,/WHERE owner=\$1 AND revision=\$2 RETURNING/);assert.deepEqual(calls.at(-1)!.params,[hostile,1,'[]']);
-  await store.cleanup(1000);assert.deepEqual(calls.at(-1)!.params,[1000]);
+  rows=[{hits:'3'}];assert.equal(await store.hit(hostile,500),3);assert.match(calls.at(-1)!.text,/ON CONFLICT\(id\) DO UPDATE SET hits=rate_limits\.hits\+1 RETURNING hits/);assert.deepEqual(calls.at(-1)!.params,[hostile,500]);
+  await store.cleanup(1000);assert.deepEqual(calls.at(-1)!.params,[1000]);assert.match(calls.at(-1)!.text,/DELETE FROM rate_limits WHERE expires <= \$1/);
   await migrateDatabase('unused-test-url',query);assert.deepEqual(calls.slice(-schema.length).map(c=>c.text),schema);assert.ok(schema.some(s=>s.includes('JSONB')));assert.ok(schema.some(s=>s.includes('expires BIGINT')));
 });
 
@@ -40,6 +41,7 @@ test('SQLite adapter persists account data and atomic revisions across independe
     assert.equal((await b.latest('account-a')).revision,1);assert.deepEqual(await a.latest('account-b'),{revision:0,entries:[]});
     const updates=await Promise.all([a.save('account-a',1,[{id:'updated-a'}]),b.save('account-a',1,[{id:'updated-b'}])]);assert.equal(updates.filter(Boolean).length,1);assert.equal((await a.latest('account-a')).revision,2);
     await b.deleteSession('hashed-token');assert.equal(await a.session('hashed-token',1),undefined);
+    assert.deepEqual([await a.hit('bucket',1000),await b.hit('bucket',1000),await a.hit('bucket',1000)],[1,2,3]);await a.cleanup(1000);assert.equal(await b.hit('bucket',2000),1);
   }finally{a.close();b.close();rmSync(dir,{recursive:true,force:true});}
 });
 
@@ -62,8 +64,11 @@ test('Node handler accepts Vercel parsed JSON and redacts database failures',asy
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
   try{
     const response=await fetch(base+'/api/library',{method:'PUT',headers:{Cookie:`delli_session=${id}`,Origin:'http://127.0.0.1:4181','X-CSRF-Token':csrf,'Content-Type':'application/json'}});assert.equal(response.status,200);assert.deepEqual(await response.json(),{revision:1,entries:[]});
+    // Housekeeping failures are logged, not surfaced: the request still succeeds.
     t+=6*60*1000;
     store.cleanup=async()=>{throw Error('postgres://sensitive-user:secret-password@private-host/database');};
-    const failure=await fetch(base+'/api/session');assert.equal(failure.status,400);assert.ok(!(await failure.text()).includes('secret-password'));
+    assert.equal((await fetch(base+'/api/session')).status,200);
+    store.session=async()=>{throw Error('postgres://sensitive-user:secret-password@private-host/database');};
+    const failure=await fetch(base+'/api/session',{headers:{Cookie:`delli_session=${id}`}});assert.equal(failure.status,400);assert.ok(!(await failure.text()).includes('secret-password'));
   }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));await handler.close();}
 });

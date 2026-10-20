@@ -28,7 +28,7 @@ Nickname and avatar enrichment is separate. Valve's [GetPlayerSummaries](https:/
 
 The application API consists of session inspection with a CSRF token, Steam sign-in, POST logout, and private-library GET/PUT operations. A library PUT supplies the last observed revision and validated entries. The backend returns the new revision, rejects unauthenticated or foreign-owner access, and returns HTTP 409 for stale revisions.
 
-Rate limiting is in-memory per instance (abuse friction, not strict enforcement): `GET /api/auth/steam` allows 60/min per IP and `PUT /api/library` allows 60/min per IP plus 30/hour per owner; exceeding either returns HTTP 429 (`Too many sign-in/sync attempts. Try again later.`). Read-only `GET /api/library` skips the Origin/CSRF check and is not rate-limited.
+Rate limits are fixed-window counters in the shared database (`rate_limits` table, hashed bucket ids), so all instances enforce them together: `GET /api/auth/steam` allows 60/min per IP and `PUT /api/library` allows 60/min per IP plus 30/hour per owner; exceeding either returns HTTP 429 (`Too many sign-in/sync attempts. Try again later.`). If the counter store fails, requests are allowed rather than locked out. The client IP comes from `X-Forwarded-For` only on Vercel or when `TRUST_PROXY=1` is set behind a reverse proxy that overwrites that header; otherwise the socket address is used. Read-only `GET /api/library` skips the Origin/CSRF check and is not rate-limited.
 
 ## Running and deployment
 

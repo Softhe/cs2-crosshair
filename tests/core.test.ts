@@ -58,6 +58,8 @@ test('config importer round trips all settings and ignores unrelated commands',(
   const s={...defaults,cl_crosshair_gap:-4,cl_crosshairstyle:2,cl_ironsight_dot_scale:.51,cl_grenadecrosshairdelay_smoke:.35,cl_grenadecrosshair_smoke:0};
   assert.deepEqual(importCommands(cfg(s)+'\nquit; bind x quit; fps_max 0'),s);
   assert.equal(importCommands('cl_crosshair_recoil "false"').cl_crosshair_recoil,0);
+  assert.equal(importCommands('cl_crosshair_recoil "TRUE"').cl_crosshair_recoil,1);
+  assert.equal(importCommands('cl_crosshair_recoil "False"').cl_crosshair_recoil,0);
   assert.throws(()=>importCommands('alias stolen "quit"; quit'));
   assert.throws(()=>importCommands('cl_crosshair_length "999"'));
   assert.ok(!commands(defaults).includes('cl_crosshairsize'));
@@ -101,4 +103,21 @@ test('classic dynamic negative gaps preserve the game-accepted fixture and UI bo
     if(gap)assert.equal(gap.min,-10);
   }
   assert.throws(()=>validateSettings({...settings,cl_crosshair_gap:-11}));
+});
+test('September CSGO codes accept the version-3+ partial checksum and keep the gap byte unsigned',()=>{
+  const b=new Uint8Array(18),view=new DataView(b.buffer);
+  b[1]=4;b[2]=4;b.set([0,255,0,255],3);b[7]=4;b[8]=5;b[9]=0;
+  view.setUint32(10,3|2<<23|1<<28,true);view.setUint16(14,1080,true);b[16]=7;b[17]=9;
+  const toCode=(bytes:Uint8Array)=>{
+    const alphabet='ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
+    let n=bytes.reduce((v,x)=>v<<8n|BigInt(x),0n),out='';
+    for(let i=0;i<25;i++){out+=alphabet[Number(n%57n)];n/=57n;}
+    return 'CSGO-'+out.match(/.{5}/g)!.join('-');
+  };
+  b[0]=b.slice(1,16).reduce((s,x)=>s+x,0)&255; // bytes 16-17 are excluded, so the full-sum checksum differs
+  const {settings,legacy}=decode(toCode(b));
+  assert.equal(legacy,true);assert.equal(settings.cl_crosshair_gap,4);assert.equal(settings.cl_crosshair_thickness,2);assert.equal(settings.cl_crosshair_drawoutline,1);
+  // The format stores gap unsigned (0-255): 254 is out of the editor's range, not -2.
+  b[7]=254;b[0]=b.slice(1,16).reduce((s,x)=>s+x,0)&255;assert.throws(()=>decode(toCode(b)),/cl_crosshair_gap.*254/);
+  b[0]++;assert.throws(()=>decode(toCode(b)),/checksum/);
 });

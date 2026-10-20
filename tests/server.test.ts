@@ -99,5 +99,10 @@ test('Steam verification, private favorites, conflict, CSRF, validation and logo
     const againSession=await (await request('/api/session',{headers:{Cookie:again.cookie}})).json();
     assert.deepEqual(await (await request('/api/library',{headers:{Cookie:again.cookie,'X-CSRF-Token':againSession.csrfToken}})).json(),saved);
     const minimal=await request('/api/library',{method:'PUT',headers:{...headers,Cookie:again.cookie,'X-CSRF-Token':againSession.csrfToken},body:JSON.stringify({revision:1,entries:[{id:'minimal-id',name:'Minimal',settings:defaults}]})});assert.equal(minimal.status,200);
+    // A multi-byte character split across request chunks must survive decoding.
+    const bytes=Buffer.from(JSON.stringify({revision:2,entries:[{id:'wide-id',name:'漢字 crosshair',settings:defaults}]})),cut=bytes.indexOf(Buffer.from('漢'))+1;
+    const stream=new ReadableStream({async start(controller){controller.enqueue(bytes.subarray(0,cut));await new Promise(resolve=>setTimeout(resolve,50));controller.enqueue(bytes.subarray(cut));controller.close();}});
+    const wide=await request('/api/library',{method:'PUT',headers:{...headers,Cookie:again.cookie,'X-CSRF-Token':againSession.csrfToken},body:stream,duplex:'half'} as RequestInit);
+    assert.equal(wide.status,200);assert.equal((await wide.json()).entries[0].name,'漢字 crosshair');
   }finally{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });

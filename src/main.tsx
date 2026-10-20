@@ -75,9 +75,16 @@ function initial(): { settings: Settings; error?: string; note?: string } {
     }
     const full = params.get("settings");
     if (full) return { settings: validateSettings(JSON.parse(full)) };
+    let draft: Settings;
+    try {
+      draft = validateSettings(read("draft", defaults));
+    } catch {
+      // A stale or corrupt local draft is not the user's link error: start from defaults quietly.
+      draft = defaults;
+    }
     return {
       settings: {
-        ...validateSettings(read("draft", defaults)),
+        ...draft,
         cl_crosshair_recoil: 0,
         cl_crosshair_friendly_warning: 0,
       },
@@ -213,10 +220,6 @@ function App() {
     write("alias", alias);
   }, [alias]);
   useEffect(() => {
-    if (!write("library", guestLibrary))
-      notify("Library could not be saved. Download a backup.", "error");
-  }, [guestLibrary]);
-  useEffect(() => {
     document.documentElement.dataset.theme = "cs2";
     document
       .querySelector("meta[name=theme-color]")
@@ -260,7 +263,8 @@ function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   function change(key: string, value: number) {
-    undoHistory.push(s);
+    // Grouped by setting, so dragging a slider is one undo step rather than one per pixel.
+    undoHistory.push(s, key);
     setSettings((prev) => ({ ...prev, [key]: value }));
   }
   function load(settings: Settings) {

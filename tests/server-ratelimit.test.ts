@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../server/app.ts';
 import {defaults} from '../src/model.ts';
+import {createSqliteStore} from '../server/sqlite-store.ts';
 
 async function startServer(options:Parameters<typeof createApp>[0]={}){
   const server=createApp({databasePath:':memory:',...options});
@@ -79,4 +80,34 @@ test('GET /api/auth/steam rate limit returns 429 after 60 sign-ins per minute',a
     assert.equal(limited.status,429);
     assert.match((await limited.json() as {error:string}).error,/Too many sign-in attempts/);
   }finally{await close();}
+});
+
+test('sign-in limits are shared across instances and ignore spoofed forwarding headers',async()=>{
+  const t0=Date.now(),now=()=>t0,shared=createSqliteStore(':memory:'),store={...shared,close(){}};
+  // Two handlers on one store stand in for two serverless instances.
+  const a=await startServer({now,store}),b=await startServer({now,store});
+  try{
+    for(let i=0;i<60;i++){
+      const response=await (i%2?a:b).request('/api/auth/steam',{headers:{'X-Forwarded-For':`203.0.113.${i}`}});
+      assert.equal(response.status,302);
+    }
+    assert.equal((await a.request('/api/auth/steam',{headers:{'X-Forwarded-For':'198.51.100.1'}})).status,429);
+  }finally{await a.close();await b.close();shared.close();}
+});
+
+test('trusted proxies key sign-in limits on the forwarded client address',async()=>{
+  const t0=Date.now();
+  const {request,close}=await startServer({now:()=>t0,trustProxy:true});
+  try{
+    for(let i=0;i<60;i++)assert.equal((await request('/api/auth/steam',{headers:{'X-Forwarded-For':'203.0.113.7, 10.0.0.1'}})).status,302);
+    assert.equal((await request('/api/auth/steam',{headers:{'X-Forwarded-For':'203.0.113.7'}})).status,429);
+    assert.equal((await request('/api/auth/steam',{headers:{'X-Forwarded-For':'203.0.113.8'}})).status,302);
+  }finally{await close();}
+});
+
+test('a failing rate-limit store does not lock users out',async()=>{
+  const store=createSqliteStore(':memory:');
+  store.hit=async()=>{throw Error('database unavailable');};
+  const {request,close}=await startServer({store});
+  try{assert.equal((await request('/api/auth/steam')).status,302);}finally{await close();}
 });

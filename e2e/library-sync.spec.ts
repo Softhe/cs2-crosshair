@@ -185,3 +185,25 @@ test('mock API: resetting to current code cancels an outstanding clipboard paste
   await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue(String(defaults.cl_crosshair_length));
   await expect(page.getByRole('button',{name:'Use current code',exact:true})).toBeDisabled();
 });
+
+test('mock API: a sync requested while another is running runs afterwards instead of being dropped',async({page})=>{
+  const state=await mockApi(page,{signedIn:true});
+  let held=false,release:()=>void=()=>{};const gate=new Promise<void>(resolve=>{release=resolve;});
+  // Hold the first library read so the account's initial sync is still in flight.
+  await page.route('**/api/library',async route=>{
+    if(route.request().method()==='GET'&&!held){held=true;await gate;}
+    await route.fallback();
+  });
+  await page.goto('/?view=library');
+  await expect.poll(()=>held).toBe(true);
+  // Another tab saves a favorite to this account's queue while the sync is busy.
+  const added:CloudEntry={id:'other-tab',name:'From another tab',settings:{...defaults,cl_crosshair_length:14}};
+  await page.evaluate(entry=>{
+    const key='delli.v3.steam-library.76561198000000001';
+    localStorage.setItem(key,JSON.stringify({base:{revision:0,entries:[]},entries:[entry],history:[]}));
+    window.dispatchEvent(new StorageEvent('storage',{key}));
+  },added);
+  release();
+  await expect.poll(()=>state.writes.at(-1)?.entries.map(e=>e.id)).toEqual(['other-tab']);
+  await expect(page.getByLabel('Library sync status')).toHaveText('Synced');
+});
