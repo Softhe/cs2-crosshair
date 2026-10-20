@@ -1,3 +1,4 @@
+import {openPreviewOptions} from './preview-options-helper';
 import {test,expect} from '@playwright/test';
 test('preview settings start closed, retain values, and leave detail visible',async({page})=>{
   await page.route('**/api/session',route=>route.fulfill({json:{user:null}}));
@@ -10,14 +11,14 @@ test('preview settings start closed, retain values, and leave detail visible',as
   await expect(page.locator('.preview-inspection')).toHaveCount(0);
   await expect(page.locator('.map-preview > .detail-preview')).toBeVisible();
   await expect(dialog.getByRole('button',{name:'Start Dynamic Preview'})).toHaveCount(0);
-  await trigger.click();
+  await openPreviewOptions(page);await trigger.click();
   await expect(dialog).toBeVisible();
   await page.getByLabel('Preview scale',{exact:true}).selectOption('1440');
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await expect(page.locator('.detail-preview')).toBeVisible();
-  await trigger.click();
+  await openPreviewOptions(page);await trigger.click();
   await expect(page.getByLabel('Preview scale',{exact:true})).toHaveValue('1440');
   await page.getByRole('button',{name:'Close dialog'}).click();
   await expect(dialog).toBeHidden();

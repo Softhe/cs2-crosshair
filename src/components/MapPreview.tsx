@@ -1,7 +1,8 @@
-import type { RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Maximize,
   Minimize,
   RotateCcw,
@@ -91,6 +92,20 @@ export function MapPreview({
   setFit: (value: boolean) => void;
   onInspect: (button: HTMLButtonElement) => void;
 }) {
+  const optionsRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      const options = optionsRef.current;
+      if (
+        modal === null && options && event.target instanceof Node &&
+        !options.contains(event.target)
+      ) {
+        options.open = false;
+      }
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [modal]);
   return (
     <section className="preview-section" aria-label="Crosshair preview">
       <div className="preview-toolbar">
@@ -109,56 +124,79 @@ export function MapPreview({
           <span className="live-dot" />
           LIVE PREVIEW
         </span>
-        <div>
-          <button
-            className="preview-settings-button"
-            aria-label="Inspect preview"
-            aria-haspopup="dialog"
-            onClick={(event) => {
-              onInspect(event.currentTarget);
-            }}
-          >
-            Inspect<span className="wide-label"> preview</span>
-          </button>
-          <select
-            aria-label="Preview mode"
-            value={previewMode}
-            onChange={(e) => setPreviewMode(e.target.value as PreviewMode)}
-          >
-            <option value="crosshair">Crosshair</option>
-            <option value="scope">Scope dot</option>
-          </select>
-          <button
-            className="fullscreen-button"
-            aria-label="Fullscreen game-size preview"
-            onClick={() => void toggleFullscreen()}
-          >
-            <Maximize size={15} />
-            <span>Fullscreen</span>
-          </button>
-          <button
-            className="dynamic-button"
-            aria-pressed={dynamic}
-            onClick={() => setDynamic(!dynamic)}
-          >
-            {dynamic ? <Pause size={14} /> : <Play size={14} />}{" "}
-            {dynamic ? "Stop" : "Start"} Dynamic Preview
-          </button>
-          <span className="toolbar-divider" />
-          <div className="zoom-buttons">
-            {[1, 2, 4, 8].map((n) => (
-              <button
-                key={n}
-                className={zoom === n ? "active" : ""}
-                onClick={() => setZoom(n)}
-                aria-label={`${n}x preview zoom`}
-                aria-pressed={zoom === n}
-              >
-                {n}×
-              </button>
-            ))}
-          </div>
+        <div className="zoom-buttons">
+          {[1, 2, 4, 8].map((n) => (
+            <button
+              key={n}
+              className={zoom === n ? "active" : ""}
+              onClick={() => setZoom(n)}
+              aria-label={`${n}x preview zoom`}
+              aria-pressed={zoom === n}
+            >
+              {n}×
+            </button>
+          ))}
         </div>
+        <details
+          ref={optionsRef}
+          className="preview-options"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && modal === null) {
+              event.currentTarget.open = false;
+              event.currentTarget.querySelector("summary")?.focus();
+              event.stopPropagation();
+            }
+          }}
+        >
+          <summary aria-label="Preview options">
+            <span className="wide-label">Preview </span>options <ChevronDown size={14} aria-hidden="true" />
+          </summary>
+          <div className="preview-options-panel">
+            <button
+              className="preview-settings-button"
+              aria-label="Inspect preview"
+              aria-haspopup="dialog"
+              onClick={(event) => {
+                onInspect(event.currentTarget);
+              }}
+            >
+              Inspect<span className="wide-label"> preview</span>
+            </button>
+            <select
+              aria-label="Preview mode"
+              value={previewMode}
+              onChange={(e) => setPreviewMode(e.target.value as PreviewMode)}
+            >
+              <option value="crosshair">Crosshair</option>
+              <option value="scope">Scope dot</option>
+            </select>
+            <button
+              className="fullscreen-button"
+              aria-label="Fullscreen game-size preview"
+              onClick={() => void toggleFullscreen()}
+            >
+              <Maximize size={15} />
+              <span>Fullscreen</span>
+            </button>
+            <button
+              className="dynamic-button"
+              aria-pressed={dynamic}
+              onClick={() => setDynamic(!dynamic)}
+            >
+              {dynamic ? <Pause size={14} /> : <Play size={14} />}{" "}
+              {dynamic ? "Stop" : "Start"} Dynamic Preview
+            </button>
+
+            <div className="preview-caption">
+              <span>Estimated preview. Verify the final crosshair in CS2.</span>
+              <span>
+                {zoom}x /{" "}
+                {effectiveHeight ? `${effectiveHeight}p target` : "CSS pixels"}
+                {fit ? " / Fit enabled" : ""}
+              </span>
+            </div>
+          </div>
+        </details>
       </div>
       <div
         ref={mapRef}
@@ -237,14 +275,6 @@ export function MapPreview({
             </button>
           </div>
         </div>
-      </div>
-      <div className="preview-caption">
-        <span>Estimated preview. Verify the final crosshair in CS2.</span>
-        <span>
-          {zoom}x /{" "}
-          {effectiveHeight ? `${effectiveHeight}p target` : "CSS pixels"}
-          {fit ? " / Fit enabled" : ""}
-        </span>
       </div>
       {previewStatus.clipped && (
         <div className="clipping-warning" role="status">

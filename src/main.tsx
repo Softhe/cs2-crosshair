@@ -664,7 +664,6 @@ function App() {
               s={s}
               set={change}
               load={load}
-              notify={notify}
               draftSaved={draftSaved}
             />
             <aside className="sidebar">
@@ -745,12 +744,7 @@ function App() {
                 </div>
               </details>
 
-              <p className="privacy-note">
-                <span className="live-dot" />
-                {sync.user
-                  ? "Drafts and preferences stay on this device. Saved crosshairs sync to your Steam account."
-                  : "Drafts and preferences stay on this device. Sign in with Steam to sync saved crosshairs."}
-              </p>
+
             </aside>
           </main>
         </>
@@ -787,9 +781,17 @@ function App() {
         />
       )}
       <footer className="site-footer">
-        <span>delli.cc</span>
-        <span>Independent tool. Not affiliated with Valve.</span>
-      </footer>
+          <p className="privacy-note">
+                <span className="live-dot" />
+                {sync.user
+                  ? "Drafts and preferences stay on this device. Saved crosshairs sync to your Steam account."
+                  : "Drafts and preferences stay on this device. Sign in with Steam to sync saved crosshairs."}
+              </p>
+          <div className="footer-meta">
+            <span>delli.cc</span>
+            <span>Independent tool. Not affiliated with Valve.</span>
+          </div>
+        </footer>
       {view === "editor" && (
         <div className="mobile-actions">
           <button onClick={() => void copy(code, "Share code")}>

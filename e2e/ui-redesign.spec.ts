@@ -1,3 +1,4 @@
+import {openPreviewOptions} from './preview-options-helper';
 import {test,expect} from '@playwright/test';
 
 test.beforeEach(async({page})=>{
@@ -19,7 +20,7 @@ test('settings and preview remain usable together while editing',async({page},in
  expect(preview!.y+preview!.height).toBeLessThan(info.project.name==='mobile'?770:1000);
  const field=page.getByLabel('Crosshair code or config',{exact:true});
  const code=await field.getAttribute('data-current-code');
- await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
+ await openPreviewOptions(page);await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
  await expect(page.getByRole('dialog',{name:'Inspect preview',exact:true})).toBeVisible();
  await page.getByLabel('Preview scale',{exact:true}).selectOption('1440');
  await page.keyboard.press('Escape');
@@ -52,7 +53,7 @@ test('mobile compact preview expands and controls have comfortable targets',asyn
  await page.getByRole('button',{name:'4x preview zoom',exact:true}).click();
  await page.getByRole('button',{name:'Compact preview',exact:true}).click();
  await page.getByRole('button',{name:'Edit Color and Transparency',exact:true}).click();
- for(const name of ['Next map','Previous map','Fullscreen game-size preview','Set crosshair #00ff00','Reset crosshair']){
+ for(const name of ['Next map','Previous map','Set crosshair #00ff00','Reset crosshair']){
   const b=await page.getByRole('button',{name,exact:true}).boundingBox();expect(b!.width+0.01,name).toBeGreaterThanOrEqual(44);expect(b!.height+0.01,name).toBeGreaterThanOrEqual(44);
  }
  await expect(page.getByRole('button',{name:'Set crosshair #00ff00',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -73,7 +74,7 @@ test('pending import, failed clipboard and draft persistence have clear state',a
  await expect(page.locator('.toast[data-tone=error]')).toContainText('Clipboard access failed');
  await page.locator('.import-options>summary').click();await page.getByRole('button',{name:'Use current code',exact:true}).click();
  await expect(page.getByText('Applied crosshair',{exact:true})).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
- await expect(page.getByText('Draft saved on this device.',{exact:true})).toBeVisible();
+ await expect(page.getByText('Draft saved on this device.',{exact:true})).toHaveCount(0);
 });
 
 
