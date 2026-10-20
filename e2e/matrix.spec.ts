@@ -1,7 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 
 test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
-import {styles,styleFields,defaults,presets} from '../src/model';
+import {styles,styleFields,defaults} from '../src/model';
 
 async function number(page:Page,label:string,value:number){const input=page.getByRole('spinbutton',{name:label,exact:true});await input.fill(String(value));await input.press('Enter');await expect(input).toHaveValue(value%1?value.toFixed(2):String(value));}
 async function consoleText(page:Page){if(await page.locator('.export-advanced').getAttribute('open')===null)await page.locator('.export-advanced > summary').click();await page.locator('.console-details').evaluate((element)=>{(element as HTMLDetailsElement).open=true;});return page.getByLabel('Generated console commands').inputValue();}
@@ -37,10 +37,11 @@ for(const [style,name] of styles){test(`matrix: ${name} edits, clipboard code, c
   expect(errors).toEqual([]);
 });}
 
-test('matrix: all presets, undo, reset, settings visibility',async({page,context})=>{
+test('matrix: undo, reset, settings visibility without starting presets',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/');const initial=await consoleText(page);
   await expect(page.getByRole('button',{name:'Undo Changes',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'Reset crosshair',exact:true})).toHaveCount(1);
-  await page.locator('.starting-presets > summary').click();for(const preset of presets){await page.locator('button.preset').filter({hasText:preset.name}).click();await expect(page.getByLabel('Style',{exact:true})).toHaveValue(String(preset.settings.cl_crosshairstyle));await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);}
+  await expect(page.locator('.starting-presets')).toHaveCount(0);
+  await number(page,'Length',12);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);
   await expect(page.locator('html')).toHaveAttribute('data-theme','cs2');await expect(page.getByRole('group',{name:'Appearance',exact:true})).toHaveCount(0);
   await number(page,'Thickness',6);const changed=await consoleText(page);
   await page.getByRole('button',{name:'Copy link',exact:true}).click();await page.goto(await clipboard(page));expect(await consoleText(page)).toBe(changed);

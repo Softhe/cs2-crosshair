@@ -1,7 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { presets, styleFields, type Field, type Settings } from '../model';
-import { Preview } from '../Preview';
-import { settingsKey } from '../storage';
+import { styleFields, type Field, type Settings } from '../model';
 
 const shapeKeys = new Set(['cl_crosshair_thickness', 'cl_crosshairdot', 'cl_crosshair_length', 'cl_crosshair_gap', 'cl_crosshair_t', 'cl_crosshair_dynamic_maxdist_splitratio']);
 
@@ -168,11 +166,10 @@ export function ColorRow({
   );
 }
 
-export function SettingsList({ s, set, load, notify, draftSaved }: {
+export function SettingsList({ s, set, load, draftSaved }: {
   s: Settings;
   set: (key: string, value: number) => void;
   load: (settings: Settings) => void;
-  notify: (text: string, tone?: 'success' | 'warning' | 'error' | 'info') => void;
   draftSaved: boolean;
 }) {
   const setMany = (values: Record<string, number>) => load({ ...s, ...values });
@@ -185,17 +182,7 @@ export function SettingsList({ s, set, load, notify, draftSaved }: {
       <section className="settings-section" aria-labelledby="shape-heading">
         <div className="section-title"><h2 id="shape-heading">Shape</h2><span>01</span></div>
         <Row field={first} s={s} set={set} />
-        <details className="starting-presets">
-          <summary>Choose a starting point</summary>
-          <div className="preset-grid">
-            {presets.map(preset => (
-              <button className="preset" key={preset.name} aria-pressed={settingsKey(preset.settings) === settingsKey(s)} onClick={() => { load(preset.settings); notify(`${preset.name} preset loaded.`, 'success'); }}>
-                <div className="preset-preview"><Preview settings={preset.settings} zoom={1} decorative /></div>
-                <span>{preset.name}</span>
-              </button>
-            ))}
-          </div>
-        </details>
+
         {rest.filter(isShapeField).map(field => <Row key={field.key} field={field} s={s} set={set} />)}
       </section>
       <section className="settings-section" aria-labelledby="color-heading">
@@ -208,7 +195,7 @@ export function SettingsList({ s, set, load, notify, draftSaved }: {
         <div className="section-title"><h2 id="behavior-heading">Behavior and scope</h2><span>03</span></div>
         {rest.filter(field => !isShapeField(field)).map(field => <Row key={field.key} field={field} s={s} set={set} />)}
       </section>
-      <p className="draft-state" role="status">{draftSaved ? 'Draft saved on this device.' : 'Draft could not be saved. Export a config to keep your changes.'}</p>
+      {!draftSaved && <p className="draft-state error-text" role="alert">Draft could not be saved. Export a config to keep your changes.</p>}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import {openPreviewOptions} from './preview-options-helper';
 import { test, expect } from '@playwright/test';
 import { defaults } from '../src/model';
 
@@ -34,7 +35,7 @@ for (const dpr of [1, 2]) test(`1440p display mapping and page centering at DPR 
     await expect.poll(async () => (await pixels()).width).toBe(8);
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
     await page.getByRole('button', { name: '1x preview zoom' }).click();
-    await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
+    await openPreviewOptions(page);await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
     const displayHeight = page.getByLabel('Display height in physical pixels');
     await displayHeight.fill('');
     await expect(displayHeight).toHaveValue('');
@@ -51,7 +52,7 @@ for (const dpr of [1, 2]) test(`1440p display mapping and page centering at DPR 
     await expect(displayHeight).toHaveValue('2160');
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
     await page.getByRole('button', {name:'Close dialog'}).click();
-    await page.getByRole('button', { name: 'Fullscreen game-size preview' }).click();
+    await openPreviewOptions(page);await page.getByRole('button', { name: 'Fullscreen game-size preview' }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.className), { timeout: 10000 }).toBe('map-preview');
     await expect.poll(() => canvas.evaluate(element => element.getBoundingClientRect().width), { timeout: 10000 }).toBeGreaterThan(0);
     await expect.poll(() => canvas.evaluate(element => {

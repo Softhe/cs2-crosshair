@@ -1,3 +1,4 @@
+import {openPreviewOptions} from './preview-options-helper';
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
@@ -19,7 +20,7 @@ for (const dpr of [1,1.25,1.5,2]) test(`rectangular raster coverage at DPR ${dpr
 });
 test('starting motion begins at rest regardless of the document timestamp',async({page})=>{
     await page.addInitScript(()=>{const raf=requestAnimationFrame.bind(window);(window as any).__time=100000;window.requestAnimationFrame=callback=>raf(()=>callback((window as any).__time));});
-    await load(page,{});await page.getByRole('button',{name:'Start Dynamic Preview'}).click();
+    await load(page,{});await openPreviewOptions(page);await page.getByRole('button',{name:'Start Dynamic Preview'}).click();
     await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped','false');
     await page.evaluate(()=>{(window as any).__time+=550*Math.PI;});
@@ -31,7 +32,7 @@ test('estimated resolution uses reference height without changing exports',async
     for(const reference of [1080,2160]){
         await load(page,{cl_crosshairstyle:6,cl_crosshair_thickness:3,cl_crosshair_drawoutline:0,cl_crosshair_screen_height:reference});
         const code=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
-        await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
+        await openPreviewOptions(page);await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
         await page.getByLabel('Preview scale',{exact:true}).selectOption('1440');
         await page.getByRole('button', {name:'Close dialog'}).click();
         await expect.poll(async()=>Number(await page.locator('.map-preview > canvas').getAttribute('data-scale'))).toBe(1440/reference);
@@ -42,7 +43,7 @@ test('estimated resolution uses reference height without changing exports',async
 });
 async function load(page: import('@playwright/test').Page, settings: Record<string, number>) {
     await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, ...settings })));if(await page.getByRole('button',{name:'Expand preview',exact:true}).isVisible())await page.getByRole('button',{name:'Expand preview',exact:true}).click();
-    await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
+    await openPreviewOptions(page);await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
     await page.getByLabel('Preview scale', { exact: true }).selectOption('0');
     await page.getByRole('button', {name:'Close dialog'}).click();
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-scale', /./);
@@ -87,7 +88,7 @@ test('static backing canvas follows DPR without a settings edit', async ({ page,
 });
 test('inspection warns about clipping and fit includes peak geometry', async ({ page }) => {
     await load(page, {});
-    await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
+    await openPreviewOptions(page);await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
     await page.getByLabel('Inspection phase', { exact: true }).fill('1');
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped', 'true');
     await expect(page.getByText('Crosshair exceeds preview bounds.', { exact: true })).toBeVisible();
@@ -100,7 +101,7 @@ test('static dynamic mode stops drawing and reduced motion supports manual phase
     await load(page, { cl_crosshairstyle: 4 });
     await page.evaluate(() => { const original = CanvasRenderingContext2D.prototype.clearRect; (window as any).__clears = 0; CanvasRenderingContext2D.prototype.clearRect = function (this: CanvasRenderingContext2D, ...args: [number, number, number, number]) { if (this.canvas.closest('.map-preview'))
         (window as any).__clears++; return original.apply(this, args); }; });
-    await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
+    await openPreviewOptions(page);await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
     const clears = () => page.evaluate(() => (window as any).__clears as number);
     await expect.poll(clears).toBeGreaterThan(0);
     // Prop changes and queued ResizeObserver notifications can each invalidate a
@@ -122,9 +123,9 @@ test('static dynamic mode stops drawing and reduced motion supports manual phase
     expect(drawing, 'Static mode must settle, then draw no frames for 500 ms').toEqual({ settled: true, additionalDraws: 0 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await load(page, {});
-    await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
+    await openPreviewOptions(page);await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped', 'false');
-    await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
+    await openPreviewOptions(page);await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
     await page.getByLabel('Inspection phase', { exact: true }).fill('1');
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped', 'true');
 });

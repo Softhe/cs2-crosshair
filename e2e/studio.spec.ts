@@ -1,3 +1,4 @@
+import {openPreviewOptions} from './preview-options-helper';
 import {test,expect} from '@playwright/test';
 
 test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
@@ -68,8 +69,8 @@ test('full links preserve extra settings, compatibility routes and missing route
 });
 test('maps, zoom and accessible dynamic preview work',async({page})=>{
   await page.goto('/');if(await page.getByRole('button',{name:'Expand preview',exact:true}).isVisible())await page.getByRole('button',{name:'Expand preview',exact:true}).click();await page.getByRole('button',{name:'Next map'}).click();await expect(page.getByText('Nuke',{exact:true})).toBeVisible();await page.getByRole('button',{name:'4x preview zoom'}).click();
-  await expect(page.getByRole('button',{name:'4x preview zoom'})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'Start Dynamic Preview'}).click();await expect(page.getByRole('button',{name:'Stop Dynamic Preview'})).toBeVisible();
-  await page.getByLabel('Preview mode',{exact:true}).selectOption('scope');await expect(page.getByRole('img',{name:'Scope dot preview'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'4x preview zoom'})).toHaveAttribute('aria-pressed','true');await openPreviewOptions(page);await page.getByRole('button',{name:'Start Dynamic Preview'}).click();await expect(page.getByRole('button',{name:'Stop Dynamic Preview'})).toBeVisible();
+  await openPreviewOptions(page);await page.getByLabel('Preview mode',{exact:true}).selectOption('scope');await expect(page.getByRole('img',{name:'Scope dot preview'})).toBeVisible();
 });
 
 test('save disclosure persists a favorite without overwriting it while editing',async({page},testInfo)=>{
