@@ -245,3 +245,27 @@ test('mock API: saving and updating automatically sync with honest progress and 
   await expect.poll(()=>api.entries[0]?.settings.cl_crosshair_length).toBe(12);
   await expect(page.locator('.toast')).toContainText('saved and synced to Steam');
 });
+
+
+test('config drafts retain caret placement and partial edits after clicks and focus',async({page})=>{
+  await mockApi(page);await page.goto('/');
+  const field=page.getByLabel('Crosshair code or config',{exact:true});
+  const draft='cl_crosshair_length 12; cl_crosshair_gap 3';await field.fill(draft);
+  await field.blur();await field.focus();
+  await expect.poll(()=>field.evaluate(node=>node instanceof HTMLTextAreaElement && node.selectionStart===node.selectionEnd)).toBe(true);
+  await field.click({position:{x:35,y:15}});
+  const caret=await field.evaluate(node=>(node as HTMLTextAreaElement).selectionStart);
+  await expect.poll(()=>field.evaluate(node=>node instanceof HTMLTextAreaElement && node.selectionStart===node.selectionEnd)).toBe(true);
+  await field.pressSequentially('X');await expect(field).toHaveValue(draft.slice(0,caret)+'X'+draft.slice(caret));
+});
+
+test('signed-out update failure reports local save failure for an existing favorite',async({page})=>{
+  await seedGuests(page,[favorite('original','Original',8)]);await mockApi(page);
+  await page.goto('/?view=library');await page.getByRole('button',{name:'Load',exact:true}).click();
+  await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='delli.v3.library')throw new DOMException('Storage full','QuotaExceededError');return original.call(this,key,value);};});
+  if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();
+  await page.getByLabel('Crosshair name',{exact:true}).fill('Rename failed');
+  await page.getByRole('button',{name:'Update saved crosshair',exact:true}).click();
+  await expect(page.getByLabel('Save sync status',{exact:true})).toContainText('Local save failed');
+  await expect(page.locator('.toast')).toContainText('could not be saved');
+});

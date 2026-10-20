@@ -42,8 +42,8 @@ export function ImportBar(p:ImportBarProps){
       <textarea rows={1} id="import-text" className="import-area" data-current-code={p.code} value={p.importText}
         aria-describedby="code-selection-hint"
         onPointerDown={e=>{if(p.importDraft===null){e.preventDefault();e.currentTarget.focus();e.currentTarget.select();}}}
-        onFocus={e=>e.currentTarget.select()}
-        onClick={e=>e.currentTarget.select()}
+        onFocus={e=>{if(p.importDraft===null)e.currentTarget.select();}}
+        onClick={e=>{if(p.importDraft===null)e.currentTarget.select();}}
         onSelect={e=>{if(p.importDraft===null)e.currentTarget.select();}}
         onChange={e=>{p.clipboardRequest.current++;p.setImportText(e.target.value);p.setImportError('');}}
         onPaste={e=>{e.preventDefault();p.pasteCode(e.clipboardData.getData('text'));}}
@@ -55,7 +55,7 @@ export function ImportBar(p:ImportBarProps){
         <Copy size={16}/><span>Copy applied code</span>
       </button>
     </div>
-    <p id="code-selection-hint" className="code-hint">Click or tap to select the whole code. Paste to replace it.</p>
+    <p id="code-selection-hint" className="code-hint">{p.importDraft===null?'Click or tap to select the whole code. Paste to replace it.':'Edit your config draft, or paste to replace it.'}</p>
     {p.importDraft!==null&&<p className="transfer-pending-note">
       Copy, share and downloads use the applied crosshair until you import.
       <button onClick={resetImport}>Discard import</button>

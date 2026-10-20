@@ -205,10 +205,10 @@ function App() {
     awaitingSaveSync.current = !!sync.user;
     notify(sync.user ? message + " Syncing to Steam…" : message + " Sign in with Steam to sync across devices.", sync.user ? "info" : "success");
   }
-  const saveSyncLabel = sync.user
-    ? sync.error?.startsWith("Changes could not be saved")
-      ? "Local save failed"
-      : sync.syncing
+  const saveSyncLabel = sync.error?.startsWith("Changes could not be saved")
+    ? "Local save failed"
+    : sync.user
+      ? sync.syncing
         ? "Saved on this device · Syncing to Steam…"
         : sync.status === "synced"
           ? "Saved and synced to Steam"
