@@ -49,6 +49,9 @@
 .mobile-preview-toggle{display:none}
 .preview-settings-dialog .preview-controls{display:flex;flex-direction:column;align-items:stretch;gap:18px}
 .preview-settings-dialog .preview-controls>label{justify-content:space-between;font-size:14px;min-height:44px}
+.preview-settings-dialog .preview-controls>label.checkbox-row{justify-content:flex-start;gap:12px}
+.preview-settings-dialog .display-height-field{display:inline-flex;align-items:center;gap:8px}
+@media(max-width:540px){.preview-settings-dialog .preview-controls>label>select{flex:1 1 100%;width:100%;max-width:none}}
 .preview-settings-dialog .preview-controls>span{font-size:13px;line-height:1.7}
 .preview-settings-dialog .preview-controls .preview-details{margin-top:0}
 .preview-settings-dialog input[type=range]{width:150px}
@@ -206,7 +209,7 @@
 
 /* Secondary preview tools share a dropdown; zoom stays visible. */
 .workspace>.preview-section{overflow:visible}
-.preview-toolbar{position:relative;z-index:2;min-height:56px;height:auto;flex-wrap:nowrap;gap:10px}
+.preview-toolbar{position:relative;z-index:4;min-height:56px;height:auto;flex-wrap:nowrap;gap:10px}
 .preview-toolbar>span{width:auto;flex:1;white-space:nowrap}
 .preview-toolbar>.zoom-buttons{display:flex!important;width:auto;flex:0 0 auto;gap:4px;flex-wrap:nowrap}
 .preview-toolbar>.preview-options{position:relative;flex:0 0 auto;margin:0}
@@ -219,7 +222,7 @@
 .preview-toolbar .preview-options-panel .preview-settings-button{margin:0}
 .preview-options-panel .preview-caption{padding:8px 0 0;border-top:1px solid var(--line);font-size:12px;color:var(--muted);line-height:1.5}
 .preview-options-panel .preview-caption>span{display:block!important;flex-basis:100%}
-.preview-options-panel .fullscreen-button span{display:inline}
+.preview-options-panel .fullscreen-button{border:1px solid var(--line)}.preview-options-panel .fullscreen-button span{display:inline}
 .preview-options-panel .dynamic-button{display:flex!important}
 .map-preview{border-radius:0 0 7px 7px}
 @media(max-width:820px){

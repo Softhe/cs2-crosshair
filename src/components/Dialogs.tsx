@@ -100,36 +100,38 @@ export function Dialogs({
             {targetHeight === -1 && (
               <label>
                 Display height
-                <input
-                  className="display-height"
-                  aria-label="Display height in physical pixels"
-                  type="number"
-                  min="240"
-                  max="8640"
-                  step="1"
-                  value={
-                    displayHeightDraft ??
-                    String(displayHeight || display.height)
-                  }
-                  onChange={(e) => {
-                    setDisplayHeightDraft(e.target.value);
-                    const value = Number(e.target.value);
-                    if (
-                      Number.isInteger(value) &&
-                      value >= 240 &&
-                      value <= 8640
-                    )
-                      setDisplayHeight(value);
-                  }}
-                  onBlur={() => setDisplayHeightDraft(null)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") e.currentTarget.blur();
-                  }}
-                />
-                px
+                <span className="display-height-field">
+                  <input
+                    className="display-height"
+                    aria-label="Display height in physical pixels"
+                    type="number"
+                    min="240"
+                    max="8640"
+                    step="1"
+                    value={
+                      displayHeightDraft ??
+                      String(displayHeight || display.height)
+                    }
+                    onChange={(e) => {
+                      setDisplayHeightDraft(e.target.value);
+                      const value = Number(e.target.value);
+                      if (
+                        Number.isInteger(value) &&
+                        value >= 240 &&
+                        value <= 8640
+                      )
+                        setDisplayHeight(value);
+                    }}
+                    onBlur={() => setDisplayHeightDraft(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                    }}
+                  />
+                  px
+                </span>
               </label>
             )}
-            <label>
+            <label className="checkbox-row">
               <input
                 type="checkbox"
                 checked={fit}

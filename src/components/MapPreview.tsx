@@ -154,7 +154,7 @@ export function MapPreview({
           className="preview-options"
         >
           <summary aria-label="Preview options">
-            <span className="wide-label">Preview </span>options <ChevronDown size={14} aria-hidden="true" />
+            <span><span className="wide-label">Preview </span>options</span> <ChevronDown size={14} aria-hidden="true" />
           </summary>
           <div className="preview-options-panel">
             <button
@@ -165,7 +165,7 @@ export function MapPreview({
                 onInspect(event.currentTarget);
               }}
             >
-              Inspect<span className="wide-label"> preview</span>
+              <span>Inspect<span className="wide-label"> preview</span></span>
             </button>
             <select
               aria-label="Preview mode"
