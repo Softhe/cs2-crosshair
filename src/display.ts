@@ -8,8 +8,16 @@ export function previewScale(zoom: number, targetHeight: number | undefined, ref
 
 // Screen dimensions are CSS pixels. This is an estimate, not EDID or game detection.
 // Keep the initial physical estimate when browser zoom alone changes DPR.
+// Some embedded browsers report a screen smaller than the window itself; a display is never
+// smaller than the window it shows, so the window size is a lower bound.
+export function screenSize(screenWidth: number, screenHeight: number, windowWidth: number, windowHeight: number) {
+  return { width: Math.max(screenWidth || 0, windowWidth || 0), height: Math.max(screenHeight || 0, windowHeight || 0) };
+}
 export function useDisplayEstimate() {
-  const sample = () => ({ width: Math.round(screen.width * (devicePixelRatio || 1)), height: Math.round(screen.height * (devicePixelRatio || 1)), dpr: devicePixelRatio || 1 });
+  const sample = () => {
+    const size = screenSize(screen.width, screen.height, outerWidth || innerWidth, outerHeight || innerHeight);
+    return { width: Math.round(size.width * (devicePixelRatio || 1)), height: Math.round(size.height * (devicePixelRatio || 1)), dpr: devicePixelRatio || 1 };
+  };
   const [display, setDisplay] = useState(sample);
   useEffect(() => {
     let width = screen.width, height = screen.height, resolution: MediaQueryList;
