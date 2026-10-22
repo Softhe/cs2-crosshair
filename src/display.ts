@@ -13,6 +13,11 @@ export function previewScale(zoom: number, targetHeight: number | undefined, ref
 export function screenSize(screenWidth: number, screenHeight: number, windowWidth: number, windowHeight: number) {
   return { width: Math.max(screenWidth || 0, windowWidth || 0), height: Math.max(screenHeight || 0, windowHeight || 0) };
 }
+// Raise a kept estimate to the current viewport in physical pixels. Viewport size times DPR is
+// unchanged by browser zoom, so this preserves the zoom protection while tracking window growth.
+export function raiseToViewport(previous: { width: number; height: number; dpr: number }, viewportWidth: number, viewportHeight: number, dpr: number) {
+  return { width: Math.max(previous.width, Math.round(viewportWidth * dpr)), height: Math.max(previous.height, Math.round(viewportHeight * dpr)), dpr };
+}
 export function useDisplayEstimate() {
   const sample = () => {
     const size = screenSize(screen.width, screen.height, outerWidth || innerWidth, outerHeight || innerHeight);
@@ -24,7 +29,7 @@ export function useDisplayEstimate() {
     const update = () => {
       const changedScreen = width !== screen.width || height !== screen.height;
       width = screen.width; height = screen.height;
-      setDisplay(previous => changedScreen ? sample() : { ...previous, dpr: devicePixelRatio || 1 });
+      setDisplay(previous => changedScreen ? sample() : raiseToViewport(previous, innerWidth, innerHeight, devicePixelRatio || 1));
       resolution?.removeEventListener('change', update);
       resolution = matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
       resolution.addEventListener('change', update);
