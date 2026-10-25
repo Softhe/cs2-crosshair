@@ -340,11 +340,15 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
   }, [tick]);
   useEffect(() => {
     const retry = () => {
-      // Focus and visibility often fire together; a running pass already fetches the latest state.
-      if (busy.current || document.visibilityState === 'hidden') return;
       const id = active.current;
       if (id) void synchronize(id, generation.current);
       else setTick((t) => t + 1);
+    };
+    // Focus and visibility often fire together; a running pass already fetches the latest state.
+    // Reconnects always go through `retry`, so a pass that started offline gets one follow-up.
+    const refresh = () => {
+      if (busy.current || document.visibilityState === 'hidden') return;
+      retry();
     };
     const changed = (event: StorageEvent) => {
       if (active.current && event.key === 'delli.v3.' + queueKey(active.current)) {
@@ -364,13 +368,13 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       }
     };
     window.addEventListener('online', retry);
-    window.addEventListener('focus', retry);
-    document.addEventListener('visibilitychange', retry);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
     window.addEventListener('storage', changed);
     return () => {
       window.removeEventListener('online', retry);
-      window.removeEventListener('focus', retry);
-      document.removeEventListener('visibilitychange', retry);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('storage', changed);
     };
   }, []);
