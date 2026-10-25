@@ -121,6 +121,16 @@ export function validateSettings(value: unknown): Settings {
   }
   return out;
 }
+/** Validate stored settings, migrating heights above HEIGHT_MAX (previously allowed up to 65535) instead of rejecting the entry. */
+export function migrateSettings(value: unknown): Settings {
+  try {
+    return validateSettings(value);
+  } catch (cause) {
+    const rawHeight=(value as {cl_crosshair_screen_height?: unknown} | null | undefined)?.cl_crosshair_screen_height;
+    if(typeof rawHeight!=='number'||!Number.isFinite(rawHeight)||rawHeight<=HEIGHT_MAX) throw cause;
+    try { return validateSettings({...(value as object),cl_crosshair_screen_height:HEIGHT_MAX}); } catch { throw cause; }
+  }
+}
 /** Bare command words that cannot be an alias. Prefixes (exit_strategy, crosshair_fan) are fine. */
 const reservedCommands = new Set(['exec','alias','bind','unbind','quit','exit','clear','echo','crosshair']);
 export function safeAlias(name: string): string {

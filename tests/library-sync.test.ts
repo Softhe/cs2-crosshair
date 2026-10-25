@@ -71,3 +71,8 @@ test('unchanged durable snapshots do not trigger cross-tab storage ping-pong',()
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:()=>JSON.stringify(q),setItem:()=>writes++}});
  try{persistQueue(account,q);assert.equal(writes,0);}finally{if(prior)Object.defineProperty(globalThis,'localStorage',prior);else Reflect.deleteProperty(globalThis,'localStorage');}
 });
+test('cloud snapshots migrate legacy heights above the supported max instead of failing sync',()=>{
+ const legacy={...item('tall'),settings:{...defaults,cl_crosshair_screen_height:40000}};
+ assert.equal(validateSnapshot({revision:3,entries:[legacy]}).entries[0]!.settings.cl_crosshair_screen_height,16384);
+ assert.throws(()=>validateSnapshot({revision:3,entries:[{...legacy,settings:{...legacy.settings,cl_crosshair_length:999}}]}));
+});

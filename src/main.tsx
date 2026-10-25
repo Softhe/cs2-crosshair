@@ -19,6 +19,7 @@ import {
   commands,
   safeAlias,
   validateSettings,
+  codeSettingKeys,
   type Settings,
 } from "./model";
 import { encode, decode, importCommands } from "./codec";
@@ -236,10 +237,13 @@ function App() {
     }
   };
   const [draftSaved, setDraftSaved] = useState(true);
+  const draftWasSaved = useRef(true);
   useEffect(() => {
     const saved = write("draft", s);
     setDraftSaved(saved);
-    if (!saved)
+    const failedNow = !saved && draftWasSaved.current;
+    draftWasSaved.current = saved;
+    if (failedNow)
       notify(
         "Browser storage is unavailable. Export a config to keep your changes.",
         "error",
@@ -275,6 +279,7 @@ function App() {
     };
   }, [modal]);
   function setView(next: "editor" | "library") {
+    if (next === view) return;
     setViewState(next);
     const url = new URL(location.href);
     if (next === "library") url.searchParams.set("view", "library");
@@ -338,11 +343,7 @@ function App() {
               }
             : item,
         );
-      const next = [entry, ...prev];
-      return [
-        ...next.filter((item) => item.favorite).slice(0, 50),
-        ...next.filter((item) => !item.favorite).slice(0, 20),
-      ];
+      return limitLibrary([entry, ...prev]);
     });
   }
   const currentFavorite = library.find(
@@ -479,22 +480,13 @@ function App() {
               : "Crosshair imported. Extra menu settings keep their current values."),
           parsed.note ? "warning" : "success",
         );
-        const codeKeys = Object.keys(result).filter(
-          (k) =>
-            (k.startsWith("cl_crosshair") &&
-              ![
-                "cl_crosshair_friendly_warning",
-                "cl_crosshair_sniper_width",
-              ].includes(k)) ||
-            k.startsWith("cl_ironsight"),
-        );
         result =
           /^https?:\/\//i.test(text.trim()) &&
           new URL(text.trim()).searchParams.has("settings")
             ? result
             : {
                 ...s,
-                ...Object.fromEntries(codeKeys.map((k) => [k, result![k]])),
+                ...Object.fromEntries(codeSettingKeys.map((k) => [k, result![k]])),
               };
       } else if (
         /\bcl_crosshair(?:size|thickness|gap|alpha|usealpha|color)\b/i.test(

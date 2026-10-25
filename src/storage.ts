@@ -1,4 +1,4 @@
-import { validateSettings, safeAlias, HEIGHT_MAX, type Settings } from './model';
+import { migrateSettings, safeAlias, type Settings } from './model';
 import { newId } from './ids';
 export type Saved = {id:string;name:string;alias:string;settings:Settings;favorite:boolean;date:string};
 
@@ -75,20 +75,7 @@ export function validateLibrary(value:unknown):Saved[]{
   return value.map((item)=>{
     if(!item||typeof item!=='object'||typeof item.name!=='string'||!item.name.trim()||item.name.length>80||typeof item.favorite!=='boolean')throw Error('Invalid library entry.');
     const id=typeof item.id==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(item.id)&&!ids.has(item.id)?item.id:newId();ids.add(id);
-    try {
-      return {id,name:item.name,alias:safeAlias(typeof item.alias==='string'?item.alias:''),favorite:item.favorite,date:typeof item.date==='string'?item.date:new Date().toISOString(),settings:validateSettings(item.settings)};
-    } catch (cause) {
-      // Migration: heights up to 65535 were previously allowed; clamp to the
-      // current supported max instead of invalidating the stored entry.
-      const rawHeight=(item.settings as {cl_crosshair_screen_height?: unknown} | null | undefined)?.cl_crosshair_screen_height;
-      if(typeof rawHeight!=='number'||!Number.isFinite(rawHeight)||rawHeight<=HEIGHT_MAX) throw cause;
-      try {
-        const settings=validateSettings({...item.settings,cl_crosshair_screen_height:HEIGHT_MAX});
-        return {id,name:item.name,alias:safeAlias(typeof item.alias==='string'?item.alias:''),favorite:item.favorite,date:typeof item.date==='string'?item.date:new Date().toISOString(),settings};
-      } catch {
-        throw cause;
-      }
-    }
+    return {id,name:item.name,alias:safeAlias(typeof item.alias==='string'?item.alias:''),favorite:item.favorite,date:typeof item.date==='string'?item.date:new Date().toISOString(),settings:migrateSettings(item.settings)};
   });
 }
 

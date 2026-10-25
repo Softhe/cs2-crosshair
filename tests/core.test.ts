@@ -121,3 +121,6 @@ test('September CSGO codes accept the version-3+ partial checksum and keep the g
   b[7]=254;b[0]=b.slice(1,16).reduce((s,x)=>s+x,0)&255;assert.throws(()=>decode(toCode(b)),/cl_crosshair_gap.*254/);
   b[0]++;assert.throws(()=>decode(toCode(b)),/checksum/);
 });
+test('config import treats cvar names case-insensitively like the game console',()=>{
+  assert.equal(importCommands('CL_CROSSHAIRSTYLE 4; Cl_Crosshair_Gap -2').cl_crosshair_gap,-2);
+});
