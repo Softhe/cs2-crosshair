@@ -104,7 +104,7 @@ export function importCommands(text: string, base=defaults): Settings {
   const s={...base};let count=0;
   for(const command of text.replace(/\/\/[^\n]*/g,'').split(/[;\r\n]/)) {
     const match=/^\s*"?(cl_[a-z0-9_]+)"?\s+"?(-?\d+(?:\.\d+)?|true|false)"?\s*$/i.exec(command);
-    const key=match?.[1];
+    const key=match?.[1]?.toLowerCase();
     const raw=match?.[2]?.toLowerCase();
     if(key!==undefined && Object.hasOwn(defaults,key)){s[key]=raw==='true'?1:raw==='false'?0:Number(raw);count++;}
   }

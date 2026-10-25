@@ -72,3 +72,13 @@ test('Node handler accepts Vercel parsed JSON and redacts database failures',asy
     const failure=await fetch(base+'/api/session',{headers:{Cookie:`delli_session=${id}`}});assert.equal(failure.status,400);assert.ok(!(await failure.text()).includes('secret-password'));
   }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));await handler.close();}
 });
+test('an injected store takes precedence over a configured database URL',async()=>{
+  const store=createSqliteStore(':memory:');
+  const handler=createHandler({store,databaseUrl:'postgres://unused.invalid/db'});
+  const server=createServer(handler);
+  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try{
+    const response=await fetch(`http://127.0.0.1:${(server.address() as {port:number}).port}/api/session`);
+    assert.deepEqual(await response.json(),{user:null});
+  }finally{server.close();store.close();}
+});

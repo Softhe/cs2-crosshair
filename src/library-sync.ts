@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { read, write, validateLibrary, settingsKey, type Saved } from './storage';
 import { newId } from './ids';
-import { validateSettings, type Settings } from './model';
+import { migrateSettings, type Settings } from './model';
 export type CloudEntry = { id: string; name: string; settings: Settings };
 export type Snapshot = { revision: number; entries: CloudEntry[] };
 export type Queue = { base: Snapshot; entries: CloudEntry[]; history: Saved[] };
@@ -55,7 +55,7 @@ export function validateSnapshot(value: unknown): Snapshot {
       )
         throw Error('Invalid cloud entry.');
       ids.add(e.id);
-      return { id: e.id, name: e.name, settings: validateSettings(e.settings) };
+      return { id: e.id, name: e.name, settings: migrateSettings(e.settings) };
     }),
   };
 }
@@ -281,7 +281,8 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
   useEffect(() => {
     const epoch = ++generation.current;
     let disposed = false;
-    setSessionState('checking');
+    // Re-checks after focus keep a known-ready header instead of flashing a disabled spinner.
+    setSessionState((state) => (state === 'ready' ? state : 'checking'));
     void (async () => {
       try {
         const response = await apiRequest('/api/session', { credentials: 'same-origin' });
@@ -343,6 +344,12 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       if (id) void synchronize(id, generation.current);
       else setTick((t) => t + 1);
     };
+    // Focus and visibility often fire together; a running pass already fetches the latest state.
+    // Reconnects always go through `retry`, so a pass that started offline gets one follow-up.
+    const refresh = () => {
+      if (busy.current || document.visibilityState === 'hidden') return;
+      retry();
+    };
     const changed = (event: StorageEvent) => {
       if (active.current && event.key === 'delli.v3.' + queueKey(active.current)) {
         generation.current++;
@@ -361,13 +368,13 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       }
     };
     window.addEventListener('online', retry);
-    window.addEventListener('focus', retry);
-    document.addEventListener('visibilitychange', retry);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
     window.addEventListener('storage', changed);
     return () => {
       window.removeEventListener('online', retry);
-      window.removeEventListener('focus', retry);
-      document.removeEventListener('visibilitychange', retry);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('storage', changed);
     };
   }, []);
@@ -404,9 +411,12 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       }
       const previous = [...saved(q.entries), ...q.history];
       const next = typeof update === 'function' ? update(previous) : update;
+      const entries = cloudFavorites(next);
+      // The server rejects more than 50 favorites; queuing them would leave sync failing on every retry.
+      if (entries.length > 50) throw Error('Your library is at the 50 favorite limit. Remove a favorite first.');
       const updated = {
         ...q,
-        entries: cloudFavorites(next),
+        entries,
         history: next.filter((e) => !e.favorite).slice(0, 20),
       };
       persistQueue(id, updated);
@@ -439,7 +449,6 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       setAccountLibrary([]);
       setError(null);
       setStatus('local');
-      busy.current = false;
       setSyncing(false);
       return true;
     } catch (cause) {

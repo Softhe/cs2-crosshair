@@ -34,10 +34,10 @@ export function createHandler(options: Options = {}) {
     throw Error('Production requires an explicit HTTPS public origin.');
   let pendingStore: Promise<Store> | undefined;
   const storage = () =>
-    (pendingStore ??= databaseUrl
-      ? import('./neon-store.js').then((module) => module.createNeonStore(databaseUrl))
-      : options.store
-        ? Promise.resolve(options.store)
+    (pendingStore ??= options.store
+      ? Promise.resolve(options.store)
+      : databaseUrl
+        ? import('./neon-store.js').then((module) => module.createNeonStore(databaseUrl))
         : import('./sqlite-store.js').then((module) =>
             module.createSqliteStore(
               options.databasePath ?? process.env.DATABASE_PATH ?? resolve('data/library.sqlite'),
