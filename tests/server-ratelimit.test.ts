@@ -44,9 +44,9 @@ test('GET /api/library with session cookie alone returns 200 without CSRF',async
   }finally{await close();}
 });
 
-test('PUT /api/library rate limit returns 429 after 30 syncs per owner',async()=>{
-  const t0=Date.now();
-  const now=()=>t0; // frozen clock: all hits land in the same hourly window
+test('PUT /api/library rate limit returns 429 with Retry-After after 120 syncs per owner',async()=>{
+  let clock=Date.now();
+  const now=()=>clock;
   const {request,close}=await startServer({now,fetch:async()=>new Response('is_valid:true\n')});
   try{
     const a=await login(request,'76561198000000012');
@@ -54,14 +54,18 @@ test('PUT /api/library rate limit returns 429 after 30 syncs per owner',async()=
     const session=await (await request('/api/session',{headers:{Cookie:a.cookie}})).json();
     const headers={Cookie:a.cookie,Origin:'http://127.0.0.1:4181','X-CSRF-Token':session.csrfToken,'Content-Type':'application/json'};
     const put=(revision:number)=>request('/api/library',{method:'PUT',headers,body:JSON.stringify({revision,entries:[{id:'rate-id',name:'Rate',settings:defaults}]})});
-    // Owner bucket is 30/hour, so the first 30 syncs succeed.
-    for(let revision=0;revision<30;revision++){
+    // Owner bucket is 120/hour. Spread syncs over a few minutes of one hourly window to stay under the 60/minute IP bucket.
+    const hour=Math.floor(clock/3600000)*3600000;
+    clock=hour+1000;
+    for(let revision=0;revision<120;revision++){
+      if(revision&&revision%50===0)clock+=61000;
       const response=await put(revision);
       assert.equal(response.status,200,{revision} as unknown as string);
       await response.json();
     }
-    const limited=await put(30);
+    const limited=await put(120);
     assert.equal(limited.status,429);
+    assert.equal(Number(limited.headers.get('retry-after')),Math.ceil((hour+3600000-clock)/1000));
     assert.match((await limited.json() as {error:string}).error,/Too many sync attempts/);
   }finally{await close();}
 });

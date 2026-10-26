@@ -19,11 +19,11 @@ Implemented October 4, 2026. This document records the changes following `RENDER
 
 ## Raster policy
 
-Rectangular edges snap to physical backing pixels. A positive geometric dimension rounds to at least one backing pixel. Odd/even thickness and DPR can therefore move the apparent center by part of a pixel; this is an intentional compromise for sharp rectangular output. The existing dot/circle/square concentricity tolerance still applies. Fractional scope dots and curved edges use coverage antialiasing.
+Rectangular edges snap to physical backing pixels. A positive geometric dimension rounds to at least one backing pixel. Odd/even thickness and DPR can therefore move the apparent center by part of a pixel; this is an intentional compromise for sharp rectangular output. The existing dot/circle/square concentricity tolerance still applies. Outlines are a whole number of backing pixels, at least one, so fractional display scales no longer add a translucent fringe. Curves, quadrant arcs and scope dots are rasterized analytically with 4×4 supersampling around the same pixel center as the rectangles, which keeps them mirror-symmetric; canvas arc antialiasing was not.
 
 Foreground coverage is the maximum contribution of a foreground shape at each pixel. Outline coverage is also combined by maximum contribution, then foreground coverage is subtracted to retain only the border. Foreground and remaining outline RGBA are composed once. This prevents brighter or more opaque intersections and foreground interiors becoming opaque solely because the outline is opaque.
 
-Coverage readback is restricted to visible drawing bounds. Non-overlapping quadrant arcs share one mask stroke and readback. Rendering signatures prevent repeated raster work when synthetic integer spread does not change. No new production dependency was added.
+Coverage is computed in JavaScript within the visible drawing bounds and written with one `putImageData`; there is no mask canvas or `getImageData` readback. Curves only evaluate pixels near their band. Rendering signatures prevent repeated raster work when synthetic integer spread does not change. No new production dependency was added.
 
 ## Remaining calibration boundary
 

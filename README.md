@@ -12,7 +12,7 @@
 
 The editor has Style Settings and Crosshair Settings. Gap controls accept values from -10 to 128. The preview offers seven game backgrounds, four zoom levels, a scope dot view, and simulated dynamic motion.
 
-The preview defaults to an estimated monitor-resolution size. Correct the display height when the browser's estimate differs from your monitor, or use fullscreen to place the crosshair at the screen center. The 4× detail view helps inspect arm and outline symmetry. A short intro plays at its original speed on every refresh and fades into the editor.
+The preview defaults to an estimated monitor-resolution size. Correct the display height when the browser's estimate differs from your monitor, or use fullscreen to place the crosshair at the screen center. The detail view helps inspect arm and outline symmetry at 4×, or at a smaller labeled scale when the crosshair would not fit. A short intro plays at 1.25× speed on every refresh and fades into the editor.
 
 Current `CS` codes carry crosshair and scope dot settings. Older `CSGO-` codes are supported with an approximation notice when conversion is needed. Config files and website links preserve additional settings. Imported console commands are parsed as data; the website does not execute them.
 
@@ -30,7 +30,7 @@ Downloaded configs include the share code, the commented alias shortcut, and a s
 
 Drafts, preferences, aliases, feedback notes, up to 50 favorites, and up to 20 recent crosshairs stay in your browser. Use the library's JSON backup to save a copy elsewhere. Share links include settings in the URL, so anyone with the link can read them.
 
-The application has no backend, accounts, or analytics. Fonts and map backgrounds are served with the site. GitHub Pages receives normal page requests. Opening an issue draft takes you to GitHub, where you can review the text before submitting it.
+The editor works without an account and has no analytics. Optional Steam sign-in syncs saved crosshairs; see below. Fonts and map backgrounds are served with the site. GitHub Pages receives normal page requests. Opening an issue draft takes you to GitHub, where you can review the text before submitting it.
 
 This replacement uses a separate `delli.v3` storage namespace. It does not automatically migrate the previous website's drafts or library. Old stored data is left in place. Legacy share-code links still work.
 
