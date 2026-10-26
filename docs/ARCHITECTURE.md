@@ -1,6 +1,6 @@
 # Architecture
 
-The site is a static React and TypeScript application built with Vite. It runs in the browser and has no server API.
+The site is a static React and TypeScript application built with Vite. The editor runs entirely in the browser. An optional same-origin API (`server/`, deployed as Vercel Functions under `api/`) provides Steam sign-in and private library sync; see [library sync](LIBRARY_SYNC.md).
 
 | File | Responsibility |
 | --- | --- |
@@ -9,7 +9,7 @@ The site is a static React and TypeScript application built with Vite. It runs i
 | `src/codec.ts` | Current and legacy share-code decoding, encoding, and config parsing |
 | `src/Preview.tsx` | Canvas lifecycle, animated scheduling, and cached geometry/scale guards |
 | `src/preview-geometry.ts` | CSS-pixel crosshair geometry, visual-settings extraction, and motion eligibility |
-| `src/preview-renderer.ts` | Coverage-buffer canvas renderer, pixel snapping, and fit scaling |
+| `src/preview-renderer.ts` | Analytic coverage rasterizer (pixel-snapped rects and outlines, supersampled curves), compositing, and fit scaling |
 | `src/preview-motion.ts` | Synthetic dynamic spread |
 | `src/display.ts` | Preview magnification mapping and display-size estimates |
 | `src/storage.ts` | Local preferences and validated library backups |

@@ -102,8 +102,8 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
                 dirty = guard.mode !== p.mode || guard.scale !== scale || guard.cw !== cw || guard.ch !== ch || guard.dpr !== dpr || guard.geometry !== geometry || guard.ink.length !== ink.length || guard.ink.some((v, i) => v !== ink[i]);
             if (dirty) {
                 guard = { mode: p.mode, scale, cw, ch, dpr, geometry, ink };
-                const status = render(geometry, p.settings, p.mode, scale);
-                if (!lastStatus || lastStatus.clipped !== status.clipped || lastStatus.scale !== status.scale) {
+                const status: RenderStatus = { ...render(geometry, p.settings, p.mode, scale), magnification: p.zoom * scale / requested };
+                if (!lastStatus || lastStatus.clipped !== status.clipped || lastStatus.scale !== status.scale || lastStatus.magnification !== status.magnification) {
                     lastStatus = status;
                     p.onStatus?.(status);
                 }

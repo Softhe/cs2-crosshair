@@ -48,10 +48,11 @@ export function ImportBar(p:ImportBarProps){
         onChange={e=>{p.clipboardRequest.current++;p.setImportText(e.target.value);p.setImportError('');}}
         onPaste={e=>{e.preventDefault();p.pasteCode(e.clipboardData.getData('text'));}}
         placeholder="Paste a CS2 crosshair code"/>
-      <button className="primary-button" aria-label="Import crosshair" onClick={()=>p.doImport()}>
+      {/* Copying the applied code is the main job; Import takes the lead only while an import is pending. */}
+      <button className={`primary-button${p.importDraft===null?'':' is-primary'}`} aria-label="Import crosshair" onClick={()=>p.doImport()}>
         <span>Import<span className="import-button-extra"> crosshair</span></span><ArrowUpRight size={15}/>
       </button>
-      <button className="icon-button" aria-label="Copy crosshair code" title="Copy applied crosshair code" onClick={()=>void p.copy(p.code,'Share code')}>
+      <button className={`icon-button${p.importDraft===null?' is-primary':''}`} aria-label="Copy crosshair code" title="Copy applied crosshair code" onClick={()=>void p.copy(p.code,'Share code')}>
         <Copy size={16}/><span>Copy applied code</span>
       </button>
     </div>

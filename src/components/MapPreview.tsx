@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -33,6 +33,12 @@ const mapNames = [
   "Cache",
   "Inferno",
 ];
+// Fit can shrink the detail view below 4×; label the scale it actually shows.
+function detailLabel(magnification: number) {
+  return Math.abs(magnification - 4) < 0.05
+    ? "4× detail"
+    : `${magnification.toFixed(1)}× detail (fit)`;
+}
 export type MapPreviewProps = {
   s: Settings;
   map: number;
@@ -93,6 +99,7 @@ export function MapPreview({
   onInspect: (button: HTMLButtonElement) => void;
 }) {
   const optionsRef = useRef<HTMLDetailsElement>(null);
+  const [detailMagnification, setDetailMagnification] = useState(4);
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
       const options = optionsRef.current;
@@ -152,6 +159,13 @@ export function MapPreview({
         <details
           ref={optionsRef}
           className="preview-options"
+          onToggle={(event) => {
+            // On short viewports the panel can open below the fold; bring it into view.
+            if (event.currentTarget.open)
+              event.currentTarget
+                .querySelector(".preview-options-panel")
+                ?.scrollIntoView({ block: "nearest" });
+          }}
         >
           <summary aria-label="Preview options">
             <span><span className="wide-label">Preview </span>options</span> <ChevronDown size={14} aria-hidden="true" />
@@ -239,9 +253,10 @@ export function MapPreview({
           <ChevronRight size={28} />
         </button>
         <div className="detail-preview">
-          <span>4× detail</span>
+          <span>{detailLabel(detailMagnification)}</span>
           <div>
             <Preview
+              onStatus={(status) => setDetailMagnification(status.magnification ?? 4)}
               settings={s}
               zoom={4}
               targetHeight={effectiveHeight || undefined}

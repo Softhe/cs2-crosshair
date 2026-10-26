@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {defaults} from '../src/model';
 import {settingsKey,validateLibrary,type Saved} from '../src/storage';
-import {cloudFavorites,hasUnmergedGuestFavorites,persistGuest,LibraryStorageError,syncErrorMessage,mergeConflict,mergeGuestFavorites,persistQueue,queueKey,validateSnapshot,type CloudEntry} from '../src/library-sync';
+import {SyncRateLimitError,retryAfterSeconds,cloudFavorites,hasUnmergedGuestFavorites,persistGuest,LibraryStorageError,syncErrorMessage,mergeConflict,mergeGuestFavorites,persistQueue,queueKey,validateSnapshot,type CloudEntry} from '../src/library-sync';
 const item=(id:string,name=id,length=8):CloudEntry=>({id,name,settings:{...defaults,cl_crosshair_length:length}});
 const account='76561198000000001';
 test('library validation preserves IDs and migrates legacy entries',()=>{
@@ -75,4 +75,11 @@ test('cloud snapshots migrate legacy heights above the supported max instead of 
  const legacy={...item('tall'),settings:{...defaults,cl_crosshair_screen_height:40000}};
  assert.equal(validateSnapshot({revision:3,entries:[legacy]}).entries[0]!.settings.cl_crosshair_screen_height,16384);
  assert.throws(()=>validateSnapshot({revision:3,entries:[{...legacy,settings:{...legacy.settings,cl_crosshair_length:999}}]}));
+});
+test('rate-limited syncs explain the automatic retry and honor Retry-After',()=>{
+ const error=new SyncRateLimitError(retryAfterSeconds(new Response(null,{status:429,headers:{'Retry-After':'125'}})));
+ assert.equal(error.retryAfterSeconds,125);
+ assert.match(syncErrorMessage(error),/^Too many sync attempts\. .*about 3 minutes\.$/);
+ assert.equal(retryAfterSeconds(new Response(null,{status:429})),60);
+ assert.match(new SyncRateLimitError(30).message,/about 1 minute\.$/);
 });
