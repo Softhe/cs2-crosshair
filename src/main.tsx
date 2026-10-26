@@ -521,9 +521,7 @@ function App() {
     clipboardRequest.current++;
     setImportText(text);
     setImportError("");
-    if (text.trim().startsWith("CS") && !text.trim().startsWith("CSGO")) {
-      doImport(text);
-    }
+    doImport(text);
   }
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -954,8 +952,11 @@ function App() {
             setImportError("Config is too large.");
             return;
           }
-          setImportText(await file.text());
-          setImportError("");
+          try {
+            pasteCode(await file.text());
+          } catch (error) {
+            setImportError(message(error));
+          }
         }}
       />
     </>
