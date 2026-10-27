@@ -84,33 +84,35 @@ export function Dialogs({
         <div className="modal-content preview-settings-dialog">
           <div className="preview-controls">
             <label>
-              Preview scale
+              Game resolution
               <select
                 aria-label="Preview scale"
                 value={targetHeight}
                 onChange={(e) => setTargetHeight(Number(e.target.value))}
               >
-                <option value="-1">Monitor size (estimated)</option>
+                <option value="-1">Use monitor estimate</option>
+                <option value="-2">Custom game render height</option>
                 <option value="0">CSS pixels</option>
-                <option value="1080">Estimated 1080p</option>
-                <option value="1440">Estimated 1440p</option>
-                <option value="2160">Estimated 2160p</option>
+                <option value="720">1280 × 720</option>
+                <option value="1080">1920 × 1080</option>
+                <option value="1440">2560 × 1440</option>
+                <option value="2160">3840 × 2160</option>
               </select>
             </label>
-            {targetHeight === -1 && (
+            {targetHeight === -2 && (
               <label>
-                Display height
+                Game render height
                 <span className="display-height-field">
                   <input
                     className="display-height"
-                    aria-label="Display height in physical pixels"
+                    aria-label="Game render height in physical pixels"
                     type="number"
                     min="240"
                     max="8640"
                     step="1"
                     value={
                       displayHeightDraft ??
-                      String(displayHeight || display.height)
+                      String(displayHeight)
                     }
                     onChange={(e) => {
                       setDisplayHeightDraft(e.target.value);
@@ -131,6 +133,7 @@ export function Dialogs({
                 </span>
               </label>
             )}
+            <p className="display-note">Match the resolution selected in CS2, including when the game runs in a window. The browser cannot detect the game resolution. Preview changes leave crosshair codes and exports unchanged.</p>
             <label className="checkbox-row">
               <input
                 type="checkbox"
@@ -180,8 +183,7 @@ export function Dialogs({
               <summary>Preview details</summary>
               <p className="display-note">
                 Display estimate {display.width} × {display.height} · pixel
-                ratio {display.dpr.toFixed(2)}. Correct display height if
-                needed. Fullscreen centers the crosshair on the screen. At 1×,
+                ratio {display.dpr.toFixed(2)}. Monitor estimates can differ from the game render resolution. Fullscreen centers the crosshair on the screen. At 1×,
                 image size does not shrink the crosshair; 2×–8× magnify it for
                 editing.
               </p>

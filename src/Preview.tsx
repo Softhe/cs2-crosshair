@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { styles, type Settings } from './model';
 import { motionEligible, previewGeometry, renderingSettings, renderingKeys, type Geometry, type PreviewMode, type RenderingSettings } from './preview-geometry';
-import { createPreviewRenderer, fitScale, type RenderStatus } from './preview-renderer';
+import { createPreviewRenderer, fitScale, type RenderStatus, type RasterFrame } from './preview-renderer';
 import { previewScale } from './display';
 type Props = {
     settings: Settings;
@@ -15,8 +15,9 @@ type Props = {
     decorative?: boolean;
     paused?: boolean;
     onStatus?: (status: RenderStatus) => void;
+    onFrame?: (frame: RasterFrame) => void;
 };
-export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mode = 'crosshair', phase = 0, fit = false, inspectSplit = false, decorative = false, paused = false, onStatus }: Props) {
+export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mode = 'crosshair', phase = 0, fit = false, inspectSplit = false, decorative = false, paused = false, onStatus, onFrame }: Props) {
     const ref = useRef<HTMLCanvasElement>(null), description = useId(), [unavailable, setUnavailable] = useState(false);
     const settingsKey = JSON.stringify([...renderingKeys.map(key => settings[key]),targetHeight?settings.cl_crosshair_screen_height:null]);
     // Extracted visual settings, cached on settingsKey so the rAF loop reuses one
@@ -26,8 +27,8 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
         visual.current = renderingSettings(settings);
         visualKey.current = settingsKey;
     }
-    const latest = useRef({ settings, visual: visual.current, zoom, targetHeight, dynamic, mode, phase, fit, inspectSplit, paused, onStatus });
-    latest.current = { settings, visual: visual.current, zoom, targetHeight, dynamic, mode, phase, fit, inspectSplit, paused, onStatus };
+    const latest = useRef({ settings, visual: visual.current, zoom, targetHeight, dynamic, mode, phase, fit, inspectSplit, paused, onStatus, onFrame });
+    latest.current = { settings, visual: visual.current, zoom, targetHeight, dynamic, mode, phase, fit, inspectSplit, paused, onStatus, onFrame };
     const invalidate = useRef<() => void>(() => { });
     useEffect(() => {
         const canvas = ref.current;
@@ -102,10 +103,12 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
                 dirty = guard.mode !== p.mode || guard.scale !== scale || guard.cw !== cw || guard.ch !== ch || guard.dpr !== dpr || guard.geometry !== geometry || guard.ink.length !== ink.length || guard.ink.some((v, i) => v !== ink[i]);
             if (dirty) {
                 guard = { mode: p.mode, scale, cw, ch, dpr, geometry, ink };
-                const status = render(geometry, p.settings, p.mode, scale);
-                if (!lastStatus || lastStatus.clipped !== status.clipped || lastStatus.scale !== status.scale) {
+                const baseScale = previewScale(1, p.targetHeight, p.settings.cl_crosshair_screen_height, devicePixelRatio);
+                const status = render(geometry, p.settings, p.mode, scale, scale / baseScale);
+                p.onFrame?.(status.frame);
+                if (!lastStatus || lastStatus.clipped !== status.clipped || lastStatus.scale !== status.scale || lastStatus.sourceClipped !== status.sourceClipped) {
                     lastStatus = status;
-                    p.onStatus?.(status);
+                    p.onStatus?.({ clipped: status.clipped, sourceClipped: status.sourceClipped, scale: status.scale });
                 }
                 canvas!.dataset.clipped = String(status.clipped);
                 canvas!.dataset.scale = String(scale);

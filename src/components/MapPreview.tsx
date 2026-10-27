@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,7 +14,7 @@ import {
 import { Preview } from "../Preview";
 import type { Settings } from "../model";
 import type { PreviewMode } from "../preview-geometry";
-import type { RenderStatus } from "../preview-renderer";
+import { paintRasterFrame, type RasterFrame, type RenderStatus } from "../preview-renderer";
 const maps = [
   "dust2",
   "nuke",
@@ -93,6 +93,19 @@ export function MapPreview({
   onInspect: (button: HTMLButtonElement) => void;
 }) {
   const optionsRef = useRef<HTMLDetailsElement>(null);
+  const detailRef = useRef<HTMLCanvasElement>(null), rasterRef = useRef<RasterFrame | null>(null);
+  const [detailClipped, setDetailClipped] = useState(false);
+  const paintDetail = useCallback((frame: RasterFrame) => {
+    rasterRef.current = frame;
+    if (detailRef.current) setDetailClipped(paintRasterFrame(frame, detailRef.current, 4));
+  }, []);
+  useEffect(() => {
+    const canvas = detailRef.current;
+    if (!canvas) return;
+    const resize = new ResizeObserver(() => { if (rasterRef.current) paintDetail(rasterRef.current); });
+    resize.observe(canvas);
+    return () => resize.disconnect();
+  }, [paintDetail]);
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
       const options = optionsRef.current;
@@ -136,6 +149,7 @@ export function MapPreview({
           <span className="live-dot" />
           LIVE PREVIEW
         </span>
+        <small className="preview-target">{effectiveHeight ? `${effectiveHeight}p game target` : "CSS-pixel view"}</small>
         <div className="zoom-buttons">
           {[1, 2, 4, 8].map((n) => (
             <button
@@ -223,6 +237,7 @@ export function MapPreview({
           inspectSplit={inspectSplit}
           paused={modal !== null}
           onStatus={setPreviewStatus}
+          onFrame={paintDetail}
         />
         <button
           className="map-arrow previous"
@@ -239,19 +254,9 @@ export function MapPreview({
           <ChevronRight size={28} />
         </button>
         <div className="detail-preview">
-          <span>4× detail</span>
+          <span>{detailClipped ? "4× detail · cropped" : "4× detail"}</span>
           <div>
-            <Preview
-              settings={s}
-              zoom={4}
-              targetHeight={effectiveHeight || undefined}
-              mode={previewMode}
-              phase={phase}
-              inspectSplit={inspectSplit}
-              fit
-              decorative
-              paused
-            />
+            <canvas ref={detailRef} className="crosshair-canvas" aria-hidden="true" />
           </div>
         </div>
         <div className="preview-actions">
@@ -284,8 +289,10 @@ export function MapPreview({
       {previewStatus.clipped && (
         <div className="clipping-warning" role="status">
           <AlertTriangle size={16} />
-          <span>Crosshair exceeds preview bounds.</span>
-          <button onClick={() => setFit(true)}>Fit preview</button>
+          <span>{previewStatus.sourceClipped
+            ? "This crosshair is too large to preview completely. Choose a lower game render height."
+            : "Crosshair exceeds preview bounds."}</span>
+          {!previewStatus.sourceClipped && <button onClick={() => setFit(true)}>Fit preview</button>}
         </div>
       )}
     </section>
