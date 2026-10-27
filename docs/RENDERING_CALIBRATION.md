@@ -36,14 +36,33 @@ The lossless PNG window captures in `evidence/crosshair-calibration/` were colle
 
 `e2e/calibration.spec.ts` extracts the foreground occupancy from these real PNGs and compares every occupied/empty pixel against the website at the equivalent target. It also checks the captured client-center placement rather than comparing bounding boxes alone. Color and edge-alpha parity are not asserted by this test.
 
-## Appearance limits
+## Live appearance diagnosis
 
-The captured foreground RGB and adjacent background pixels differ from a raw browser RGBA overlay even with no outline enabled. The background-only capture confirms that pixels immediately outside the colored shape are darkened in the game capture. This establishes a difference in the final game image; it does not establish the exact shader, sharpening or color-processing cause. No guessed blur, color transform or extra outline is applied.
+The October 27 live comparison identified NVIDIA Image Sharpening in the CS2 program profile as the cause of the remaining RGB and fringe mismatch. Global sharpening was off, but the Counter-strike 2 profile used Sharpen 1.00 and Ignore film grain 0.00. CS2 ran windowed at 1920x1080 with FSR disabled and MSAA off. Changing the profile while CS2 remained running did not change its captured pixels. Disabling the profile and restarting CS2 removed the mismatch.
+
+Lossless ShareX desktop PNGs supplied the new 96x96 center crops. Only the game crops are retained here. The client center is (48,48) in each crop. Static Cross settings were thickness 1, length 2, gap 2, center dot enabled, outline disabled, alpha 255 and reference height 1080. `live-background.png`, `live-green.png`, `live-muted.png` and `live-black.png` record sharpening enabled. `driver-off-background.png`, `driver-off-green.png` and `driver-off-muted.png` record the same view after disabling sharpening and restarting.
+
+| Comparison with the plain opaque overlay | Maximum channel error | Differing RGB channels across 96x96 |
+| --- | ---: | ---: |
+| Sharpening off, RGB 40,80,120 | 0 | 0 |
+| Sharpening off, RGB 0,255,168 | 1 | 15 |
+
+With sharpening on, the green center pixel was RGB 55,255,223 instead of the configured 0,255,168. Adjacent pixels also changed. With sharpening off, the dark fringe disappeared. The green capture's full-crop RGB RMS error is 0.0233 on the 0 to 255 scale. This is capture-level evidence for an opaque native overlay in these cases.
+
+`scripts/analyze-live-crosshair-appearance.mjs --assert-native` checks the driver-off captures. `e2e/calibration.spec.ts` also composites the actual browser canvas over the captured background and compares every RGB channel against both driver-off game crops, with a maximum tolerance of one level. Earlier opacity and fixed luma-kernel fits are retained as rejected diagnostic experiments in the analysis scripts. Neither model belongs in the renderer. Preview details now explain that GPU sharpening and game post-processing can change colors and edges.
+
+The original NVIDIA program preference was restored to Sharpen 1.00 and Ignore film grain 0.00 after testing. The original crosshair settings were restored and the temporary F8 console binding was removed. CS2 was restarted to reload the restored profile and left at its main menu. The saved game configuration confirms the restored crosshair values and original INS console binding.
+
+![Sharpening comparison at 18x magnification](evidence/crosshair-calibration/sharpening-comparison.png)
+
+## Appearance limits
 
 Only the recorded Static Cross occupancy cases have game-derived acceptance evidence. Other styles, arbitrary resolutions, outline appearance, fractional settings and dynamic motion do not have general pixel-perfect game acceptance. Dynamic motion remains synthetic.
 
-On October 27, Computer Use found neither CS2 nor Chrome running. Current verification therefore uses the saved lossless game evidence plus current browser automation; a new live-game comparison was unavailable.
+The driver-off RGB checks cover two opaque colors at one Static Cross shape and resolution. They do not establish general parity for translucent colors, outlines, other driver profiles or game post-processing settings.
 
 ## Verification
 
 After integration with upstream `276a0b4`, `npm run check` passed 85 unit tests, TypeScript, production build and Pages fallback generation. The focused calibration, display-scaling and raster-magnification browser run passed 33 tests with one intentional mobile skip. The full current-main desktop/mobile browser suite passed 265 tests with five skips. A final focused rendering run after preserving the previous negative-gap behavior passed 33 tests with one skip. Computer Use in installed Google Chrome confirmed the imported calibration code, visible 1080p target, 1x preview, and 8x main magnification alongside the fixed 4x detail inset. The local account service was unavailable; Steam authentication was not validated.
+
+The subsequent live appearance investigation added two RGB browser cases. All 14 desktop/mobile calibration tests passed, including the five existing occupancy cases per project. The native driver-off analysis assertion also passed.

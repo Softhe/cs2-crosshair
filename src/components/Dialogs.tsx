@@ -182,6 +182,10 @@ export function Dialogs({
             <details className="preview-details">
               <summary>Preview details</summary>
               <p className="display-note">
+                GPU sharpening and game post-processing can change crosshair colors and edges.
+                This preview shows the crosshair before those effects.
+              </p>
+              <p className="display-note">
                 Display estimate {display.width} × {display.height} · pixel
                 ratio {display.dpr.toFixed(2)}. Monitor estimates can differ from the game render resolution. Fullscreen centers the crosshair on the screen. At 1×,
                 image size does not shrink the crosshair; 2×–8× magnify it for
