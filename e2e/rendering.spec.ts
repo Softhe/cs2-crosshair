@@ -38,7 +38,7 @@ test('estimated resolution uses reference height without changing exports',async
         await expect.poll(async()=>Number(await page.locator('.map-preview > canvas').getAttribute('data-scale'))).toBe(1440/reference);
         expect((await stats(page)).count).toBe(reference===1080?16:4);
         await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
-        await expect(page.getByText('Estimated target-resolution size; game-pixel calibration is pending.',{exact:true})).toBeHidden();
+        await expect(page.getByText('Estimated target-resolution size; only Static Cross is calibrated against game captures.',{exact:true})).toBeHidden();
     }
 });
 async function load(page: import('@playwright/test').Page, settings: Record<string, number>) {

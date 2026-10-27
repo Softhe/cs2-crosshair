@@ -149,7 +149,7 @@ export function MapPreview({
           <span className="live-dot" />
           LIVE PREVIEW
         </span>
-        <small className="preview-target">{effectiveHeight ? `${effectiveHeight}p game target` : "CSS-pixel view"}</small>
+        <small className="preview-target">{effectiveHeight ? <>{effectiveHeight}p<span className="wide-label"> game target</span></> : "CSS-pixel view"}</small>
         <div className="zoom-buttons">
           {[1, 2, 4, 8].map((n) => (
             <button

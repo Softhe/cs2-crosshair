@@ -93,7 +93,7 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
                 peak = { ...peak, bounds: [b[0] - 3, b[1] - 7, b[2] + 3, b[3] + 7] };
             }
             // Optional estimated game-pixel size, converted to CSS pixels at the current DPR.
-            // This mapping is explicitly uncalibrated against game captures.
+            // Only nonnegative-gap Static Cross is calibrated against game captures.
             const requested = previewScale(p.zoom, p.targetHeight, p.settings.cl_crosshair_screen_height, devicePixelRatio);
             const scale = p.fit ? fitScale(peak.bounds, canvas!.clientWidth, canvas!.clientHeight, requested) : requested;
             const cw = canvas!.clientWidth, ch = canvas!.clientHeight, dpr = devicePixelRatio;
@@ -104,14 +104,19 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
             if (dirty) {
                 guard = { mode: p.mode, scale, cw, ch, dpr, geometry, ink };
                 const baseScale = previewScale(1, p.targetHeight, p.settings.cl_crosshair_screen_height, devicePixelRatio);
-                const status = { ...render(geometry, p.settings, p.mode, scale, scale / baseScale), magnification: scale / baseScale };
+                // The native frame is only magnified by whole pixels; nearest-neighbour scaling by a
+                // fractional fit factor drops or repeats rows unevenly. Fit snaps down to a whole
+                // magnification, or rasterizes directly at the fitted scale when even 1× is too large.
+                let magnification = scale / baseScale, drawScale = scale;
+                if (p.fit && magnification >= 1) drawScale = baseScale * (magnification = Math.floor(magnification + 1e-6));
+                const status = { ...render(geometry, p.settings, p.mode, drawScale, Math.max(1, magnification)), magnification };
                 p.onFrame?.(status.frame);
                 if (!lastStatus || lastStatus.clipped !== status.clipped || lastStatus.scale !== status.scale || lastStatus.sourceClipped !== status.sourceClipped || lastStatus.magnification !== status.magnification) {
                     lastStatus = status;
                     p.onStatus?.({ clipped: status.clipped, sourceClipped: status.sourceClipped, scale: status.scale, magnification: status.magnification });
                 }
                 canvas!.dataset.clipped = String(status.clipped);
-                canvas!.dataset.scale = String(scale);
+                canvas!.dataset.scale = String(drawScale);
             }
             if (animate)
                 schedule();
