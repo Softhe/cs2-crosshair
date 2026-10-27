@@ -136,3 +136,14 @@ test('canvas context failure provides an export-safe fallback', async ({ page })
     await expect(page.getByText('Canvas rendering is unavailable. Settings can still be exported.').first()).toBeVisible();
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',/^CS/);
 });
+test('calibrated accuracy message applies only to the Static Cross crosshair', async ({ page }) => {
+    await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, cl_crosshairstyle: 4, cl_crosshair_gap: 2 })));
+    if (await page.getByRole('button', { name: 'Expand preview', exact: true }).isVisible()) await page.getByRole('button', { name: 'Expand preview', exact: true }).click();
+    for (const [mode, text] of [['crosshair', 'Static Cross pixels match measured CS2 captures at this target.'], ['scope', 'Estimated target-resolution size; only Static Cross is calibrated against game captures.']] as const) {
+        await openPreviewOptions(page);
+        await page.getByLabel('Preview mode', { exact: true }).selectOption(mode);
+        await page.getByRole('button', { name: 'Inspect preview', exact: true }).click();
+        await expect(page.getByText(text, { exact: true })).toBeVisible();
+        await page.getByRole('button', { name: 'Close dialog' }).click();
+    }
+});

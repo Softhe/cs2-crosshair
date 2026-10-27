@@ -2,6 +2,7 @@ import { ArrowUpRight, X } from "lucide-react";
 import type { Settings } from "../model";
 import { useDisplayEstimate } from "../display";
 import type { RenderStatus } from "../preview-renderer";
+import type { PreviewMode } from "../preview-geometry";
 import { write } from "../storage";
 import type { RefObject } from "react";
 export type DialogsProps = {
@@ -24,6 +25,7 @@ export type DialogsProps = {
   setInspectSplit: (value: boolean) => void;
   previewStatus: RenderStatus;
   effectiveHeight: number;
+  previewMode: PreviewMode;
   s: Settings;
   rating: number;
   setRating: (value: number) => void;
@@ -51,6 +53,7 @@ export function Dialogs({
   setInspectSplit,
   previewStatus,
   effectiveHeight,
+  previewMode,
   s,
   rating,
   setRating,
@@ -176,7 +179,7 @@ export function Dialogs({
                 : fit
                   ? "Fit view may reduce magnification; exported settings are unchanged."
                   : effectiveHeight
-                    ? s.cl_crosshairstyle === 4 && s.cl_crosshair_gap >= 0
+                    ? previewMode === "crosshair" && s.cl_crosshairstyle === 4 && s.cl_crosshair_gap >= 0
                       ? "Static Cross pixels match measured CS2 captures at this target."
                       : "Estimated target-resolution size; only Static Cross is calibrated against game captures."
                     : "Reference height is exported metadata in CSS-pixel mode."}
