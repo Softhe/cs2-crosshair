@@ -859,6 +859,7 @@ function App() {
         </div>
       )}
       <Dialogs
+        previewMode={previewMode}
         dialogRef={dialogRef}
         modal={modal}
         setModal={setModal}

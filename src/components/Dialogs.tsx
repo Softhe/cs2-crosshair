@@ -2,6 +2,7 @@ import { ArrowUpRight, X } from "lucide-react";
 import type { Settings } from "../model";
 import { useDisplayEstimate } from "../display";
 import type { RenderStatus } from "../preview-renderer";
+import type { PreviewMode } from "../preview-geometry";
 import { write } from "../storage";
 import type { RefObject } from "react";
 export type DialogsProps = {
@@ -24,6 +25,7 @@ export type DialogsProps = {
   setInspectSplit: (value: boolean) => void;
   previewStatus: RenderStatus;
   effectiveHeight: number;
+  previewMode: PreviewMode;
   s: Settings;
   rating: number;
   setRating: (value: number) => void;
@@ -51,6 +53,7 @@ export function Dialogs({
   setInspectSplit,
   previewStatus,
   effectiveHeight,
+  previewMode,
   s,
   rating,
   setRating,
@@ -176,7 +179,9 @@ export function Dialogs({
                 : fit
                   ? "Fit view may reduce magnification; exported settings are unchanged."
                   : effectiveHeight
-                    ? "Estimated target-resolution size; game-pixel calibration is pending."
+                    ? previewMode === "crosshair" && s.cl_crosshairstyle === 4 && s.cl_crosshair_gap >= 0
+                      ? "Static Cross pixels match measured CS2 captures at this target."
+                      : "Estimated target-resolution size; only Static Cross is calibrated against game captures."
                     : "Reference height is exported metadata in CSS-pixel mode."}
             </span>
             <details className="preview-details">
@@ -221,8 +226,9 @@ export function Dialogs({
             The preview uses real game backgrounds. CSS-pixel mode shows editor
             magnification. Estimated resolution modes scale by target height
             divided by exported reference height and convert physical pixels
-            through the display pixel ratio; this mapping has not been
-            calibrated against game captures. Dynamic motion, recoil, quadrant
+            through the display pixel ratio. Static Cross with a nonnegative
+            gap matches measured game captures; other styles are approximate.
+            GPU sharpening can change colors and edges. Dynamic motion, recoil, quadrant
             geometry and scope rendering are browser approximations. The
             animation exercises the configured spread limit; it does not model
             weapon inaccuracy, spread or the game's 64-pixel baseline. Verify
