@@ -8,11 +8,13 @@ This contract covers the editor, the personal Library view, and optional synchro
 - Library is a primary page in the studio. It contains saved favorites and a separate recent-history section. Selecting an entry shows a read-only preview. Copying its code does not load it into the editor. Loading is an explicit action.
 - A favorite has a stable ID, a name or player nickname, and validated settings. Favorites remain until the user removes them. History eviction must never remove favorites.
 - Saving creates a favorite. After loading a favorite and editing it, Update changes that favorite and Save as new creates a separate entry. Editing the draft alone never changes the saved entry. The original must survive Save as new.
-- Guest favorites stay available without an account. Draft settings, recent history, appearance, display estimates, aliases, and feedback remain local to the browser.
+- Guest favorites stay available without an account. Draft settings, recent history, appearance, display estimates, aliases, and feedback remain local to the browser. The **Match my in-game size** preview preference also syncs when signed in (see below).
 
 ## Synchronization boundaries
 
-Only private favorites synchronize. The server stores each favorite's ID, name, and settings plus the metadata required to detect concurrent changes and deletions. It does not receive drafts, history, aliases, display preferences, or feedback.
+Private favorites and one preview preference synchronize. The server stores each favorite's ID, name, and settings plus the metadata required to detect concurrent changes and deletions. It also stores the **Match my in-game size** preference: on/off, the CS2 resolution, and whether it is stretched. It does not receive drafts, history, aliases, monitor estimates, other display preferences, or feedback.
+
+`GET /api/preferences` returns `{preferences}` (`null` before the first save). `PUT /api/preferences` replaces it, last write wins, with the same session, Origin and CSRF checks as library writes. The server rejects malformed values instead of repairing them. Rate limits are 60/min per IP and 240/hour per owner. The account copy is applied when the page loads or regains focus. Later local changes are written back after an 800 ms pause, and the browser keeps a local copy when sync is unavailable.
 
 Signing in must not silently upload a guest library. Offer an explicit choice to merge local favorites into the account library. Retain the guest data until that merge has succeeded. Keep account caches separate so signing out or switching accounts does not disclose the previous user's library.
 

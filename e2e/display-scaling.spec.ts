@@ -54,13 +54,22 @@ for (const dpr of [1, 1.25, 1.5, 2]) test(`1080p game mapping on a 1440p display
     await expect(displayHeight).toHaveValue('2160');
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
     await page.getByRole('button', {name:'Close dialog'}).click();
-    await openPreviewOptions(page);await page.getByRole('button', { name: 'Fullscreen game-size preview' }).click();
+    await page.getByRole('button', { name: 'Fullscreen game-size preview' }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.className), { timeout: 10000 }).toBe('map-preview');
     await expect.poll(() => canvas.evaluate(element => element.getBoundingClientRect().width), { timeout: 10000 }).toBeGreaterThan(0);
     await expect.poll(() => canvas.evaluate(element => {
       const rect = element.getBoundingClientRect();
       return Math.max(Math.abs(rect.left + rect.width / 2 - innerWidth / 2), Math.abs(rect.top + rect.height / 2 - innerHeight / 2));
     }), { timeout: 10000 }).toBeLessThanOrEqual(1);
+    const controls = page.locator('.fullscreen-controls');
+    await controls.getByRole('button', { name: '2x preview zoom', exact: true }).click();
+    await expect(controls.getByRole('button', { name: '2x preview zoom', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.className)).toBe('map-preview');
+    const exit = await page.getByRole('button', { name: 'Exit fullscreen preview' }).boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(exit!.y).toBeLessThan(viewport.height / 4);
+    expect(exit!.x + exit!.width).toBeGreaterThan(viewport.width * 3 / 4);
+    await controls.getByRole('button', { name: '1x preview zoom', exact: true }).click();
     await page.getByRole('button', { name: 'Exit fullscreen preview' }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement), { timeout: 10000 }).toBeNull();
   } finally { await context.close(); }

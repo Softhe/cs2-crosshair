@@ -25,6 +25,7 @@ export type DialogsProps = {
   setInspectSplit: (value: boolean) => void;
   previewStatus: RenderStatus;
   effectiveHeight: number;
+  matchingGame: boolean;
   previewMode: PreviewMode;
   s: Settings;
   rating: number;
@@ -53,6 +54,7 @@ export function Dialogs({
   setInspectSplit,
   previewStatus,
   effectiveHeight,
+  matchingGame,
   previewMode,
   s,
   rating,
@@ -90,6 +92,7 @@ export function Dialogs({
               Game resolution
               <select
                 aria-label="Preview scale"
+                disabled={matchingGame}
                 value={targetHeight}
                 onChange={(e) => setTargetHeight(Number(e.target.value))}
               >
@@ -102,7 +105,12 @@ export function Dialogs({
                 <option value="2160">3840 × 2160</option>
               </select>
             </label>
-            {targetHeight === -2 && (
+            {matchingGame && (
+              <p className="display-note">
+                Match my in-game size is on in Preview options, so the preview uses that resolution instead.
+              </p>
+            )}
+            {!matchingGame && targetHeight === -2 && (
               <label>
                 Game render height
                 <span className="display-height-field">

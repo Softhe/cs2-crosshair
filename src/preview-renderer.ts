@@ -188,7 +188,7 @@ export type RasterFrame = {
     id?: number;
 };
 
-export function paintRasterFrame(frame: RasterFrame, canvas: HTMLCanvasElement, magnification: number) {
+export function paintRasterFrame(frame: RasterFrame, canvas: HTMLCanvasElement, magnification: number, stretch: [number, number] = [1, 1]) {
     const context = canvas.getContext('2d');
     if (!context) return false;
     const dpr = window.devicePixelRatio || 1;
@@ -196,20 +196,28 @@ export function paintRasterFrame(frame: RasterFrame, canvas: HTMLCanvasElement, 
     if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
-    context.imageSmoothingEnabled = false;
-    const x = Math.floor((width - frame.canvas.width * magnification) / 2);
-    const y = Math.floor((height - frame.canvas.height * magnification) / 2);
-    const [left, top, right, bottom] = frame.bounds;
+    const mx = magnification * stretch[0], my = magnification * stretch[1];
+    // Whole-pixel magnification stays crisp. A fractional game stretch (960 → 1440 rows) is filtered,
+    // as GPU and monitor scalers do, instead of unevenly repeating rows.
+    const smooth = Math.abs(mx - Math.round(mx)) > 1e-6 || Math.abs(my - Math.round(my)) > 1e-6;
+    context.imageSmoothingEnabled = smooth;
+    if (smooth) context.imageSmoothingQuality = 'low';
+    const x = Math.floor((width - frame.canvas.width * mx) / 2);
+    const y = Math.floor((height - frame.canvas.height * my) / 2);
+    let [left, top, right, bottom] = frame.bounds;
     if (right > left && bottom > top) {
+        // Filtering blends with neighbouring transparent pixels, so include them in the copied area.
+        if (smooth) { left = Math.max(0, left - 1); top = Math.max(0, top - 1); right = Math.min(frame.canvas.width, right + 1); bottom = Math.min(frame.canvas.height, bottom + 1); }
         // Copy only occupied pixels, preserving their placement in the native frame.
         context.drawImage(frame.canvas, left, top, right - left, bottom - top,
-            x + left * magnification, y + top * magnification,
-            (right - left) * magnification, (bottom - top) * magnification);
+            x + left * mx, y + top * my,
+            (right - left) * mx, (bottom - top) * my);
     }
-    const clipped = frame.clipped || (right > left && bottom > top && (x + left * magnification < 0 || y + top * magnification < 0 || x + right * magnification > width || y + bottom * magnification > height));
+    const clipped = frame.clipped || (right > left && bottom > top && (x + left * mx < 0 || y + top * my < 0 || x + right * mx > width || y + bottom * my > height));
     canvas.dataset.clipped = String(clipped);
     canvas.dataset.sourceClipped = String(frame.clipped);
     canvas.dataset.magnification = String(magnification);
+    canvas.dataset.stretch = `${stretch[0]},${stretch[1]}`;
     canvas.dataset.frame = String(frame.id ?? 0);
     return clipped;
 }
@@ -220,7 +228,7 @@ export function createPreviewRenderer(canvas: HTMLCanvasElement, context: Canvas
     if (!nativeContext) throw Error('Canvas rendering is unavailable.');
     const rasterize = createRasterRenderer(native, nativeContext);
     let frameId = 0;
-    return (g: Geometry, s: Settings, mode: PreviewMode, scale: number, magnification = 1) => {
+    return (g: Geometry, s: Settings, mode: PreviewMode, scale: number, magnification = 1, stretch: [number, number] = [1, 1]) => {
         const dpr = window.devicePixelRatio || 1;
         const unit = scale * dpr / magnification;
         // Retain the complete native shape when a fitted view is smaller than it.
@@ -235,7 +243,7 @@ export function createPreviewRenderer(canvas: HTMLCanvasElement, context: Canvas
             sourceSize(canvas.clientWidth, g.bounds[0], g.bounds[2]),
             sourceSize(canvas.clientHeight, g.bounds[1], g.bounds[3]));
         frame.id = ++frameId;
-        const clipped = paintRasterFrame(frame, canvas, magnification);
+        const clipped = paintRasterFrame(frame, canvas, magnification, stretch);
         return { clipped, sourceClipped: frame.clipped, scale, frame };
     };
 }

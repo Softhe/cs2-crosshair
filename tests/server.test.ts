@@ -1,6 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createApp} from '../server/app.ts';
+import {createApp,createHandler} from '../server/app.ts';
+import {createSqliteStore} from '../server/sqlite-store.ts';
+import {createServer} from 'node:http';
+import {createHash} from 'node:crypto';
 import {defaults} from '../src/model.ts';
 
 test('Steam returns to the originating view and rejects destination tampering',async()=>{
@@ -105,4 +108,26 @@ test('Steam verification, private favorites, conflict, CSRF, validation and logo
     const wide=await request('/api/library',{method:'PUT',headers:{...headers,Cookie:again.cookie,'X-CSRF-Token':againSession.csrfToken},body:stream,duplex:'half'} as RequestInit);
     assert.equal(wide.status,200);assert.equal((await wide.json()).entries[0].name,'漢字 crosshair');
   }finally{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
+});
+
+test('preview preferences are private to the account, CSRF-protected and validated',async()=>{
+  const store=createSqliteStore(':memory:'),t=Date.now();
+  for(const owner of ['account-a','account-b'])await store.addSession({id:createHash('sha256').update(owner+'-session').digest('hex'),owner,csrf:owner+'-csrf',expires:t+3600000});
+  const server=createServer(createHandler({store,now:()=>t}));
+  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
+  const headers=(owner:string)=>({Cookie:`delli_session=${owner}-session`,Origin:'http://127.0.0.1:4181','X-CSRF-Token':owner+'-csrf','Content-Type':'application/json'});
+  const put=(preferences:unknown,init:Record<string,string>=headers('account-a'))=>fetch(base+'/api/preferences',{method:'PUT',headers:init,body:JSON.stringify({preferences})});
+  const view={enabled:true,width:1280,height:960,stretched:true};
+  try{
+    assert.equal((await fetch(base+'/api/preferences')).status,401);
+    assert.deepEqual(await (await fetch(base+'/api/preferences',{headers:headers('account-a')})).json(),{preferences:null});
+    assert.equal((await put({gameView:view},{...headers('account-a'),'X-CSRF-Token':'wrong'})).status,403);
+    for(const bad of [null,{},{gameView:{...view,width:12}},{gameView:{...view,height:960.5}},{gameView:{...view,stretched:'yes'}},{gameView:{...view,enabled:1}}])
+      assert.equal((await put(bad)).status,400,JSON.stringify(bad));
+    const saved=await put({gameView:view,extra:'dropped'});assert.equal(saved.status,200);assert.deepEqual(await saved.json(),{preferences:{gameView:view}});
+    assert.deepEqual(await (await fetch(base+'/api/preferences',{headers:headers('account-a')})).json(),{preferences:{gameView:view}});
+    assert.deepEqual(await (await fetch(base+'/api/preferences',{headers:headers('account-b')})).json(),{preferences:null});
+    assert.equal((await put({gameView:{...view,stretched:false}})).status,200);
+    assert.equal((await (await fetch(base+'/api/preferences',{headers:headers('account-a')})).json()).preferences.gameView.stretched,false);
+  }finally{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));store.close();}
 });

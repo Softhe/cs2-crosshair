@@ -38,6 +38,8 @@ import {
   type Saved,
 } from "./storage";
 import { useLibrarySync } from "./library-sync";
+import { gameView, gameViewStretch } from "./preferences";
+import { usePreferenceSync } from "./preference-sync";
 import { LibraryView } from "./LibraryView";
 import { SteamAccount } from "./SteamAccount";
 import { newId } from "./ids";
@@ -124,7 +126,17 @@ function App() {
   const [fullscreen, setFullscreen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const [targetHeight, setTargetHeight] = useState(savedResolution.targetHeight);
-  const effectiveHeight = targetHeight === -1 ? display.height : targetHeight === -2 ? displayHeight : targetHeight;
+  // Until the visitor picks a resolution, start from their monitor's own instead of assuming one.
+  const [gameViewPreference, setGameViewPreference] = useState(() =>
+    gameView(read("game-view", null) ?? { width: display.width, height: display.height }));
+  useEffect(() => {
+    write("game-view", gameViewPreference);
+  }, [gameViewPreference]);
+  // Matching the game replaces the inspection resolution with the configured game render and its stretch.
+  const effectiveHeight = gameViewPreference.enabled
+    ? gameViewPreference.height
+    : targetHeight === -1 ? display.height : targetHeight === -2 ? displayHeight : targetHeight;
+  const stretch = gameViewPreference.enabled ? gameViewStretch(gameViewPreference, display) : undefined;
   useEffect(() => {
     write("preview-resolution", { targetHeight, customHeight: displayHeight });
   }, [targetHeight, displayHeight]);
@@ -154,6 +166,7 @@ function App() {
   });
   const sync = useLibrarySync(guestLibrary, setGuestLibrary);
   const { library, setLibrary } = sync;
+  const preferenceSync = usePreferenceSync(sync.user?.steamId ?? null, gameViewPreference, setGameViewPreference);
   const [view, setViewState] = useState<"editor" | "library">(() =>
     new URLSearchParams(location.search).get("view") === "library"
       ? "library"
@@ -662,6 +675,11 @@ function App() {
               zoom={zoom}
               setZoom={setZoom}
               effectiveHeight={effectiveHeight}
+              stretch={stretch}
+              gameView={gameViewPreference}
+              setGameView={setGameViewPreference}
+              gameViewSync={preferenceSync}
+              display={display}
               dynamic={dynamic}
               previewMode={previewMode}
               setPreviewMode={setPreviewMode}
@@ -879,6 +897,7 @@ function App() {
         setInspectSplit={setInspectSplit}
         previewStatus={previewStatus}
         effectiveHeight={effectiveHeight}
+        matchingGame={gameViewPreference.enabled}
         s={s}
         rating={rating}
         setRating={setRating}

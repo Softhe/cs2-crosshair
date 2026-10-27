@@ -4,6 +4,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { resolve, sep, extname } from 'node:path';
 import type { Store } from './store.js';
 import { validateSettings } from '../src/model.js';
+import { validatePreferences } from '../src/preferences.js';
 
 const provider = 'https://steamcommunity.com/openid/login';
 const namespace = 'http://specs.openid.net/auth/2.0';
@@ -250,6 +251,10 @@ export function createHandler(options: Options = {}) {
           json(res, 200, await db.latest(s.owner));
           return;
         }
+        if (path === '/api/preferences' && req.method === 'GET') {
+          json(res, 200, { preferences: await db.preferences(s.owner) });
+          return;
+        }
         // Safe-method GETs skip the Origin/CSRF-token check below: they are
         // read-only with no state change, and the session cookie is SameSite=Lax.
         if (
@@ -306,6 +311,19 @@ export function createHandler(options: Options = {}) {
             return;
           }
           json(res, 200, updated);
+          return;
+        }
+        if (path === '/api/preferences' && req.method === 'PUT') {
+          const ipAllowed = await allowed(db, 'pref-ip:' + clientIp(req), 60, 60000, t);
+          if (!ipAllowed || !(await allowed(db, 'pref-owner:' + s.owner, 240, 3600000, t))) {
+            const windowMs = ipAllowed ? 3600000 : 60000;
+            const retryAfter = Math.max(1, Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000));
+            json(res, 429, { error: 'Too many sync attempts. Try again later.' }, { 'Retry-After': String(retryAfter) });
+            return;
+          }
+          const preferences = validatePreferences((await body(req))?.preferences);
+          await db.savePreferences(s.owner, preferences, t);
+          json(res, 200, { preferences });
           return;
         }
         json(res, 404, { error: 'API route not found.' });

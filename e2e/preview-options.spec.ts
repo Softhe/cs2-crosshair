@@ -10,12 +10,13 @@ test('preview tools collapse while zoom remains visible at every viewport',async
   await expect(page.getByRole('button',{name:'Inspect preview',exact:true})).toBeVisible();
   await expect(page.locator('.preview-options .preview-caption')).toBeVisible();
   const panel=await page.locator('.preview-options-panel').boundingBox();
-  for(const name of ['Inspect preview','Fullscreen game-size preview']){
-   const action=await page.getByRole('button',{name,exact:true}).boundingBox();
-   expect(action!.width).toBeGreaterThan(200);
-   expect(action!.x).toBeGreaterThanOrEqual(panel!.x);
-   expect(action!.x+action!.width).toBeLessThanOrEqual(panel!.x+panel!.width);
-  }
+  const action=await page.getByRole('button',{name:'Inspect preview',exact:true}).boundingBox();
+  expect(action!.width).toBeGreaterThan(200);
+  expect(action!.x).toBeGreaterThanOrEqual(panel!.x);
+  expect(action!.x+action!.width).toBeLessThanOrEqual(panel!.x+panel!.width);
+  // Fullscreen is a single click from the toolbar, not inside the options panel.
+  await expect(page.locator('.preview-toolbar>.fullscreen-button')).toBeVisible();
+  await expect(page.locator('.preview-options-panel .fullscreen-button')).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.locator('.preview-caption').click();
   await expect(page.locator('.preview-caption')).toBeVisible();
