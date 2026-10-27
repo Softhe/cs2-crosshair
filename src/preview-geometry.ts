@@ -43,7 +43,7 @@ export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase =
     const shapes: Shape[] = [], style = s.cl_crosshairstyle, t = s.cl_crosshair_thickness, half = t / 2;
     // Static Cross arm spacing is measured in full native units. Other styles
     // retain their approximate mapping until their game captures are calibrated.
-    const spread = simulatedSpread(style, s.cl_crosshair_dynamic_spread_limit, phase), gap = s.cl_crosshair_gap / (style === 4 ? 1 : 2) + spread, length = s.cl_crosshair_length;
+    const spread = simulatedSpread(style, s.cl_crosshair_dynamic_spread_limit, phase), gap = s.cl_crosshair_gap / (style === 4 && s.cl_crosshair_gap >= 0 ? 1 : 2) + spread, length = s.cl_crosshair_length;
     const outline = mode === 'crosshair' ? s.cl_crosshair_drawoutline : 0;
     const offset: Geometry['offset'] = mode === 'crosshair' && s.cl_crosshair_recoil ? [Math.round(Math.sin(elapsed / 250) * phase * 3), -Math.round(phase * 7)] : [0, 0];
     const rect = (x: number, y: number, width: number, height: number, alpha = 1) => { if (width > 0 && height > 0 && alpha > 0)
@@ -85,11 +85,10 @@ export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase =
     for (const shape of shapes) {
         const r = shape.kind === 'rect' ? 0 : shape.radius + (shape.kind === 'arc' ? shape.thickness / 2 : 0);
         const b: [number, number, number, number] = shape.kind === 'rect' ? [shape.x, shape.y, shape.x + shape.width, shape.y + shape.height] : [-r, -r, r, r];
-        // Outline halo in CSS units. This must mirror preview-renderer's device-pixel
-        // expansion exactly: the outline pass grows rects by `unit` (1 CSS unit) on the
-        // min sides, plus another `unit` on the max sides only when outline === 1.
-        // Outline === 2 shifts arc strokes inward instead, which the conservative
-        // full-circle bounds already cover, so no separate max-side term is needed.
+        // Outline halo in CSS units: 1 unit on the min sides, plus 1 on the max sides only
+        // when outline === 1. preview-renderer rounds the outline to whole device pixels
+        // (at least one), which its coverage padding absorbs. Outline === 2 shifts arc
+        // bands toward the min sides, which the conservative full-circle bounds cover.
         const before = outline ? 1 : 0, after = outline === 1 ? 1 : 0;
         bounds[0] = Math.min(bounds[0], b[0] - before + offset[0]);
         bounds[1] = Math.min(bounds[1], b[1] - before + offset[1]);
@@ -98,3 +97,4 @@ export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase =
     }
     return { shapes, bounds: shapes.length ? bounds : [0, 0, 0, 0], offset, outline };
 }
+

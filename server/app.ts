@@ -85,8 +85,9 @@ export function createHandler(options: Options = {}) {
     if (!id) return undefined;
     return (await storage()).session(hash(id), now());
   }
-  function json(res: ServerResponse, status: number, value: unknown) {
+  function json(res: ServerResponse, status: number, value: unknown, headers: Record<string, string> = {}) {
     res.writeHead(status, {
+      ...headers,
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
@@ -267,11 +268,12 @@ export function createHandler(options: Options = {}) {
           return;
         }
         if (path === '/api/library' && req.method === 'PUT') {
-          if (
-            !(await allowed(db, 'put-ip:' + clientIp(req), 60, 60000, t)) ||
-            !(await allowed(db, 'put-owner:' + s.owner, 30, 3600000, t))
-          ) {
-            json(res, 429, { error: 'Too many sync attempts. Try again later.' });
+          // Every favorite edit is one sync, so the hourly owner budget must cover a library tidy-up.
+          const ipAllowed = await allowed(db, 'put-ip:' + clientIp(req), 60, 60000, t);
+          if (!ipAllowed || !(await allowed(db, 'put-owner:' + s.owner, 120, 3600000, t))) {
+            const windowMs = ipAllowed ? 3600000 : 60000;
+            const retryAfter = Math.max(1, Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000));
+            json(res, 429, { error: 'Too many sync attempts. Try again later.' }, { 'Retry-After': String(retryAfter) });
             return;
           }
           const input = await body(req);

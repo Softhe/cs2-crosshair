@@ -23,7 +23,7 @@
 .preview-toolbar .preview-settings-button{margin-left:auto;padding:6px 8px;border:1px solid var(--line)}
 .preview-toolbar .dynamic-button{font-size:12px;border:1px solid var(--line);padding:6px 8px;color:var(--text)}
 .preview-toolbar .dynamic-button[aria-pressed=true]{background:var(--selected);border-color:var(--accent)}
-.preview-toolbar .toolbar-divider{display:none}
+
 .preview-toolbar .zoom-buttons{gap:4px}.zoom-buttons button{padding:6px;min-width:36px}
 .preview-caption{padding:12px;display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between}
 .preview-caption>span:first-child{flex-basis:100%}
@@ -43,7 +43,7 @@
 .library-save-bar{padding:16px;display:block;border-top:1px solid var(--line);border-bottom:0;border-radius:0 0 8px 8px}
 .library-save-heading{margin-bottom:14px}.library-save-heading h2{display:none}.library-save-heading>svg{display:none}.library-save-heading p{margin:0}
 .library-save-controls{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}.library-name-field{width:auto;flex:1;min-width:160px}.library-save-controls>.primary-button{min-height:40px}
-.export-card{border-radius:8px}.export-card .card-heading{margin-bottom:16px}
+
 .color-top{flex-wrap:wrap}.color-presets{flex-wrap:wrap;margin-left:0}.color-panel{padding:14px}
 .site-footer{max-width:1352px;margin-top:32px;padding-bottom:28px}
 .mobile-preview-toggle{display:none}
@@ -57,10 +57,10 @@
 .preview-settings-dialog input[type=range]{width:150px}
 .toast{z-index:1100;max-width:min(520px,calc(100vw - 32px));bottom:24px;line-height:1.5}
 .toast[data-tone=info]{border-color:var(--accent)}.toast[data-tone=info]>svg{color:var(--accent)}
-@media(min-width:1900px){.workspace,.page-heading{max-width:1600px}.workspace{grid-template-columns:minmax(440px,.85fr) minmax(0,1.15fr)}.site-footer{max-width:1552px}}
+@media(min-width:1900px){.workspace{max-width:1600px}.workspace{grid-template-columns:minmax(440px,.85fr) minmax(0,1.15fr)}.site-footer{max-width:1552px}}
 @media(max-width:1100px) and (min-width:821px){.workspace{grid-template-columns:minmax(330px,1fr) minmax(0,1fr);gap:18px}.workspace>.editor{padding:4px 14px 16px}.number-controls{min-width:140px;gap:8px}.preview-toolbar>div{gap:4px}.preview-toolbar .preview-settings-button{margin-left:0}.setting-row{font-size:14px}.header .brand-subtitle{display:none}}
 @media(max-width:820px){
-  .page-heading{padding:0 16px;margin:20px auto 18px;align-items:flex-start;flex-wrap:wrap}.page-heading h1{font-size:26px}.theme-picker{justify-content:flex-start}
+  
   .workspace{padding:0 16px;display:flex;flex-direction:column;gap:18px}.workspace>*:not(.sr-only){width:100%}
   .workspace>.preview-section{position:sticky;top:0;z-index:10;box-shadow:0 6px 18px var(--veil)}
   .workspace>.preview-section .map-preview{height:132px}
@@ -92,7 +92,7 @@
   .library-save-controls>.primary-button{min-height:44px;font-size:14px}.library-save-heading p{font-size:13px}
   .color-top input{min-height:44px;min-width:44px}.color-top code{font-size:12px}
 }
-@media(max-width:380px){.workspace{padding:0 10px}.workspace>.editor{padding:0 12px 14px}.number-controls{min-width:130px;width:44%}.numeric{width:48px}.preview-toolbar select{max-width:90px}.preview-toolbar .preview-settings-button{max-width:80px}.page-heading h1{font-size:24px}}
+@media(max-width:380px){.workspace{padding:0 10px}.workspace>.editor{padding:0 12px 14px}.number-controls{min-width:130px;width:44%}.numeric{width:48px}.preview-toolbar select{max-width:90px}.preview-toolbar .preview-settings-button{max-width:80px}}
 /* Import stays compact until a user needs files, clipboard or legacy conversion. */
 .inline-import>.field-label{justify-content:space-between;gap:12px;flex-wrap:wrap}
 .inline-import>.import-options{grid-column:1/-1;min-width:0}
@@ -236,3 +236,12 @@
 }
 .preview-options[open]>summary>svg{transform:rotate(180deg)}
 .preview-toolbar .preview-options-panel .fullscreen-button,.preview-toolbar .preview-options-panel .preview-settings-button{width:100%;max-width:none;min-height:44px}
+/* The applied-code copy is the primary action; Import leads only while an import is pending. */
+.transfer-panel .inline-import-entry>.primary-button:not(.is-primary){background:var(--input);color:var(--accent);border-color:var(--accent)}
+.transfer-panel .inline-import-entry>.primary-button:not(.is-primary):hover{background:var(--hover)}
+.transfer-panel .inline-import-entry>.icon-button.is-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.transfer-panel .inline-import-entry>.icon-button.is-primary:hover{background:var(--accent-dark);border-color:var(--accent-dark)}
+/* Keep the whole game view above the fold on short laptop screens; the sticky preview may grow once scrolled. */
+@media(min-width:1280px){.workspace>.preview-section .map-preview{max-height:max(300px,calc(100svh - 430px))}}
+/* The preview options panel cannot rise above the fixed mobile action bar, so the bar steps aside while it is open. */
+@media(max-width:820px){body:has(.preview-options[open]) .mobile-actions{display:none}.mobile-actions button{white-space:nowrap;padding-inline:6px;gap:6px}}

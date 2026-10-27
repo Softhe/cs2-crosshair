@@ -11,8 +11,19 @@ export class LibraryStorageError extends Error {
     super('Changes could not be saved on this device. Free browser storage or export a backup.');
   }
 }
+/** The server's sync budget is spent; local changes stay queued and retry once the window reopens. */
+export class SyncRateLimitError extends Error {
+  constructor(readonly retryAfterSeconds: number) {
+    const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+    super(`Too many sync attempts. Your changes are saved on this device and will sync automatically in about ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+  }
+}
+export function retryAfterSeconds(response: Response): number {
+  const value = Number(response.headers.get('Retry-After'));
+  return Number.isFinite(value) && value > 0 ? value : 60;
+}
 export function syncErrorMessage(error: unknown): string {
-  return error instanceof LibraryStorageError
+  return error instanceof LibraryStorageError || error instanceof SyncRateLimitError
     ? error.message
     : error instanceof Error && /limit|Invalid cloud/.test(error.message)
       ? error.message
@@ -173,7 +184,8 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
     queue = useRef<Queue | null>(null),
     generation = useRef(0),
     busy = useRef(false),
-    rerun = useRef(false);
+    rerun = useRef(false),
+    retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const publish = (q: Queue) => setAccountLibrary([...saved(q.entries), ...q.history]);
   async function synchronize(id: string, epoch: number) {
     // A request that arrives mid-sync (another tab's storage event, a retry) runs once the current pass ends instead of being dropped.
@@ -240,6 +252,7 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
           1,
         );
         if (generation.current !== epoch || active.current !== id) return;
+        if (put.status === 429) throw new SyncRateLimitError(retryAfterSeconds(put));
         if (!put.ok && put.status !== 409) throw Error('Library sync failed.');
         const latest = validateSnapshot(await put.json());
         let current = queue.current!;
@@ -265,7 +278,15 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       }
       setStatus('pending');
     } catch (cause) {
-      if (generation.current === epoch) fail(cause);
+      if (generation.current === epoch) {
+        fail(cause);
+        if (cause instanceof SyncRateLimitError) {
+          clearTimeout(retryTimer.current);
+          retryTimer.current = setTimeout(() => {
+            if (active.current === id) void synchronize(id, generation.current);
+          }, Math.min(cause.retryAfterSeconds, 3600) * 1000);
+        }
+      }
     } finally {
       busy.current = false;
       if (generation.current === epoch) setSyncing(false);
@@ -376,6 +397,7 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('storage', changed);
+      clearTimeout(retryTimer.current);
     };
   }, []);
   const setLibrary: UpdateLibrary = (update) => {

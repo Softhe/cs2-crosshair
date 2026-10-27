@@ -1,6 +1,6 @@
 # Rendering fixes and verification
 
-Implemented October 4, 2026. This document records the changes following `RENDERING_REVIEW.md`; the original review and baseline evidence remain available.
+Implemented October 4, 2026. Later behavior is documented in [Rendering calibration](RENDERING_CALIBRATION.md), which supersedes the original zoom and default-scale descriptions below. This document records the changes following `RENDERING_REVIEW.md`; the original review and baseline evidence remain available.
 
 ## Finding-to-change mapping
 
@@ -19,11 +19,11 @@ Implemented October 4, 2026. This document records the changes following `RENDER
 
 ## Raster policy
 
-Rectangular edges snap to physical backing pixels. A positive geometric dimension rounds to at least one backing pixel. Odd/even thickness and DPR can therefore move the apparent center by part of a pixel; this is an intentional compromise for sharp rectangular output. The existing dot/circle/square concentricity tolerance still applies. Fractional scope dots and curved edges use coverage antialiasing.
+Rectangular edges snap to physical backing pixels. A positive geometric dimension rounds to at least one backing pixel. Odd/even thickness and DPR can therefore move the apparent center by part of a pixel; this is an intentional compromise for sharp rectangular output. The existing dot/circle/square concentricity tolerance still applies. Outlines are a whole number of backing pixels, at least one, so fractional display scales no longer add a translucent fringe. Curves, quadrant arcs and scope dots are rasterized analytically with 4×4 supersampling around the same pixel center as the rectangles, which keeps them mirror-symmetric; canvas arc antialiasing was not.
 
 Foreground coverage is the maximum contribution of a foreground shape at each pixel. Outline coverage is also combined by maximum contribution, then foreground coverage is subtracted to retain only the border. Foreground and remaining outline RGBA are composed once. This prevents brighter or more opaque intersections and foreground interiors becoming opaque solely because the outline is opaque.
 
-Coverage readback is restricted to visible drawing bounds. Non-overlapping quadrant arcs share one mask stroke and readback. Rendering signatures prevent repeated raster work when synthetic integer spread does not change. No new production dependency was added.
+Coverage is computed in JavaScript within the visible drawing bounds and written with one `putImageData`; there is no mask canvas or `getImageData` readback. Curves only evaluate pixels near their band. Rendering signatures prevent repeated raster work when synthetic integer spread does not change. No new production dependency was added.
 
 ## Remaining calibration boundary
 
@@ -45,3 +45,4 @@ To close calibration, capture the same settings in the game at known framebuffer
 Representative measurements on this host, Chromium 145, DPR 1, 850 by 256 backing canvas, 40 direct-render samples per view: native default dynamic geometry median 2.5 ms, p95 4.2 ms; fit geometry median 0.9 ms, p95 3.2 ms. No console or page errors were captured. These measure drawing cost in a headless browser, not complete animation-frame latency or a guarantee on other hardware, DPRs, or browsers.
 
 Reproduce with `npm run dev`, followed in another terminal by `npx tsx scripts/audit-preview.ts` and `npx tsx scripts/verify-rendering.ts`. Run `npm run check` and `npm run test:e2e` for the regression suite.
+

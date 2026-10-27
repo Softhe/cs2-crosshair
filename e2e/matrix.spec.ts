@@ -31,8 +31,8 @@ for(const [style,name] of styles){test(`matrix: ${name} edits, clipboard code, c
   const stream=await file.createReadStream();let content='';for await(const chunk of stream!)content+=chunk;
   expect(content.split('\n').filter(line=>line.startsWith('cl_')).join('\n')).toBe(commands);
   await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();await page.getByLabel('Crosshair code or config').focus();
-  await page.getByLabel('Crosshair config file').setInputFiles((await file.path())!);await expect(page.getByLabel('Crosshair code or config')).toHaveValue(content);
-  await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByRole('dialog')).not.toBeVisible();expect(await consoleText(page)).toBe(commands);
+  await page.getByLabel('Crosshair config file').setInputFiles((await file.path())!);await expect(page.getByLabel('Crosshair code or config')).toHaveValue(displayed);
+  await expect(page.getByText('Applied crosshair',{exact:true})).toBeVisible();expect(await consoleText(page)).toBe(commands);
   await page.getByRole('button',{name:'Copy link',exact:true}).click();const link=await clipboard(page);await page.goto(link);expect(await consoleText(page)).toBe(commands);await expect(page.getByLabel('Style',{exact:true})).toHaveValue(String(style));
   expect(errors).toEqual([]);
 });}

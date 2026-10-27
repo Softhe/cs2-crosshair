@@ -166,6 +166,13 @@ export function MapPreview({
         <details
           ref={optionsRef}
           className="preview-options"
+          onToggle={(event) => {
+            // On short viewports the panel can open below the fold; bring it into view.
+            if (event.currentTarget.open)
+              event.currentTarget
+                .querySelector(".preview-options-panel")
+                ?.scrollIntoView({ block: "nearest" });
+          }}
         >
           <summary aria-label="Preview options">
             <span><span className="wide-label">Preview </span>options</span> <ChevronDown size={14} aria-hidden="true" />

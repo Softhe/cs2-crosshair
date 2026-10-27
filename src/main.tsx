@@ -194,6 +194,7 @@ function App() {
     setToast(text);
   };
   const awaitingSaveSync = useRef(false);
+  const rateLimited = !!sync.error?.startsWith("Too many sync attempts");
   useEffect(() => {
     if (!sync.user) awaitingSaveSync.current = false;
     if (!awaitingSaveSync.current || sync.syncing) return;
@@ -202,9 +203,11 @@ function App() {
       setToastTone(sync.status === "synced" ? "success" : "warning");
       setToast(sync.status === "synced"
         ? "Crosshair saved and synced to Steam."
-        : "Crosshair saved on this device. Sync failed. Retry sync in Library.");
+        : rateLimited
+          ? "Crosshair saved. " + sync.error
+          : "Crosshair saved on this device. Sync failed. Retry sync in Library.");
     }
-  }, [sync.status, sync.syncing, sync.user]);
+  }, [sync.status, sync.syncing, sync.user, sync.error]);
   function notifySaved(message: string) {
     awaitingSaveSync.current = !!sync.user;
     notify(sync.user ? message + " Syncing to Steam…" : message + " Sign in with Steam to sync across devices.", sync.user ? "info" : "success");
@@ -219,7 +222,9 @@ function App() {
           : sync.status === "loading"
             ? "Loading library…"
             : sync.status === "error"
-              ? "Saved on this device · Sync failed. Retry in Library."
+              ? rateLimited
+                ? "Saved on this device · Sync resumes automatically"
+                : "Saved on this device · Sync failed. Retry in Library."
               : "Saved on this device · Waiting to sync"
     : "Saved on this device · Sign in with Steam to sync";
   useEffect(() => {
@@ -519,9 +524,7 @@ function App() {
     clipboardRequest.current++;
     setImportText(text);
     setImportError("");
-    if (text.trim().startsWith("CS") && !text.trim().startsWith("CSGO")) {
-      doImport(text);
-    }
+    doImport(text);
   }
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -952,8 +955,11 @@ function App() {
             setImportError("Config is too large.");
             return;
           }
-          setImportText(await file.text());
-          setImportError("");
+          try {
+            pasteCode(await file.text());
+          } catch (error) {
+            setImportError(message(error));
+          }
         }}
       />
     </>

@@ -104,11 +104,11 @@ export function Preview({ settings, zoom = 1, targetHeight, dynamic = false, mod
             if (dirty) {
                 guard = { mode: p.mode, scale, cw, ch, dpr, geometry, ink };
                 const baseScale = previewScale(1, p.targetHeight, p.settings.cl_crosshair_screen_height, devicePixelRatio);
-                const status = render(geometry, p.settings, p.mode, scale, scale / baseScale);
+                const status = { ...render(geometry, p.settings, p.mode, scale, scale / baseScale), magnification: scale / baseScale };
                 p.onFrame?.(status.frame);
-                if (!lastStatus || lastStatus.clipped !== status.clipped || lastStatus.scale !== status.scale || lastStatus.sourceClipped !== status.sourceClipped) {
+                if (!lastStatus || lastStatus.clipped !== status.clipped || lastStatus.scale !== status.scale || lastStatus.sourceClipped !== status.sourceClipped || lastStatus.magnification !== status.magnification) {
                     lastStatus = status;
-                    p.onStatus?.({ clipped: status.clipped, sourceClipped: status.sourceClipped, scale: status.scale });
+                    p.onStatus?.({ clipped: status.clipped, sourceClipped: status.sourceClipped, scale: status.scale, magnification: status.magnification });
                 }
                 canvas!.dataset.clipped = String(status.clipped);
                 canvas!.dataset.scale = String(scale);
