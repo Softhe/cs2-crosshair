@@ -41,7 +41,9 @@ export const motionEligible = (s: Settings, mode: PreviewMode) => mode === 'cros
 // CSS-pixel editor geometry. Game-resolution calibration remains separate.
 export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase = 0, elapsed = 0, inspectSplit = false): Geometry {
     const shapes: Shape[] = [], style = s.cl_crosshairstyle, t = s.cl_crosshair_thickness, half = t / 2;
-    const spread = simulatedSpread(style, s.cl_crosshair_dynamic_spread_limit, phase), gap = s.cl_crosshair_gap / 2 + spread, length = s.cl_crosshair_length;
+    // Static Cross arm spacing is measured in full native units. Other styles
+    // retain their approximate mapping until their game captures are calibrated.
+    const spread = simulatedSpread(style, s.cl_crosshair_dynamic_spread_limit, phase), gap = s.cl_crosshair_gap / (style === 4 && s.cl_crosshair_gap >= 0 ? 1 : 2) + spread, length = s.cl_crosshair_length;
     const outline = mode === 'crosshair' ? s.cl_crosshair_drawoutline : 0;
     const offset: Geometry['offset'] = mode === 'crosshair' && s.cl_crosshair_recoil ? [Math.round(Math.sin(elapsed / 250) * phase * 3), -Math.round(phase * 7)] : [0, 0];
     const rect = (x: number, y: number, width: number, height: number, alpha = 1) => { if (width > 0 && height > 0 && alpha > 0)
@@ -95,3 +97,4 @@ export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase =
     }
     return { shapes, bounds: shapes.length ? bounds : [0, 0, 0, 0], offset, outline };
 }
+

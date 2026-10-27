@@ -1,6 +1,6 @@
 # Rendering fixes and verification
 
-Implemented October 4, 2026. This document records the changes following `RENDERING_REVIEW.md`; the original review and baseline evidence remain available.
+Implemented October 4, 2026. Later behavior is documented in [Rendering calibration](RENDERING_CALIBRATION.md), which supersedes the original zoom and default-scale descriptions below. This document records the changes following `RENDERING_REVIEW.md`; the original review and baseline evidence remain available.
 
 ## Finding-to-change mapping
 
@@ -45,3 +45,4 @@ To close calibration, capture the same settings in the game at known framebuffer
 Representative measurements on this host, Chromium 145, DPR 1, 850 by 256 backing canvas, 40 direct-render samples per view: native default dynamic geometry median 2.5 ms, p95 4.2 ms; fit geometry median 0.9 ms, p95 3.2 ms. No console or page errors were captured. These measure drawing cost in a headless browser, not complete animation-frame latency or a guarantee on other hardware, DPRs, or browsers.
 
 Reproduce with `npm run dev`, followed in another terminal by `npx tsx scripts/audit-preview.ts` and `npx tsx scripts/verify-rendering.ts`. Run `npm run check` and `npm run test:e2e` for the regression suite.
+

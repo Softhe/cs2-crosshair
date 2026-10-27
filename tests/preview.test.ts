@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { defaults } from '../src/model';
 import { motionEligible, previewGeometry, renderingSettings } from '../src/preview-geometry';
 import { composite, createCoverage, fitScale } from '../src/preview-renderer';
-test('geometry preserves half-gap steps and symmetric negative gap values', () => {
-    const arm = (gap: number) => previewGeometry(renderingSettings({ ...defaults, cl_crosshairstyle: 4, cl_crosshair_gap: gap }), 'crosshair').shapes[1];
+test('classic dynamic geometry preserves half-gap steps and symmetric negative gap values', () => {
+    const arm = (gap: number) => previewGeometry(renderingSettings({ ...defaults, cl_crosshairstyle: 2, cl_crosshair_gap: gap }), 'crosshair').shapes[1];
     assert.equal((arm(-1) as {
         x: number;
     }).x, -.5);

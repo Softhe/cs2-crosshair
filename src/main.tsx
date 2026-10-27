@@ -24,7 +24,7 @@ import {
 } from "./model";
 import { encode, decode, importCommands } from "./codec";
 import { convertLegacy } from "./converter";
-import { useDisplayEstimate } from "./display";
+import { previewResolution, useDisplayEstimate } from "./display";
 import { downloadConfig } from "./config-export";
 import type { RenderStatus } from "./preview-renderer";
 import type { PreviewMode } from "./preview-geometry";
@@ -116,15 +116,18 @@ function App() {
   const [dynamic, setDynamic] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("crosshair");
   const display = useDisplayEstimate();
-  const [displayHeight, setDisplayHeight] = useState(0);
+  const [savedResolution] = useState(() => previewResolution(read("preview-resolution", null)));
+  const [displayHeight, setDisplayHeight] = useState(savedResolution.customHeight);
   const [displayHeightDraft, setDisplayHeightDraft] = useState<string | null>(
     null,
   );
   const [fullscreen, setFullscreen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const [targetHeight, setTargetHeight] = useState(-1);
-  const effectiveHeight =
-    targetHeight === -1 ? displayHeight || display.height : targetHeight;
+  const [targetHeight, setTargetHeight] = useState(savedResolution.targetHeight);
+  const effectiveHeight = targetHeight === -1 ? display.height : targetHeight === -2 ? displayHeight : targetHeight;
+  useEffect(() => {
+    write("preview-resolution", { targetHeight, customHeight: displayHeight });
+  }, [targetHeight, displayHeight]);
   const [fit, setFit] = useState(false);
   const [phase, setPhase] = useState(0);
   const [inspectSplit, setInspectSplit] = useState(false);

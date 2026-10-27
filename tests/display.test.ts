@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewScale, raiseToViewport, screenSize } from '../src/display';
+import { previewResolution, previewScale, raiseToViewport, screenSize } from '../src/display';
+
+test('preview resolution defaults to explicit 1080p and preserves validated choices', () => {
+  for (const value of [null, {}, { targetHeight: '1440' }, { targetHeight: 12 }, { targetHeight: 1080.5 }]) {
+    assert.equal(previewResolution(value).targetHeight, 1080);
+  }
+  assert.deepEqual(previewResolution({ targetHeight: -2, customHeight: 1200 }), { targetHeight: -2, customHeight: 1200 });
+  assert.deepEqual(previewResolution({ targetHeight: 1200 }), { targetHeight: -2, customHeight: 1200 });
+  assert.deepEqual(previewResolution({ targetHeight: 1440, customHeight: 99999 }), { targetHeight: 1440, customHeight: 1440 });
+  assert.equal(previewResolution({ targetHeight: -1 }).targetHeight, -1);
+  assert.equal(previewResolution({ targetHeight: 0 }).targetHeight, 0);
+});
 
 test('game-size mapping keeps physical size across display scaling and browser zoom', () => {
   for (const dpr of [1, 1.25, 1.5, 2]) {

@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
 
+export type PreviewResolution = { targetHeight: number; customHeight: number };
+export function previewResolution(value: unknown): PreviewResolution {
+  const stored = value && typeof value === 'object' ? value as Partial<PreviewResolution> : {};
+  const validHeight = (height: unknown): height is number => typeof height === 'number' && Number.isInteger(height) && height >= 240 && height <= 8640;
+  return {
+    targetHeight: [-2, -1, 0, 720, 1080, 1440, 2160].includes(stored.targetHeight!) ? stored.targetHeight! : validHeight(stored.targetHeight) ? -2 : 1080,
+    customHeight: validHeight(stored.customHeight) ? stored.customHeight : validHeight(stored.targetHeight) ? stored.targetHeight : 1080,
+  };
+}
+
 export function previewScale(zoom: number, targetHeight: number | undefined, referenceHeight: number, dpr: number) {
   const magnification = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
   return magnification * (targetHeight && Number.isFinite(targetHeight) && targetHeight > 0

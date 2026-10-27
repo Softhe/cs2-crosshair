@@ -2,6 +2,7 @@ import type { Settings } from './model';
 import type { Geometry, PreviewMode, Shape } from './preview-geometry';
 export type RenderStatus = {
     clipped: boolean;
+    sourceClipped?: boolean;
     scale: number;
     /** Effective magnification relative to the requested 1× size; below zoom when fit reduces the scale. */
     magnification?: number;
@@ -16,6 +17,17 @@ export type Coverage = {
     edge: Float32Array;
 };
 export function fitScale(b: Geometry['bounds'], width: number, height: number, requested: number) { return Math.min(requested, Math.max(1, width - 16) / Math.max(1, 2 * Math.max(Math.abs(b[0]), Math.abs(b[2]))), Math.max(1, height - 16) / Math.max(1, 2 * Math.max(Math.abs(b[1]), Math.abs(b[3])))); }
+
+function staticCrossInterval(start: number, length: number, unit: number, center: number): [number, number] {
+    const midpoint = start + length / 2;
+    if (Math.abs(midpoint) < 1e-8) return snapInterval(start, length, unit, center);
+    const pixels = Math.max(1, Math.round(length * unit));
+    const phase = center - Math.floor(center);
+    // CS2 rounds arm length and inner distance independently. Reflect the
+    // resulting interval around the same odd/even center used by the dot.
+    const inner = Math.round(Math.min(Math.abs(start), Math.abs(start + length)) * unit) - phase;
+    return [midpoint > 0 ? center + inner : center - inner - pixels, pixels];
+}
 
 function snapInterval(start: number, length: number, unit: number, center: number): [number, number] {
     let pixels = Math.max(1, Math.round(length * unit));
@@ -84,9 +96,10 @@ function fillBand(target: Float32Array, width: number, height: number, cx: numbe
 // grown on demand so the steady-state animation loop allocates nothing per frame.
 export function createCoverage() {
     let fgPool = new Float32Array(0), edgePool = new Float32Array(0);
-    return (g: Geometry, thickness: number, scale: number, pw: number, ph: number, dpr: number): Coverage => {
+    return (g: Geometry, thickness: number, scale: number, pw: number, ph: number, dpr: number, calibratedCross = false): Coverage => {
         const unit = scale * dpr, phase = Math.max(1, Math.round(thickness * unit)) % 2 / 2;
-        const cx = Math.round(pw / 2 - phase) + phase, cy = Math.round(ph / 2 - phase) + phase, b = g.bounds;
+        const centerRound = calibratedCross ? Math.floor : Math.round;
+        const cx = centerRound(pw / 2 - phase) + phase, cy = centerRound(ph / 2 - phase) + phase, b = g.bounds;
         const clipped = cx + b[0] * unit < 0 || cy + b[1] * unit < 0 || cx + b[2] * unit > pw || cy + b[3] * unit > ph;
         // Outlines are whole backing pixels, as in the game, rather than a fractional halo.
         const ow = g.outline ? Math.max(1, Math.round(unit)) : 0, pad = 3;
@@ -104,8 +117,9 @@ export function createCoverage() {
                 // Rects are axis-aligned and snapped to whole device pixels, keeping opposing arms
                 // symmetric via center parity. Full outlines grow every side; half outlines grow
                 // only the min (top/left) sides, mirroring previewGeometry's bounds halo.
-                const [x, rw] = snapInterval(shape.x, shape.width, unit, x0);
-                const [y, rh] = snapInterval(shape.y, shape.height, unit, y0);
+                const interval = calibratedCross ? staticCrossInterval : snapInterval;
+                const [x, rw] = interval(shape.x, shape.width, unit, x0);
+                const [y, rh] = interval(shape.y, shape.height, unit, y0);
                 fillMax(fg, w, h, x, y, rw, rh, shape.alpha);
                 if (ow) {
                     const after = g.outline === 1 ? ow : 0;
@@ -144,24 +158,84 @@ export function composite(c: Coverage, s: Settings, mode: PreviewMode, out: Uint
         out[p + 3] = combined * 255;
     }
 }
-export function createPreviewRenderer(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
+function createRasterRenderer(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
     const coverage = createCoverage();
     let image: ImageData | null = null;
-    return (g: Geometry, s: Settings, mode: PreviewMode, scale: number): RenderStatus => {
-        const dpr = window.devicePixelRatio || 1, pw = Math.round(canvas.clientWidth * dpr), ph = Math.round(canvas.clientHeight * dpr);
-        if (canvas.width !== pw || canvas.height !== ph) {
-            canvas.width = pw;
-            canvas.height = ph;
-        }
-        context.setTransform(1, 0, 0, 1, 0, 0);
+    return (g: Geometry, s: Settings, mode: PreviewMode, unit: number, pw: number, ph: number): RasterFrame => {
+        if (canvas.width !== pw || canvas.height !== ph) { canvas.width = pw; canvas.height = ph; }
         context.clearRect(0, 0, pw, ph);
-        const c = coverage(g, s.cl_crosshair_thickness, scale, pw, ph, dpr);
-        if (!c.width || !c.height)
-            return { clipped: c.clipped, scale };
-        if (!image || image.width !== c.width || image.height !== c.height)
-            image = context.createImageData(c.width, c.height);
-        composite(c, s, mode, image.data);
-        context.putImageData(image, c.left, c.top);
-        return { clipped: c.clipped, scale };
+        const c = coverage(g, s.cl_crosshair_thickness, unit, pw, ph, 1, mode === 'crosshair' && s.cl_crosshairstyle === 4 && s.cl_crosshair_gap >= 0);
+        const bounds: RasterFrame['bounds'] = [pw, ph, 0, 0];
+        if (c.width && c.height) {
+            if (!image || image.width !== c.width || image.height !== c.height) image = context.createImageData(c.width, c.height);
+            composite(c, s, mode, image.data);
+            context.putImageData(image, c.left, c.top);
+            for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+                if (!image.data[(y * c.width + x) * 4 + 3]) continue;
+                bounds[0] = Math.min(bounds[0], c.left + x); bounds[1] = Math.min(bounds[1], c.top + y);
+                bounds[2] = Math.max(bounds[2], c.left + x + 1); bounds[3] = Math.max(bounds[3], c.top + y + 1);
+            }
+        }
+        return { canvas, bounds: bounds[2] ? bounds : [0, 0, 0, 0], clipped: c.clipped };
+    };
+}
+
+/** One native raster frame, shared by every magnified view. Bounds use exclusive max edges. */
+export type RasterFrame = {
+    canvas: HTMLCanvasElement;
+    bounds: [number, number, number, number];
+    clipped: boolean;
+    id?: number;
+};
+
+export function paintRasterFrame(frame: RasterFrame, canvas: HTMLCanvasElement, magnification: number) {
+    const context = canvas.getContext('2d');
+    if (!context) return false;
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.round(canvas.clientWidth * dpr), height = Math.round(canvas.clientHeight * dpr);
+    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, width, height);
+    context.imageSmoothingEnabled = false;
+    const x = Math.floor((width - frame.canvas.width * magnification) / 2);
+    const y = Math.floor((height - frame.canvas.height * magnification) / 2);
+    const [left, top, right, bottom] = frame.bounds;
+    if (right > left && bottom > top) {
+        // Copy only occupied pixels, preserving their placement in the native frame.
+        context.drawImage(frame.canvas, left, top, right - left, bottom - top,
+            x + left * magnification, y + top * magnification,
+            (right - left) * magnification, (bottom - top) * magnification);
+    }
+    const clipped = frame.clipped || (right > left && bottom > top && (x + left * magnification < 0 || y + top * magnification < 0 || x + right * magnification > width || y + bottom * magnification > height));
+    canvas.dataset.clipped = String(clipped);
+    canvas.dataset.sourceClipped = String(frame.clipped);
+    canvas.dataset.magnification = String(magnification);
+    canvas.dataset.frame = String(frame.id ?? 0);
+    return clipped;
+}
+
+export function createPreviewRenderer(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
+    context.imageSmoothingEnabled = false;
+    const native = document.createElement('canvas'), nativeContext = native.getContext('2d');
+    if (!nativeContext) throw Error('Canvas rendering is unavailable.');
+    const rasterize = createRasterRenderer(native, nativeContext);
+    let frameId = 0;
+    return (g: Geometry, s: Settings, mode: PreviewMode, scale: number, magnification = 1) => {
+        const dpr = window.devicePixelRatio || 1;
+        const unit = scale * dpr / magnification;
+        // Retain the complete native shape when a fitted view is smaller than it.
+        // Cap scratch dimensions so extreme imported settings cannot allocate unbounded buffers.
+        const sourceSize = (size: number, min: number, max: number) => {
+            const viewport = Math.round(size * dpr);
+            const needed = Math.ceil(2 * Math.max(Math.abs(min), Math.abs(max)) * unit + 8);
+            const expanded = Math.min(4096, Math.max(viewport, needed));
+            return expanded + ((expanded - viewport) % 2 + 2) % 2;
+        };
+        const frame = rasterize(g, s, mode, unit,
+            sourceSize(canvas.clientWidth, g.bounds[0], g.bounds[2]),
+            sourceSize(canvas.clientHeight, g.bounds[1], g.bounds[3]));
+        frame.id = ++frameId;
+        const clipped = paintRasterFrame(frame, canvas, magnification);
+        return { clipped, sourceClipped: frame.clipped, scale, frame };
     };
 }

@@ -12,7 +12,7 @@ for (const dpr of [1,1.25,1.5,2]) test(`rectangular raster coverage at DPR ${dpr
             for (const zoom of [1,2,4,8]) {
                 await page.getByRole('button',{name:`${zoom}x preview zoom`}).click();
                 await expect.poll(async()=>Number(await page.locator('.map-preview > canvas').getAttribute('data-scale'))).toBe(zoom);
-                const pixels=await stats(page),side=Math.max(1,Math.round(thickness*zoom*dpr));
+                const pixels=await stats(page),side=Math.max(1,Math.round(thickness*dpr))*zoom;
                 expect(pixels.count).toBe(side*side);expect(pixels.max).toBe(255);
             }
         }

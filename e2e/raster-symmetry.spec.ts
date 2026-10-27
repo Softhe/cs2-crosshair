@@ -2,7 +2,7 @@ import {openPreviewOptions} from './preview-options-helper';
 import { test, expect } from '@playwright/test';
 import { defaults } from '../src/model';
 
-for (const dpr of [1, 1.25, 2]) test(`rectangular crosshairs keep mirrored pixels at DPR ${dpr}`, async ({ browser }) => {
+for (const dpr of [1, 1.25, 2]) for (const thickness of [1, 2, 3]) test(`rectangular crosshairs keep mirrored pixels at DPR ${dpr}, thickness ${thickness}`, async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: dpr });
   const page = await context.newPage();
   await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
@@ -11,7 +11,7 @@ for (const dpr of [1, 1.25, 2]) test(`rectangular crosshairs keep mirrored pixel
     await openPreviewOptions(page);await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
     await page.getByLabel('Preview scale', { exact: true }).selectOption('1440');
     await page.getByRole('button', {name:'Close dialog'}).click();
-    for (const thickness of [1, 2, 3]) for (const gap of [-9, 0, 5]) for (const zoom of [1, 4]) {
+    for (const gap of [-9, 0, 5]) for (const zoom of [1, 4]) {
       await page.getByLabel('Thickness', { exact: true }).fill(String(thickness));
       await page.getByLabel('Thickness', { exact: true }).press('Enter');
       await page.getByLabel('Gap', { exact: true }).fill(String(gap));
