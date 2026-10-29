@@ -820,7 +820,7 @@ function App() {
           <p className="privacy-note">
                 <span className="live-dot" />
                 {sync.user
-                  ? "Drafts and preferences stay on this device. Saved crosshairs sync to your Steam account."
+                  ? "Drafts and other preferences stay on this device. Saved crosshairs and your in-game size setting sync to your Steam account."
                   : "Drafts and preferences stay on this device. Sign in with Steam to sync saved crosshairs."}
               </p>
           <div className="footer-meta">
