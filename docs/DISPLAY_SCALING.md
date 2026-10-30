@@ -19,6 +19,12 @@ The explicit 1080p, 1440p, and 2160p choices model target-framebuffer pixel size
 
 [Valve's September 23, 2026 notes](https://www.counter-strike.net/newsentry/674006995886408819) confirm that thickness and length use pixels and that the system rescales pixel counts when display resolution changes. Those notes do not provide a complete rasterization specification. The renderer's geometry, gap overlap, outlines, curves, and motion remain approximate until compared against matched game captures. Background textures are game menu assets, not a calibrated gameplay field of view.
 
+## Match my in-game size
+
+Off by default, under Preview options. It models how CS2 actually reaches the monitor: the crosshair is rasterized at the selected CS2 resolution (`height / reference height` game pixels per unit), then each game pixel is enlarged to `monitor width / game width` × `monitor height / game height` screen pixels when **Stretched to fill the monitor** is on, or by the smaller of the two (black bars) when it is off. For 1280 × 960 stretched to a 2560 × 1440 monitor, that is 2 × 1.5, so the crosshair is twice as wide and 1.5× as tall as a 960p crosshair drawn 1:1. Whole-number factors stay crisp. Fractional factors are filtered the way GPU and monitor scalers filter them. The size is the same inline and in fullscreen, and the zoom buttons still magnify on top of it.
+
+The resolution list follows CS2's aspect-ratio groups (4:3, 5:4, 16:10, 16:9) and, as in the game, shows only modes no larger than the estimated monitor. Custom accepts any size. The first time it is enabled, the selection starts at the monitor's resolution. While on, it overrides the Game resolution choice in Inspect preview. The monitor size comes from the display estimate above. The preference is stored in the browser and on the Steam account when signed in ([Library sync](LIBRARY_SYNC.md)).
+
 ## Screenshot diagnosis
 
 The supplied 2560 × 1440 screenshot used CSS-pixel mode at 1×, Static Cross, thickness 2, length 8, gap -9, and full outline. Its green foreground occupied x=1089..1097 and y=475..483, centered at (1093, 479). That is the center of the old left-column map preview, rather than the screen center. The negative gap overlaps the arms, making this shape compact; making its game settings larger would change the exported crosshair.

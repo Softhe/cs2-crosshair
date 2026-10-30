@@ -20,7 +20,7 @@ Vercel supports TypeScript functions under `/api` and native Node request/respon
 
 For a generated preview URL, leave `PUBLIC_ORIGIN` unset so each deployment uses its own `VERCEL_URL`. For a deliberately chosen stable preview alias, configure its exact origin and always open that origin during authentication. The application never derives its callback origin from an incoming Host or forwarded-host header.
 
-Run `npm run db:migrate` against each Neon database before deploying a release that adds tables (for example `rate_limits`). Until then, rate limits fail open and expired-record cleanup logs an error.
+Run `npm run db:migrate` against each Neon database before deploying a release that adds tables (for example `rate_limits` or `preferences`). Until `preferences` exists, preference sync reports itself unavailable and the setting stays on the device. Until `rate_limits` exists, rate limits fail open and expired-record cleanup logs an error.
 
 Use a preview database or branch separated from future production data. The shared backend selects Neon when `DATABASE_URL` is configured. Local development can continue using SQLite. A Vercel deployment must not rely on a local SQLite file for durable sessions or favorites.
 
@@ -45,7 +45,7 @@ After preview deployment, verify the following on its actual origin:
 3. Steam sign-in redirects to Steam Community with the exact preview callback URL.
 4. A real sign-in creates a secure session and returns to the originating editor or Library view.
 5. A favorite saved in one signed-in browser appears in another signed-in browser for the same Steam account. A different account cannot access it.
-6. Guest favorites remain local until the user chooses to add them. Drafts, history, aliases, and display preferences stay local.
+6. Guest favorites remain local until the user chooses to add them. Drafts, history, aliases, and display preferences other than **Match my in-game size** stay local. That preference, set in one signed-in browser, appears in another after reload.
 7. Logout ends access to the private account library. Pending saves and retry remain truthful during network failure.
 
 Report real Steam sign-in and two-browser persistence separately from mocked browser tests. Keep the preview URL and verification evidence for review. Changing `delli.cc` or assigning production domains requires a separate reviewed release stage.

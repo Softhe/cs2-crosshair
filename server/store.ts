@@ -13,5 +13,8 @@ export interface Store{
   hit(bucket:string,expires:number):Promise<number>;
   latest(owner:string):Promise<Snapshot>;
   save(owner:string,revision:number,entries:unknown[]):Promise<Snapshot|null>;
+  /** Account preview preferences, or null before the first save. Last write wins. */
+  preferences(owner:string):Promise<unknown|null>;
+  savePreferences(owner:string,value:unknown,updated:number):Promise<void>;
   close():void;
 }

@@ -15,6 +15,9 @@ import { Preview } from "../Preview";
 import type { Settings } from "../model";
 import type { PreviewMode } from "../preview-geometry";
 import { paintRasterFrame, type RasterFrame, type RenderStatus } from "../preview-renderer";
+import type { GameView } from "../preferences";
+import type { PreferenceSyncStatus } from "../preference-sync";
+import { GameViewOptions } from "./GameViewOptions";
 const maps = [
   "dust2",
   "nuke",
@@ -40,6 +43,11 @@ export type MapPreviewProps = {
   zoom: number;
   setZoom: (value: number) => void;
   effectiveHeight: number;
+  stretch?: [number, number];
+  gameView: GameView;
+  setGameView: (value: GameView) => void;
+  gameViewSync: PreferenceSyncStatus;
+  display: { width: number; height: number };
   dynamic: boolean;
   previewMode: PreviewMode;
   setPreviewMode: (value: PreviewMode) => void;
@@ -65,6 +73,11 @@ export function MapPreview({
   zoom,
   setZoom,
   effectiveHeight,
+  stretch,
+  gameView,
+  setGameView,
+  gameViewSync,
+  display,
   dynamic,
   previewMode,
   setPreviewMode,
@@ -131,6 +144,22 @@ export function MapPreview({
       document.removeEventListener("keydown", dismissOnEscape);
     };
   }, [modal]);
+  // Fullscreen hides the toolbar, so the zoom choices are repeated over the map there.
+  const zoomButtons = (
+    <div className="zoom-buttons">
+      {[1, 2, 4, 8].map((n) => (
+        <button
+          key={n}
+          className={zoom === n ? "active" : ""}
+          onClick={() => setZoom(n)}
+          aria-label={`${n}x preview zoom`}
+          aria-pressed={zoom === n}
+        >
+          {n}×
+        </button>
+      ))}
+    </div>
+  );
   return (
     <section className="preview-section" aria-label="Crosshair preview">
       <div className="preview-toolbar">
@@ -149,20 +178,16 @@ export function MapPreview({
           <span className="live-dot" />
           LIVE PREVIEW
         </span>
-        <small className="preview-target">{effectiveHeight ? <>{effectiveHeight}p<span className="wide-label"> game target</span></> : "CSS-pixel view"}</small>
-        <div className="zoom-buttons">
-          {[1, 2, 4, 8].map((n) => (
-            <button
-              key={n}
-              className={zoom === n ? "active" : ""}
-              onClick={() => setZoom(n)}
-              aria-label={`${n}x preview zoom`}
-              aria-pressed={zoom === n}
-            >
-              {n}×
-            </button>
-          ))}
-        </div>
+        <small className="preview-target">{gameView.enabled ? <>{gameView.width}×{gameView.height}<span className="wide-label">{gameView.stretched ? " stretched" : " in game"}</span></> : effectiveHeight ? <>{effectiveHeight}p<span className="wide-label"> game target</span></> : "CSS-pixel view"}</small>
+        {zoomButtons}
+        <button
+          className="fullscreen-button"
+          aria-label="Fullscreen game-size preview"
+          title="Fullscreen"
+          onClick={() => void toggleFullscreen()}
+        >
+          <Maximize size={15} />
+        </button>
         <details
           ref={optionsRef}
           className="preview-options"
@@ -178,6 +203,7 @@ export function MapPreview({
             <span><span className="wide-label">Preview </span>options</span> <ChevronDown size={14} aria-hidden="true" />
           </summary>
           <div className="preview-options-panel">
+            <GameViewOptions view={gameView} setView={setGameView} monitor={display} syncStatus={gameViewSync} />
             <button
               className="preview-settings-button"
               aria-label="Inspect preview"
@@ -197,14 +223,6 @@ export function MapPreview({
               <option value="scope">Scope dot</option>
             </select>
             <button
-              className="fullscreen-button"
-              aria-label="Fullscreen game-size preview"
-              onClick={() => void toggleFullscreen()}
-            >
-              <Maximize size={15} />
-              <span>Fullscreen</span>
-            </button>
-            <button
               className="dynamic-button"
               aria-pressed={dynamic}
               onClick={() => setDynamic(!dynamic)}
@@ -217,7 +235,9 @@ export function MapPreview({
               <span>Estimated preview. Verify the final crosshair in CS2.</span>
               <span>
                 {zoom}x /{" "}
-                {effectiveHeight ? `${effectiveHeight}p target` : "CSS pixels"}
+                {gameView.enabled
+                  ? `${gameView.width} × ${gameView.height}${gameView.stretched ? " stretched" : ""}`
+                  : effectiveHeight ? `${effectiveHeight}p target` : "CSS pixels"}
                 {fit ? " / Fit enabled" : ""}
               </span>
             </div>
@@ -237,6 +257,7 @@ export function MapPreview({
           settings={s}
           zoom={zoom}
           targetHeight={effectiveHeight || undefined}
+          stretch={stretch}
           dynamic={dynamic}
           mode={previewMode}
           phase={phase}
@@ -260,14 +281,9 @@ export function MapPreview({
         >
           <ChevronRight size={28} />
         </button>
-        <div className="detail-preview">
-          <span>{detailClipped ? "4× detail · cropped" : "4× detail"}</span>
-          <div>
-            <canvas ref={detailRef} className="crosshair-canvas" aria-hidden="true" />
-          </div>
-        </div>
-        <div className="preview-actions">
-          {fullscreen && (
+        {fullscreen && (
+          <div className="fullscreen-controls">
+            {zoomButtons}
             <button
               className="exit-fullscreen"
               aria-label="Exit fullscreen preview"
@@ -276,7 +292,15 @@ export function MapPreview({
               <Minimize size={15} />
               Exit fullscreen
             </button>
-          )}
+          </div>
+        )}
+        <div className="detail-preview">
+          <span>{detailClipped ? "4× detail · cropped" : "4× detail"}</span>
+          <div>
+            <canvas ref={detailRef} className="crosshair-canvas" aria-hidden="true" />
+          </div>
+        </div>
+        <div className="preview-actions">
           <div>
             <button
               aria-label="Undo Changes"

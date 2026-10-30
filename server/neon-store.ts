@@ -6,6 +6,7 @@ export const schema=[
   'CREATE TABLE IF NOT EXISTS nonces (nonce TEXT PRIMARY KEY, expires BIGINT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS states (id TEXT PRIMARY KEY, expires BIGINT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS rate_limits (id TEXT PRIMARY KEY, hits INTEGER NOT NULL, expires BIGINT NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS preferences (owner TEXT PRIMARY KEY, value JSONB NOT NULL, updated BIGINT NOT NULL)',
   'CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires)',
   'CREATE INDEX IF NOT EXISTS states_expiry ON states(expires)',
   'CREATE INDEX IF NOT EXISTS nonces_expiry ON nonces(expires)',
@@ -37,6 +38,8 @@ export async function createNeonStore(databaseUrl:string,query?:Query):Promise<S
         :await run('UPDATE libraries SET revision=revision+1,entries=$3::jsonb WHERE owner=$1 AND revision=$2 RETURNING revision,entries',[owner,revision,JSON.stringify(entries)]);
       return row?snapshot(row):null;
     },
+    async preferences(owner){const [row]=await run('SELECT value FROM preferences WHERE owner=$1',[owner]);return row?row.value:null;},
+    async savePreferences(owner,value,updated){await run('INSERT INTO preferences(owner,value,updated) VALUES ($1,$2::jsonb,$3) ON CONFLICT(owner) DO UPDATE SET value=excluded.value,updated=excluded.updated',[owner,JSON.stringify(value),updated]);},
     close(){},
   };
 }
