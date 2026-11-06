@@ -323,7 +323,7 @@ const CustomCrosshair = () => {
 			</header>
 			{showGuide && <FirstRunGuide onDismiss={dismissGuide} />}
 
-			<Card data-testid="control-center" className="overflow-hidden border-white/10 bg-card/75 p-0 shadow-2xl shadow-black/25 backdrop-blur-xl">
+			<Card data-testid="control-center" className="overflow-clip border-white/10 bg-card/75 p-0 shadow-2xl shadow-black/25 backdrop-blur-xl">
 					<div className="flex flex-col gap-2 border-b border-white/10 bg-white/[0.03] px-3 py-3 sm:gap-4 sm:px-5 sm:py-4 md:px-6 lg:flex-row lg:items-center lg:justify-between">
 						<div><h2 className="text-base font-semibold text-foreground sm:text-lg">Studio workspace</h2><p className="hidden text-sm text-muted-foreground sm:block">Every editor tool, preview, and export action in one compact surface.</p></div>
 						<div className="flex items-end gap-2 sm:gap-3">
@@ -345,7 +345,7 @@ const CustomCrosshair = () => {
 						{desktopStudioLayout && !ultrawideStudioLayout ? <div className="p-4 md:p-5"><Suspense fallback={<div className="h-32 animate-pulse rounded-lg border border-white/10 bg-card/30" role="status" aria-label="Loading saved crosshairs" />}><CrosshairHistory key={historyKey} onSelectCrosshair={handleHistorySelect} /></Suspense></div> : null}
 						</div>
 
-						<div data-testid="editor-right-stack" className="divide-y divide-white/10 border-t border-white/10 xl:self-start xl:border-t-0">
+						<div data-testid="editor-right-stack" className="studio-sticky-stack divide-y divide-white/10 border-t border-white/10 xl:self-start xl:border-t-0">
 							<StudioPreviewPanel crosshair={crosshair} compact={narrowStudioLayout} />
 						<section data-testid="export-controls" className="space-y-4 p-5 md:p-6">
 							<div className="flex items-start justify-between gap-3"><div className="flex items-start gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-semibold text-primary">3</span><div><h3 className="text-base font-semibold text-foreground">Save & switch</h3><p className="text-sm text-muted-foreground">Download the CFG and keep an alias ready for your next match.</p></div></div><span className="shrink-0 rounded-full border border-success/25 bg-success/10 px-2 py-1 text-xs text-success">CS2 ready</span></div>
@@ -365,7 +365,7 @@ const CustomCrosshair = () => {
 			</Card>
 
 			{!desktopStudioLayout ? <Suspense fallback={<div className="h-32 animate-pulse rounded-lg border border-white/10 bg-card/30" role="status" aria-label="Loading saved crosshairs" />}><CrosshairHistory key={historyKey} onSelectCrosshair={handleHistorySelect} /></Suspense> : null}
-			{narrowStudioLayout && <MobileQuickActions onCopy={copyConsoleCommand} onDownload={handleDownload} />}
+			{narrowStudioLayout && <MobileQuickActions crosshair={crosshair} onCopy={copyConsoleCommand} onDownload={handleDownload} />}
 		</div>
 	);
 };

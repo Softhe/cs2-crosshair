@@ -4,6 +4,15 @@ import { Input } from '@/components/ui/input';
 import { CrosshairShape } from '@/components/CrosshairShape';
 import { parseShareCode } from '@/lib/crosshair-output';
 import type { Crosshair } from '@/lib/cs2-sharecode';
+import { getCrosshairPreviewMetrics } from '@/lib/crosshair-preview';
+
+// Largest inspection zoom whose outer edge (arms + outline) still fits inside
+// the thumbnail, so bigger presets are scaled down rather than clipped.
+const THUMBNAIL_HALF_EXTENT = 18;
+const getThumbnailZoom = (crosshair: Crosshair) => [4, 3, 2].find((zoom) => {
+	const { length, thickness, edgeGap, outlineThickness } = getCrosshairPreviewMetrics(crosshair, 1, zoom);
+	return Math.max(thickness / 2, edgeGap + length) + outlineThickness <= THUMBNAIL_HALF_EXTENT;
+}) ?? 1;
 
 export interface StudioPreset {
 	name: string;
@@ -33,6 +42,18 @@ export const ImportControls = ({ code, error, presets, onCodeChange, onPaste, on
 			<Button onClick={onLoad} className="h-12 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90">Load crosshair</Button>
 		</div>
 		{error && <div id="import-code-error" role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
-		<div className="flex flex-wrap items-center gap-2"><span className="mr-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Presets</span>{presets.map((preset) => <button key={preset.name} type="button" onClick={() => onPreset(preset.crosshair)} title={preset.description} className="flex min-h-11 items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.03] py-1.5 pl-1.5 pr-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"><span aria-hidden="true" className="relative h-7 w-12 shrink-0 overflow-hidden rounded-full border border-white/15 bg-[linear-gradient(135deg,#bca27d,#74614c_65%,#39322b)]"><CrosshairShape crosshair={preset.crosshair} zoom={2} /></span>{preset.name}</button>)}</div>
+		<div className="space-y-2">
+			<span className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">Presets</span>
+			<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+				{presets.map((preset) => (
+					<button key={preset.name} type="button" onClick={() => onPreset(preset.crosshair)} title={preset.description} className="group flex flex-col overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] text-left transition-colors hover:border-primary/50 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+						<span aria-hidden="true" className="relative block h-14 w-full overflow-hidden border-b border-white/10 bg-[linear-gradient(135deg,#bca27d,#74614c_65%,#39322b)] transition-[filter] group-hover:brightness-110">
+							<CrosshairShape crosshair={preset.crosshair} zoom={getThumbnailZoom(preset.crosshair)} />
+						</span>
+						<span className="px-2.5 py-2 text-xs font-medium text-foreground sm:text-sm">{preset.name}</span>
+					</button>
+				))}
+			</div>
+		</div>
 	</section>
 );

@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useId, useMemo } from 'react';
 import { getCrosshairPreviewColor, type Crosshair } from '@/lib/cs2-sharecode';
 import { clampCrosshair, getCrosshairPreviewMetrics } from '@/lib/crosshair-preview';
 
@@ -53,6 +53,10 @@ export const CrosshairShape = memo(function CrosshairShape({ crosshair, classNam
 	}, [crosshair, resolutionScale, zoom]);
 
 	const size = halfExtent * 2;
+	// The outline is opaque and must only show *around* the arms. Drawing it
+	// as full rects beneath the fill let it bleed through translucent arms and
+	// darken them, so the fill footprint is masked out of the outline layer.
+	const maskId = `crosshair-outline-mask-${useId().replace(/:/g, '')}`;
 
 	return (
 		<div className={`relative h-full w-full ${className}`}>
@@ -71,19 +75,30 @@ export const CrosshairShape = memo(function CrosshairShape({ crosshair, classNam
 				}}
 			>
 				<g transform={`translate(${halfExtent}, ${halfExtent})`}>
-					{outlineThickness > 0 &&
-						rects.map((rect, index) => (
-							<rect
-								key={`outline-${rect.part}-${index}`}
-								data-crosshair-part={`${rect.part}-outline`}
-								x={rect.x - outlineThickness}
-								y={rect.y - outlineThickness}
-								width={rect.width + outlineThickness * 2}
-								height={rect.height + outlineThickness * 2}
-								fill="#000"
-								fillOpacity={0.8}
-							/>
-						))}
+					{outlineThickness > 0 && (
+						<>
+							<mask id={maskId} maskUnits="userSpaceOnUse" x={-halfExtent} y={-halfExtent} width={size} height={size}>
+								<rect x={-halfExtent} y={-halfExtent} width={size} height={size} fill="#fff" />
+								{rects.map((rect, index) => (
+									<rect key={`mask-${index}`} x={rect.x} y={rect.y} width={rect.width} height={rect.height} fill="#000" />
+								))}
+							</mask>
+							<g mask={`url(#${maskId})`}>
+								{rects.map((rect, index) => (
+									<rect
+										key={`outline-${rect.part}-${index}`}
+										data-crosshair-part={`${rect.part}-outline`}
+										x={rect.x - outlineThickness}
+										y={rect.y - outlineThickness}
+										width={rect.width + outlineThickness * 2}
+										height={rect.height + outlineThickness * 2}
+										fill="#000"
+										fillOpacity={0.8}
+									/>
+								))}
+							</g>
+						</>
+					)}
 					{rects.map((rect, index) => (
 						<rect
 							key={`fill-${rect.part}-${index}`}

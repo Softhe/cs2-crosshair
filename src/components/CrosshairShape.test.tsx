@@ -35,6 +35,27 @@ describe('CrosshairShape rendering accuracy', () => {
 		expect(outline?.getAttribute('fill-opacity')).toBe('0.8');
 	});
 
+	it('masks the fill footprint out of the outline so translucent arms are not darkened', () => {
+		const [fixture] = CROSSHAIR_PREVIEW_FIXTURES.filter((item) => item.name === 'partial alpha');
+		const { container } = render(
+			<div style={{ width: 400, height: 300 }}>
+				<CrosshairShape crosshair={{ ...fixture.crosshair, outlineEnabled: true, outline: 1 }} />
+			</div>,
+		);
+		const outline = container.querySelector('[data-crosshair-part="arm-outline"]');
+		const maskRef = outline?.parentElement?.getAttribute('mask');
+		expect(maskRef).toMatch(/^url\(#.+\)$/);
+		const mask = container.querySelector(`mask#${maskRef!.slice(5, -1)}`);
+		const holes = [...(mask?.querySelectorAll('rect[fill="#000"]') ?? [])];
+		const fills = [...container.querySelectorAll('[data-crosshair-part="arm"]')];
+		expect(holes).toHaveLength(fills.length);
+		holes.forEach((hole, index) => {
+			for (const attribute of ['x', 'y', 'width', 'height']) {
+				expect(hole.getAttribute(attribute)).toBe(fills[index].getAttribute(attribute));
+			}
+		});
+	});
+
 	it('centers arms symmetrically around the canvas middle', () => {
 		const [fixture] = CROSSHAIR_PREVIEW_FIXTURES.filter((item) => item.name === 'compact negative gap');
 		const { container } = render(

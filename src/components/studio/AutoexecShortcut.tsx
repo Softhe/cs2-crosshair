@@ -1,4 +1,4 @@
-import { ClipboardCopy, TerminalSquare } from 'lucide-react';
+import { ChevronDown, ClipboardCopy, TerminalSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -19,9 +19,10 @@ export const AutoexecShortcut = ({ aliasName, onAliasNameChange, fileName, alias
 				<label htmlFor="aliasName" className="text-sm font-medium text-foreground">Alias name <span aria-hidden="true" className="font-normal text-muted-foreground">(optional)</span></label>
 				<Input id="aliasName" value={aliasName} onChange={(event) => onAliasNameChange(event.target.value)} placeholder="team green" spellCheck={false} autoCapitalize="none" autoCorrect="off" autoComplete="off" className="border-white/10 bg-background/70 font-mono" />
 			</div>
-			<details className="border-t border-white/10">
-				<summary className="cursor-pointer list-none px-4 py-3 text-xs text-muted-foreground">
+			<details className="group border-t border-white/10">
+				<summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
 					<span>Instructions</span>
+					<ChevronDown aria-hidden="true" className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
 				</summary>
 				<div className="space-y-3 border-t border-white/10 p-4">
 					<p className="text-xs text-muted-foreground">Download the CFG, then copy its alias into autoexec.cfg.</p>
