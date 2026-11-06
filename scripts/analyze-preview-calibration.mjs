@@ -20,7 +20,8 @@ const measure = async (path, scenario) => {
 		context.drawImage(image, 0, 0);
 		const { data, width, height } = context.getImageData(0, 0, image.width, image.height);
 		const points = [];
-		for (let y = 16; y < height - 16; y += 1) for (let x = 16; x < width - 16; x += 1) {
+		const margin = 16;
+		for (let y = margin; y < height - margin; y += 1) for (let x = margin; x < width - margin; x += 1) {
 			const offset = (y * width + x) * 4;
 			const [r, g, b] = [data[offset], data[offset + 1], data[offset + 2]];
 			const foreground = scenario === 'outlined'
@@ -30,17 +31,21 @@ const measure = async (path, scenario) => {
 					: g > 85 && b > 85 && g - r > 28 && b - r > 28;
 			if (foreground) points.push({ x, y });
 		}
-		if (!points.length) return { pixelCount: 0, width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
+		if (!points.length) return { pixelCount: 0, clipped: false, width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0 };
 		const xs = points.map(({ x }) => x), ys = points.map(({ y }) => y);
 		const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+		const centerX = Math.floor(width / 2), centerY = Math.floor(height / 2);
 		return {
 			pixelCount: points.length,
+			// Foreground touching the scan margin means the shape extends past
+			// the measured window, so its geometry is truncated and unreliable.
+			clipped: minX === margin || minY === margin || maxX === width - margin - 1 || maxY === height - margin - 1,
 			width: maxX - minX + 1,
 			height: maxY - minY + 1,
-			left: 48 - minX,
-			right: maxX - 47,
-			top: 48 - minY,
-			bottom: maxY - 47,
+			left: centerX - minX,
+			right: maxX - (centerX - 1),
+			top: centerY - minY,
+			bottom: maxY - (centerY - 1),
 		};
 	}, { src: `data:image/png;base64,${png.toString('base64')}`, scenario });
 };
@@ -55,7 +60,14 @@ for (const resolution of manifest.resolutions) {
 		const preview = await measure(browserPath, scenario.id);
 		const geometryKeys = ['width', 'height', 'left', 'right', 'top', 'bottom'];
 		const maxGeometryDelta = Math.max(...geometryKeys.map((key) => Math.abs(cs2[key] - preview[key])));
-		measurements.push({ scenario: scenario.id, resolution: resolution.id, cs2, browser: preview, maxGeometryDelta, pass: maxGeometryDelta <= 1 });
+		// An empty or truncated detection compares 0 to 0 (or edge to edge) and
+		// would otherwise pass vacuously; treat it as a failed measurement.
+		const problems = [];
+		for (const [source, result] of [['cs2', cs2], ['browser', preview]]) {
+			if (!result.pixelCount) problems.push(`${source}: no foreground pixels detected`);
+			if (result.clipped) problems.push(`${source}: crosshair reaches the scan margin`);
+		}
+		measurements.push({ scenario: scenario.id, resolution: resolution.id, cs2, browser: preview, maxGeometryDelta, problems, pass: !problems.length && maxGeometryDelta <= 1 });
 	}
 }
 
@@ -63,5 +75,8 @@ await browser.close();
 const complete = measurements.length === manifest.scenarios.length * manifest.resolutions.length;
 const calibrated = complete && measurements.every(({ pass }) => pass);
 await writeFile(resolve(artifactDir, 'measurements.json'), `${JSON.stringify({ calibrated, tolerance: 1, measurements }, null, 2)}\n`);
-console.log(`Calibration geometry: ${measurements.filter(({ pass }) => pass).length}/${measurements.length} pairs within 1px`);
+const expected = manifest.scenarios.length * manifest.resolutions.length;
+console.log(`Calibration geometry: ${measurements.filter(({ pass }) => pass).length}/${measurements.length} pairs within 1px (${expected} expected)`);
+for (const { scenario, resolution, problems } of measurements) for (const problem of problems) console.warn(`  ${scenario}-${resolution}: ${problem}`);
+if (!complete) console.warn(`  ${expected - measurements.length} pair(s) missing a cs2 or browser capture`);
 if (!calibrated) process.exitCode = 1;
