@@ -6,21 +6,29 @@ import {fileURLToPath} from 'node:url';
 const directory = new URL('../docs/evidence/crosshair-calibration/', import.meta.url);
 const load = async file => {
   const {data, info} = await sharp(fileURLToPath(new URL(file, directory))).removeAlpha().raw().toBuffer({resolveWithObject: true});
-  return (x, y) => Array.from(data.subarray((y * info.width + x) * 3, (y * info.width + x) * 3 + 3));
+  const pixel = (x, y) => Array.from(data.subarray((y * info.width + x) * 3, (y * info.width + x) * 3 + 3));
+  return Object.assign(pixel, {file, width: info.width, height: info.height});
 };
-const background = await load('live-background.png');
+// Every analysis below indexes fixed 96x96 crop coordinates. A capture of any other size reads past
+// its pixels, which yields NaN errors that compare false against every tolerance.
+const CROP = 96;
+const assertCrop = image => {
+  if (image.width !== CROP || image.height !== CROP) throw Error(`${image.file} is ${image.width}x${image.height}; expected a ${CROP}x${CROP} crop.`);
+  return image;
+};
+const background = assertCrop(await load('live-background.png'));
 const foreground = new Set(['47,44', '47,45', '44,47', '45,47', '47,47', '49,47', '50,47', '47,49', '47,50']);
 const occupied = (x, y) => foreground.has(`${x},${y}`);
 if (process.argv.includes('--assert-native')) {
-  const nativeBackground = await load('driver-off-background.png');
+  const nativeBackground = assertCrop(await load('driver-off-background.png'));
   let failed = false;
   for (const [file, color] of [
     ['driver-off-green.png', [0, 255, 168]],
     ['driver-off-muted.png', [40, 80, 120]],
   ]) {
-    const image = await load(file);
+    const image = assertCrop(await load(file));
     let maximumError = 0, squaredError = 0, differingChannels = 0;
-    for (let y = 0; y < 96; y++) for (let x = 0; x < 96; x++) {
+    for (let y = 0; y < CROP; y++) for (let x = 0; x < CROP; x++) {
       const predicted = occupied(x, y) ? color : nativeBackground(x, y), actual = image(x, y);
       for (let channel = 0; channel < 3; channel++) {
         const difference = Math.abs(actual[channel] - predicted[channel]);
@@ -29,8 +37,10 @@ if (process.argv.includes('--assert-native')) {
         if (difference) differingChannels++;
       }
     }
-    console.log(JSON.stringify({file, maximumError, differingChannels, rgbRmse: Math.sqrt(squaredError / (96 * 96 * 3)), passed: maximumError <= 1}));
-    if (maximumError > 1) failed = true;
+    // Compare in the passing direction so a NaN error can never count as a pass.
+    const passed = maximumError <= 1;
+    console.log(JSON.stringify({file, maximumError, differingChannels, rgbRmse: Math.sqrt(squaredError / (CROP * CROP * 3)), passed}));
+    if (!passed) failed = true;
   }
   process.exit(failed ? 1 : 0);
 }
@@ -43,7 +53,7 @@ const fixtures = [
 ];
 const sets = [];
 for (const [file, color] of fixtures) {
-  const image = await load(file), rows = [];
+  const image = assertCrop(await load(file)), rows = [];
   for (let y = 40; y <= 54; y++) for (let x = 40; x <= 54; x++) {
     const bg = background(x, y), actual = image(x, y), raw = occupied(x, y) ? color : bg;
     const features = [0, 0, 0];
