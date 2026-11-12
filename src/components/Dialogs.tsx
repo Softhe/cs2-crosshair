@@ -1,6 +1,6 @@
 import { ArrowUpRight, X } from "lucide-react";
 import type { Settings } from "../model";
-import { useDisplayEstimate } from "../display";
+import { AS_DESIGNED, useDisplayEstimate, previewGameHeights } from "../display";
 import type { RenderStatus } from "../preview-renderer";
 import type { PreviewMode } from "../preview-geometry";
 import { write } from "../storage";
@@ -96,13 +96,16 @@ export function Dialogs({
                 value={targetHeight}
                 onChange={(e) => setTargetHeight(Number(e.target.value))}
               >
+                <option value={AS_DESIGNED}>As designed ({s.cl_crosshair_screen_height}p)</option>
                 <option value="-1">Use monitor estimate</option>
                 <option value="-2">Custom game render height</option>
                 <option value="0">CSS pixels</option>
-                <option value="720">1280 × 720</option>
-                <option value="1080">1920 × 1080</option>
-                <option value="1440">2560 × 1440</option>
-                <option value="2160">3840 × 2160</option>
+                {['4:3', '5:4', '16:9'].map(group => (
+                  <optgroup key={group} label={`${group} game resolutions`}>
+                    {previewGameHeights.filter(entry => entry.group === group).map(entry =>
+                      <option key={entry.height} value={entry.height}>{entry.label}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </label>
             {matchingGame && (
@@ -144,7 +147,7 @@ export function Dialogs({
                 </span>
               </label>
             )}
-            <p className="display-note">Match the resolution selected in CS2, including when the game runs in a window. The browser cannot detect the game resolution. Preview changes leave crosshair codes and exports unchanged.</p>
+            <p className="display-note">As designed draws the crosshair at the resolution it was made for, where every unit is exactly one pixel. Pick another resolution to see how CS2 re-rounds it there. Game pixels are shown 1:1; to see the stretched size on your monitor, turn on Match my in-game size in Preview options. The browser cannot detect the game resolution. Preview changes leave crosshair codes and exports unchanged.</p>
             <label className="checkbox-row">
               <input
                 type="checkbox"

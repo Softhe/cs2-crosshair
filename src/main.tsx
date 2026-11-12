@@ -24,7 +24,7 @@ import {
 } from "./model";
 import { encode, decode, importCommands } from "./codec";
 import { convertLegacy } from "./converter";
-import { previewResolution, useDisplayEstimate } from "./display";
+import { PREVIEW_RESOLUTION_VERSION, previewResolution, previewTargetHeight, useDisplayEstimate } from "./display";
 import { downloadConfig } from "./config-export";
 import type { RenderStatus } from "./preview-renderer";
 import type { PreviewMode } from "./preview-geometry";
@@ -135,10 +135,10 @@ function App() {
   // Matching the game replaces the inspection resolution with the configured game render and its stretch.
   const effectiveHeight = gameViewPreference.enabled
     ? gameViewPreference.height
-    : targetHeight === -1 ? display.height : targetHeight === -2 ? displayHeight : targetHeight;
+    : previewTargetHeight(targetHeight, s.cl_crosshair_screen_height, display.height, displayHeight);
   const stretch = gameViewPreference.enabled ? gameViewStretch(gameViewPreference, display) : undefined;
   useEffect(() => {
-    write("preview-resolution", { targetHeight, customHeight: displayHeight });
+    write("preview-resolution", { targetHeight, customHeight: displayHeight, version: PREVIEW_RESOLUTION_VERSION });
   }, [targetHeight, displayHeight]);
   const [fit, setFit] = useState(false);
   const [phase, setPhase] = useState(0);

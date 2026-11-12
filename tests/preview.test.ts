@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaults } from '../src/model';
 import { motionEligible, previewGeometry, renderingSettings } from '../src/preview-geometry';
-import { composite, createCoverage, fitScale } from '../src/preview-renderer';
+import { composite, createCoverage, fitScale, presentationScale } from '../src/preview-renderer';
 test('classic dynamic geometry preserves half-gap steps and symmetric negative gap values', () => {
     const arm = (gap: number) => previewGeometry(renderingSettings({ ...defaults, cl_crosshairstyle: 2, cl_crosshair_gap: gap }), 'crosshair').shapes[1];
     assert.equal((arm(-1) as {
@@ -72,4 +72,15 @@ test('a one-pixel dot stays one opaque pixel and translucent overlaps keep their
     assert.deepEqual([...dot.data.filter((_, i) => i % 4 === 3)].filter(Boolean), [255]);
     const cross = raster({ cl_crosshairstyle: 4, cl_crosshair_thickness: 2, cl_crosshair_gap: -4, cl_crosshair_drawoutline: 0, cl_crosshaircolor_a: 128 }, 1);
     assert.equal(Math.max(...cross.data.filter((_, i) => i % 4 === 3)), 128);
+});
+
+test('zoomed views keep stretched game pixels whole; 1x keeps the true filtered size', () => {
+  // 1280 × 960 stretched on a 1920 × 1080 monitor.
+  const stretch: [number, number] = [1.5, 1.125];
+  assert.deepEqual(presentationScale(1, stretch), [1.5, 1.125]);
+  assert.deepEqual(presentationScale(2, stretch), [3, 2]);
+  assert.deepEqual(presentationScale(4, stretch), [6, 5]);
+  assert.deepEqual(presentationScale(8, stretch), [12, 9]);
+  for (const zoom of [2, 4, 8]) for (const value of presentationScale(zoom, [2, 1.5])) assert.ok(Number.isInteger(value));
+  assert.deepEqual(presentationScale(4, [1, 1]), [4, 4]);
 });

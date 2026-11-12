@@ -27,6 +27,9 @@ for (const fixture of fixtures) test(`static cross matches captured game occupan
     }
     const page = await context.newPage();
     await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
+    // The captures are a 1080p game window, so pin that target instead of the as-designed default,
+    // which would rasterize the 810-reference fixture at 810p.
+    await page.addInitScript(() => localStorage.setItem('delli.v3.preview-resolution', JSON.stringify({ targetHeight: 1080, customHeight: 1080, version: 2 })));
     await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults,
       cl_crosshairstyle: 4, cl_crosshair_thickness: fixture.thickness,
       cl_crosshair_length: 2, cl_crosshair_gap: fixture.gap,

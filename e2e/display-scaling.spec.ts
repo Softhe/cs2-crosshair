@@ -36,7 +36,7 @@ for (const dpr of [1, 1.25, 1.5, 2]) test(`1080p game mapping on a 1440p display
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
     await page.getByRole('button', { name: '1x preview zoom' }).click();
     await openPreviewOptions(page);await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
-    await expect(page.getByLabel('Preview scale', { exact: true })).toHaveValue('1080');
+    await expect(page.getByLabel('Preview scale', { exact: true })).toHaveValue('-3');
     await page.getByLabel('Preview scale', { exact: true }).selectOption('-2');
     const displayHeight = page.getByLabel('Game render height in physical pixels');
     await displayHeight.fill('');
@@ -82,12 +82,12 @@ test('explicit game resolution survives reload and viewport changes without chan
   await openPreviewOptions(page);
   await page.getByRole('button', { name: 'Inspect preview', exact: true }).click();
   const select = page.getByLabel('Preview scale', { exact: true });
-  await expect(select).toHaveValue('1080');
+  await expect(select).toHaveValue('-3');
   await select.selectOption('-2');
   const height = page.getByLabel('Game render height in physical pixels');
   await height.fill('1200');
   await height.press('Enter');
-  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('delli.v3.preview-resolution')!))).toEqual({ targetHeight: -2, customHeight: 1200 });
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('delli.v3.preview-resolution')!))).toEqual({ targetHeight: -2, customHeight: 1200, version: 2 });
   await page.reload();
   await page.setViewportSize({ width: 1600, height: 1100 });
   await openPreviewOptions(page);
@@ -96,6 +96,35 @@ test('explicit game resolution survives reload and viewport changes without chan
   await expect(height).toHaveValue('1200');
   await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code', code!);
   await select.selectOption('-1');
-  await expect(page.getByText('Match the resolution selected in CS2', { exact: false })).toBeVisible();
+  await expect(page.getByText('As designed draws the crosshair at the resolution it was made for', { exact: false })).toBeVisible();
   await expect(height).toHaveCount(0);
+});
+
+test('preview starts as designed: one pixel per unit at the crosshair reference height', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 2560, height: 1300 }, screen: { width: 2560, height: 1440 }, deviceScaleFactor: 1 });
+  const page = await context.newPage();
+  await page.route('**/api/session', route => route.fulfill({ json: { user: null } }));
+  await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
+  try {
+    const settings = { ...defaults, cl_crosshairstyle: 4, cl_crosshair_thickness: 1, cl_crosshair_length: 4, cl_crosshair_gap: 2, cl_crosshairdot: 1, cl_crosshair_drawoutline: 0, cl_crosshair_screen_height: 960 };
+    await page.goto('/?settings=' + encodeURIComponent(JSON.stringify(settings)));
+    const canvas = page.locator('.map-preview > canvas');
+    // 960-reference code on a 1440 monitor: neither rescaled to the monitor nor to 1080p.
+    await expect.poll(() => canvas.getAttribute('data-scale')).toBe('1');
+    await expect.poll(() => canvas.getAttribute('data-stretch')).toBe('1,1');
+    await openPreviewOptions(page);
+    await page.getByRole('button', { name: 'Inspect preview', exact: true }).click();
+    const select = page.getByLabel('Preview scale', { exact: true });
+    await expect(select).toHaveValue('-3');
+    await expect(select.locator('option:checked')).toHaveText('As designed (960p)');
+    await expect(page.getByRole('radiogroup', { name: 'Game image scaling' })).toHaveCount(0);
+    // Another resolution re-rounds the same crosshair and stays unstretched.
+    await select.selectOption('1080');
+    await expect.poll(() => canvas.getAttribute('data-scale')).toBe('1.125');
+    await expect.poll(() => canvas.getAttribute('data-stretch')).toBe('1,1');
+    // A saved pre-version 1080p default migrates to as designed.
+    await page.evaluate(() => localStorage.setItem('delli.v3.preview-resolution', JSON.stringify({ targetHeight: 1080, customHeight: 1080 })));
+    await page.reload();
+    await expect.poll(() => canvas.getAttribute('data-scale')).toBe('1');
+  } finally { await context.close(); }
 });

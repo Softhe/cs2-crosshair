@@ -79,12 +79,26 @@ test('opaque outline preserves transparent foreground interiors', async ({ page 
     expect(result.alphas.filter(a => a === 128)).toHaveLength(16);
 });
 test('static backing canvas follows DPR without a settings edit', async ({ page, context }) => {
+    // Keep every resolution query the app registers, so the test can deliver the change event
+    // itself: the headless shell does not fire it, or repaint, for a DPR-only metrics override.
+    await page.addInitScript(() => {
+        const queries: MediaQueryList[] = [];
+        (window as unknown as { resolutionQueries: MediaQueryList[] }).resolutionQueries = queries;
+        const original = window.matchMedia.bind(window);
+        window.matchMedia = (query: string) => { const list = original(query); if (query.includes('resolution')) queries.push(list); return list; };
+    });
     await load(page, { cl_crosshairstyle: 6 });
     const before = await stats(page);
-    const cdp = await context.newCDPSession(page);
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 2, mobile: false });
-    await expect.poll(async () => { const s = await stats(page); return s.width === Math.round(s.cssWidth * 2) && s.dpr === 2; }).toBe(true);
     expect(before.dpr).toBe(1);
+    const cdp = await context.newCDPSession(page);
+    // Same size, new DPR: the canvas does not resize, so the repaint must come from the scaling change.
+    const { width, height } = page.viewportSize()!;
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile: false });
+    await expect.poll(() => page.evaluate(() => devicePixelRatio)).toBe(2);
+    // Snapshot first: each listener registers a fresh query for the new DPR.
+    await page.evaluate(() => { for (const list of [...(window as unknown as { resolutionQueries: MediaQueryList[] }).resolutionQueries]) list.dispatchEvent(new Event('change')); });
+    await expect.poll(async () => { const s = await stats(page); return s.width === Math.round(s.cssWidth * 2) && s.dpr === 2; }).toBe(true);
+    expect((await stats(page)).cssWidth).toBe(before.cssWidth);
 });
 test('inspection warns about clipping and fit includes peak geometry', async ({ page }) => {
     await load(page, {});
