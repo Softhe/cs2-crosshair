@@ -4,6 +4,7 @@ dist/
 research/
 test-results/
 playwright-report/
+*.tsbuildinfo
 
 data/
 .env

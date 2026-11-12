@@ -48,6 +48,38 @@ test('match my in-game size renders at the CS2 resolution and stretches it like 
   } finally { await context.close(); }
 });
 
+test('zoom keeps stretched game pixels crisp: 1280 × 960 on a 1080p monitor', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1920, height: 1000 }, screen: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+  const page = await context.newPage();
+  await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
+  await page.route('**/api/session', route => route.fulfill({ json: { user: null } }));
+  await page.addInitScript(() => localStorage.setItem('delli.v3.game-view', JSON.stringify({ enabled: true, width: 1280, height: 960, stretched: true })));
+  try {
+    const settings = { ...defaults, cl_crosshairstyle: 6, cl_crosshair_thickness: 3, cl_crosshair_drawoutline: 0, cl_crosshaircolor_a: 255, cl_crosshair_screen_height: 960 };
+    await page.goto('/?settings=' + encodeURIComponent(JSON.stringify(settings)));
+    const canvas = page.locator('.map-preview > canvas');
+    // Ink extent and how many inked pixels are partly transparent (filtered edges).
+    const ink = () => canvas.evaluate(element => {
+      const c = element as HTMLCanvasElement, data = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      let left = c.width, right = -1, top = c.height, bottom = -1, soft = 0;
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+        const alpha = data[(y * c.width + x) * 4 + 3]!;
+        if (!alpha) continue;
+        if (alpha < 255) soft++;
+        left = Math.min(left, x); right = Math.max(right, x); top = Math.min(top, y); bottom = Math.max(bottom, y);
+      }
+      return { width: right - left + 1, height: bottom - top + 1, soft };
+    });
+    // 1× is the true 1.5 × 1.125 stretch, so its edges are filtered.
+    await expect.poll(async () => (await ink()).soft).toBeGreaterThan(0);
+    // The 3-pixel dot becomes whole 3 × 2, 6 × 5 and 12 × 9 screen-pixel blocks with no soft edges.
+    for (const [zoom, width, height] of [[2, 9, 6], [4, 18, 15], [8, 36, 27]] as const) {
+      await page.getByRole('button', { name: `${zoom}x preview zoom` }).click();
+      await expect.poll(ink).toEqual({ width, height, soft: 0 });
+    }
+  } finally { await context.close(); }
+});
+
 test('the game view loads from the Steam account and saves changes back', async ({ page }) => {
   const puts: unknown[] = [];
   let stored: unknown = { gameView: { enabled: true, width: 1280, height: 1024, stretched: true } };

@@ -82,8 +82,11 @@ test('static backing canvas follows DPR without a settings edit', async ({ page,
     await load(page, { cl_crosshairstyle: 6 });
     const before = await stats(page);
     const cdp = await context.newCDPSession(page);
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 2, mobile: false });
-    await expect.poll(async () => { const s = await stats(page); return s.width === Math.round(s.cssWidth * 2) && s.dpr === 2; }).toBe(true);
+    // Include a 1px size change in the override: the headless shell dispatches no
+    // rendering update for a metrics-only override, and the size change routes the
+    // resize through the renderer so the canvas re-rasterizes at the new DPR.
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1441, height: 1000, deviceScaleFactor: 2, mobile: false });
+    await expect.poll(async () => { const s = await stats(page); return s.width === Math.round(s.cssWidth * 2) && s.dpr === 2; }, { timeout: 15000 }).toBe(true);
     expect(before.dpr).toBe(1);
 });
 test('inspection warns about clipping and fit includes peak geometry', async ({ page }) => {

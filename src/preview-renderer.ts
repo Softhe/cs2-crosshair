@@ -188,6 +188,17 @@ export type RasterFrame = {
     id?: number;
 };
 
+/**
+ * Screen pixels per native pixel on each axis. At 1× a fractional game stretch (960 → 1080 rows) stays
+ * fractional and is filtered, as GPU and monitor scalers do, so the size on screen is true. Zoomed views
+ * exist to inspect game pixels, so each axis rounds to whole screen pixels and stays crisp; otherwise
+ * 1280 × 960 on a 1080p monitor (1.5 × 1.125) would blur at 2× and 4× and sharpen only at 8×.
+ */
+export function presentationScale(magnification: number, stretch: [number, number]): [number, number] {
+    const mx = magnification * stretch[0], my = magnification * stretch[1];
+    return magnification > 1 ? [Math.max(1, Math.round(mx)), Math.max(1, Math.round(my))] : [mx, my];
+}
+
 export function paintRasterFrame(frame: RasterFrame, canvas: HTMLCanvasElement, magnification: number, stretch: [number, number] = [1, 1]) {
     const context = canvas.getContext('2d');
     if (!context) return false;
@@ -196,9 +207,7 @@ export function paintRasterFrame(frame: RasterFrame, canvas: HTMLCanvasElement, 
     if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, width, height);
-    const mx = magnification * stretch[0], my = magnification * stretch[1];
-    // Whole-pixel magnification stays crisp. A fractional game stretch (960 → 1440 rows) is filtered,
-    // as GPU and monitor scalers do, instead of unevenly repeating rows.
+    const [mx, my] = presentationScale(magnification, stretch);
     const smooth = Math.abs(mx - Math.round(mx)) > 1e-6 || Math.abs(my - Math.round(my)) > 1e-6;
     context.imageSmoothingEnabled = smooth;
     if (smooth) context.imageSmoothingQuality = 'low';

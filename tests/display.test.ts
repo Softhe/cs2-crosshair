@@ -1,16 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewResolution, previewScale, raiseToViewport, screenSize } from '../src/display';
+import { AS_DESIGNED, previewGameHeights, previewResolution, previewScale, previewTargetHeight, raiseToViewport, screenSize } from '../src/display';
 
-test('preview resolution defaults to explicit 1080p and preserves validated choices', () => {
+test('preview resolution defaults to as designed and preserves validated choices', () => {
   for (const value of [null, {}, { targetHeight: '1440' }, { targetHeight: 12 }, { targetHeight: 1080.5 }]) {
-    assert.equal(previewResolution(value).targetHeight, 1080);
+    assert.deepEqual(previewResolution(value), { targetHeight: AS_DESIGNED, customHeight: 1080 });
   }
   assert.deepEqual(previewResolution({ targetHeight: -2, customHeight: 1200 }), { targetHeight: -2, customHeight: 1200 });
   assert.deepEqual(previewResolution({ targetHeight: 1200 }), { targetHeight: -2, customHeight: 1200 });
   assert.deepEqual(previewResolution({ targetHeight: 1440, customHeight: 99999 }), { targetHeight: 1440, customHeight: 1440 });
   assert.equal(previewResolution({ targetHeight: -1 }).targetHeight, -1);
   assert.equal(previewResolution({ targetHeight: 0 }).targetHeight, 0);
+  assert.equal(previewResolution({ targetHeight: AS_DESIGNED, version: 2 }).targetHeight, AS_DESIGNED);
+  // Every listed resolution survives a round trip through storage.
+  for (const { height } of previewGameHeights) assert.equal(previewResolution({ targetHeight: height, version: 2 }).targetHeight, height);
+});
+
+test('the old saved 1080p default moves to as designed, a later 1080p choice stays', () => {
+  assert.equal(previewResolution({ targetHeight: 1080, customHeight: 1080 }).targetHeight, AS_DESIGNED);
+  assert.equal(previewResolution({ targetHeight: 1080, customHeight: 1080, version: 2 }).targetHeight, 1080);
+  assert.equal(previewResolution({ targetHeight: 1440, customHeight: 1080 }).targetHeight, 1440);
+});
+
+test('as designed rasterizes at the crosshair reference height, one pixel per unit', () => {
+  for (const reference of [768, 960, 1080, 1440]) {
+    const height = previewTargetHeight(AS_DESIGNED, reference, 1440, 1200);
+    assert.equal(height, reference);
+    assert.equal(previewScale(1, height, reference, 1), 1);
+  }
+  assert.equal(previewTargetHeight(-1, 960, 1440, 1200), 1440);
+  assert.equal(previewTargetHeight(-2, 960, 1440, 1200), 1200);
+  assert.equal(previewTargetHeight(0, 960, 1440, 1200), 0);
+  assert.equal(previewTargetHeight(1080, 960, 1440, 1200), 1080);
 });
 
 test('game-size mapping keeps physical size across display scaling and browser zoom', () => {

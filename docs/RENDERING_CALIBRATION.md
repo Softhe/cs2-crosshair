@@ -14,7 +14,7 @@ The integration retains the newer coverage/compositing implementation and import
 
 ## Implemented behavior
 
-- New preview preferences default to an explicit 1080p game target. Presets, custom render height and optional monitor estimate remain separate from encoded crosshair settings. The browser cannot detect CS2's render resolution.
+- New preview preferences default to **As designed**: the crosshair's own reference height, so one unit is one game pixel (previously an explicit 1080p target; a saved pre-version-2 1080p value migrates). Presets, custom render height and optional monitor estimate remain separate from encoded crosshair settings. The browser cannot detect CS2's render resolution.
 - Render at the selected native target before magnifying. Main zoom and the live 4x detail inset reuse the same raster frame. Integer magnification replicates pixels exactly, including alpha and outline coverage.
 - The detail inset reports cropping and does not silently shrink a view labeled 4x. Fit can reduce main presentation scale. Extreme source dimensions have a bounded allocation limit and explicitly report incomplete source coverage.
 - The measured nonnegative Static Cross path uses full gap units, independently rounded arm lengths and inner distances, and the captured odd/even center convention. Other styles and negative gaps retain their earlier approximate behavior.
