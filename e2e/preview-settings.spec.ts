@@ -1,25 +1,19 @@
 import {openPreviewOptions} from './preview-options-helper';
 import {test,expect} from '@playwright/test';
-test('preview settings start closed, retain values, and leave detail visible',async({page})=>{
+test('preview options are three plain controls and the detail inset stays visible',async({page})=>{
   await page.route('**/api/session',route=>route.fulfill({json:{user:null}}));
   await page.route('**/entrance.js*',route=>route.fulfill({contentType:'text/javascript',body:''}));
   await page.goto('/');if(await page.getByRole('button',{name:'Expand preview',exact:true}).isVisible())await page.getByRole('button',{name:'Expand preview',exact:true}).click();
-  const trigger=page.getByRole('button',{name:'Inspect preview',exact:true});
-  const dialog=page.getByRole('dialog',{name:'Inspect preview',exact:true});
-  await expect(dialog).toBeHidden();
-  await expect(page.locator('.detail-preview')).toBeVisible();
-  await expect(page.locator('.preview-inspection')).toHaveCount(0);
   await expect(page.locator('.map-preview > .detail-preview')).toBeVisible();
-  await expect(dialog.getByRole('button',{name:'Start Dynamic Preview'})).toHaveCount(0);
-  await openPreviewOptions(page);await trigger.click();
-  await expect(dialog).toBeVisible();
-  await page.getByLabel('Preview scale',{exact:true}).selectOption('1440');
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-  await expect(trigger).toBeFocused();
+  await openPreviewOptions(page);
+  const panel=page.locator('.preview-options-panel');
+  await expect(panel.getByLabel('Match my in-game size')).toBeVisible();
+  await expect(panel.getByLabel('Preview mode',{exact:true})).toBeVisible();
+  await expect(panel.getByRole('button',{name:'Start Dynamic Preview'})).toBeVisible();
+  // The inspection dialog and its resolution, fit, phase and split controls are gone.
+  await expect(panel.getByRole('button')).toHaveCount(1);
+  await expect(panel.getByRole('slider')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(panel.locator('.preview-caption')).toContainText('as designed');
   await expect(page.locator('.detail-preview')).toBeVisible();
-  await openPreviewOptions(page);await trigger.click();
-  await expect(page.getByLabel('Preview scale',{exact:true})).toHaveValue('1440');
-  await page.getByRole('button',{name:'Close dialog'}).click();
-  await expect(dialog).toBeHidden();
 });

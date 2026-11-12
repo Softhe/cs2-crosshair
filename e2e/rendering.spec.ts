@@ -1,4 +1,4 @@
-import {openPreviewOptions} from './preview-options-helper';
+import {openPreviewOptions,playAt} from './preview-options-helper';
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
@@ -11,8 +11,9 @@ for (const dpr of [1,1.25,1.5,2]) test(`rectangular raster coverage at DPR ${dpr
             await load(page,{cl_crosshairstyle:6,cl_crosshair_thickness:thickness,cl_crosshair_drawoutline:0});
             for (const zoom of [1,2,4,8]) {
                 await page.getByRole('button',{name:`${zoom}x preview zoom`}).click();
-                await expect.poll(async()=>Number(await page.locator('.map-preview > canvas').getAttribute('data-scale'))).toBe(zoom);
-                const pixels=await stats(page),side=Math.max(1,Math.round(thickness*dpr))*zoom;
+                await expect.poll(async()=>Number(await page.locator('.map-preview > canvas').getAttribute('data-scale'))).toBeCloseTo(zoom/dpr,9);
+                // One unit is one game pixel whatever the display scaling, and zoom repeats whole pixels.
+                const pixels=await stats(page),side=thickness*zoom;
                 expect(pixels.count).toBe(side*side);expect(pixels.max).toBe(255);
             }
         }
@@ -20,38 +21,37 @@ for (const dpr of [1,1.25,1.5,2]) test(`rectangular raster coverage at DPR ${dpr
 });
 test('starting motion begins at rest regardless of the document timestamp',async({page})=>{
     await page.addInitScript(()=>{const raf=requestAnimationFrame.bind(window);(window as any).__time=100000;window.requestAnimationFrame=callback=>raf(()=>callback((window as any).__time));});
-    await load(page,{});await openPreviewOptions(page);await page.getByRole('button',{name:'Start Dynamic Preview'}).click();
+    await load(page,{});
+    const rest=(await stats(page)).span;
+    await openPreviewOptions(page);await page.getByRole('button',{name:'Start Dynamic Preview'}).click();
     await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
-    await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped','false');
+    // Motion is fitted to its widest spread, so the first frame is at rest and no wider than before.
+    const first=(await stats(page)).span;
+    expect(first).toBeLessThanOrEqual(rest);
     await page.evaluate(()=>{(window as any).__time+=550*Math.PI;});
-    await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped','true');
-    await page.getByRole('button',{name:'Stop Dynamic Preview'}).click();
+    await expect.poll(async()=>(await stats(page)).span).toBeGreaterThan(first);
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped','false');
+    await page.getByRole('button',{name:'Stop Dynamic Preview'}).click();
+    await expect.poll(async()=>(await stats(page)).span).toBe(rest);
 });
-test('estimated resolution uses reference height without changing exports',async({page})=>{
+test('playing at another resolution scales by the reference height without changing exports',async({page})=>{
+    await playAt(page,2560,1440);
     for(const reference of [1080,2160]){
         await load(page,{cl_crosshairstyle:6,cl_crosshair_thickness:3,cl_crosshair_drawoutline:0,cl_crosshair_screen_height:reference});
         const code=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
-        await openPreviewOptions(page);await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
-        await page.getByLabel('Preview scale',{exact:true}).selectOption('1440');
-        await page.getByRole('button', {name:'Close dialog'}).click();
         await expect.poll(async()=>Number(await page.locator('.map-preview > canvas').getAttribute('data-scale'))).toBe(1440/reference);
         expect((await stats(page)).count).toBe(reference===1080?16:4);
         await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
-        await expect(page.getByText('Estimated target-resolution size; only Static Cross is calibrated against game captures.',{exact:true})).toBeHidden();
     }
 });
 async function load(page: import('@playwright/test').Page, settings: Record<string, number>) {
     await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, ...settings })));if(await page.getByRole('button',{name:'Expand preview',exact:true}).isVisible())await page.getByRole('button',{name:'Expand preview',exact:true}).click();
-    await openPreviewOptions(page);await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
-    await page.getByLabel('Preview scale', { exact: true }).selectOption('0');
-    await page.getByRole('button', {name:'Close dialog'}).click();
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-scale', /./);
 }
 async function stats(page: import('@playwright/test').Page) {
     return page.locator('.map-preview > canvas').evaluate(element => {
         const c = element as HTMLCanvasElement, data = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
-        let count = 0, max = 0;
+        let count = 0, max = 0, left = c.width, right = -1;
         const alphas: number[] = [];
         for (let i = 3; i < data.length; i += 4) {
             const alpha = data[i]!;
@@ -59,9 +59,11 @@ async function stats(page: import('@playwright/test').Page) {
                 count++;
                 max = Math.max(max, alpha);
                 alphas.push(alpha);
+                const x = (i >> 2) % c.width;
+                left = Math.min(left, x); right = Math.max(right, x);
             }
         }
-        return { count, max, alphas, width: c.width, height: c.height, dpr: devicePixelRatio, cssWidth: c.clientWidth };
+        return { count, max, alphas, span: right - left + 1, width: c.width, height: c.height, dpr: devicePixelRatio, cssWidth: c.clientWidth };
     });
 }
 test('opaque one-pixel dots are sharp and overlapping arms retain opacity', async ({ page }) => {
@@ -100,18 +102,19 @@ test('static backing canvas follows DPR without a settings edit', async ({ page,
     await expect.poll(async () => { const s = await stats(page); return s.width === Math.round(s.cssWidth * 2) && s.dpr === 2; }).toBe(true);
     expect((await stats(page)).cssWidth).toBe(before.cssWidth);
 });
-test('inspection warns about clipping and fit includes peak geometry', async ({ page }) => {
+test('a spread too wide for the preview is drawn smaller, never cut off', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await load(page, {});
-    await openPreviewOptions(page);await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
-    await page.getByLabel('Inspection phase', { exact: true }).fill('1');
-    await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped', 'true');
-    await expect(page.getByText('Crosshair exceeds preview bounds.', { exact: true })).toBeVisible();
     const code = await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
-    await page.getByLabel('Fit crosshair in preview').check();
+    await expect(page.locator('.fit-note')).toHaveCount(0);
+    // With reduced motion the dynamic preview holds the widest spread, which does not fit at 1×.
+    await openPreviewOptions(page);await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
+    await expect(page.locator('.fit-note')).toContainText('Too large for 1×');
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped', 'false');
+    await expect(page.locator('.clipping-warning')).toHaveCount(0);
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
 });
-test('static dynamic mode stops drawing and reduced motion supports manual phase', async ({ page }) => {
+test('static dynamic mode stops drawing and reduced motion holds the widest spread', async ({ page }) => {
     await load(page, { cl_crosshairstyle: 4 });
     await page.evaluate(() => { const original = CanvasRenderingContext2D.prototype.clearRect; (window as any).__clears = 0; CanvasRenderingContext2D.prototype.clearRect = function (this: CanvasRenderingContext2D, ...args: [number, number, number, number]) { if (this.canvas.closest('.map-preview'))
         (window as any).__clears++; return original.apply(this, args); }; });
@@ -137,11 +140,10 @@ test('static dynamic mode stops drawing and reduced motion supports manual phase
     expect(drawing, 'Static mode must settle, then draw no frames for 500 ms').toEqual({ settled: true, additionalDraws: 0 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await load(page, {});
+    const rest = (await stats(page)).span;
     await openPreviewOptions(page);await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
+    await expect.poll(async () => (await stats(page)).span).toBeGreaterThan(rest);
     await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped', 'false');
-    await openPreviewOptions(page);await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
-    await page.getByLabel('Inspection phase', { exact: true }).fill('1');
-    await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped', 'true');
 });
 test('canvas context failure provides an export-safe fallback', async ({ page }) => {
     await page.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: any[]) { if (args[0] === '2d')
@@ -149,15 +151,4 @@ test('canvas context failure provides an export-safe fallback', async ({ page })
     await page.goto('/');if(await page.getByRole('button',{name:'Expand preview',exact:true}).isVisible())await page.getByRole('button',{name:'Expand preview',exact:true}).click();
     await expect(page.getByText('Canvas rendering is unavailable. Settings can still be exported.').first()).toBeVisible();
     await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',/^CS/);
-});
-test('calibrated accuracy message applies only to the Static Cross crosshair', async ({ page }) => {
-    await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, cl_crosshairstyle: 4, cl_crosshair_gap: 2 })));
-    if (await page.getByRole('button', { name: 'Expand preview', exact: true }).isVisible()) await page.getByRole('button', { name: 'Expand preview', exact: true }).click();
-    for (const [mode, text] of [['crosshair', 'Static Cross pixels match measured CS2 captures at this target.'], ['scope', 'Estimated target-resolution size; only Static Cross is calibrated against game captures.']] as const) {
-        await openPreviewOptions(page);
-        await page.getByLabel('Preview mode', { exact: true }).selectOption(mode);
-        await page.getByRole('button', { name: 'Inspect preview', exact: true }).click();
-        await expect(page.getByText(text, { exact: true })).toBeVisible();
-        await page.getByRole('button', { name: 'Close dialog' }).click();
-    }
 });

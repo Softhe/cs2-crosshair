@@ -1,33 +1,9 @@
 import { ArrowUpRight, X } from "lucide-react";
-import type { Settings } from "../model";
-import { AS_DESIGNED, useDisplayEstimate, previewGameHeights } from "../display";
-import type { RenderStatus } from "../preview-renderer";
-import type { PreviewMode } from "../preview-geometry";
 import { write } from "../storage";
 import type { RefObject } from "react";
 export type DialogsProps = {
-  modal: "help" | "preview" | null;
-  setModal: (value: "help" | "preview" | null) => void;
-  dynamic: boolean;
-  setDynamic: (value: boolean) => void;
-  targetHeight: number;
-  setTargetHeight: (value: number) => void;
-  display: ReturnType<typeof useDisplayEstimate>;
-  displayHeight: number;
-  setDisplayHeight: (value: number) => void;
-  displayHeightDraft: string | null;
-  setDisplayHeightDraft: (value: string | null) => void;
-  fit: boolean;
-  setFit: (value: boolean) => void;
-  phase: number;
-  setPhase: (value: number) => void;
-  inspectSplit: boolean;
-  setInspectSplit: (value: boolean) => void;
-  previewStatus: RenderStatus;
-  effectiveHeight: number;
-  matchingGame: boolean;
-  previewMode: PreviewMode;
-  s: Settings;
+  modal: "help" | null;
+  setModal: (value: "help" | null) => void;
   rating: number;
   setRating: (value: number) => void;
   note: string;
@@ -38,25 +14,6 @@ export function Dialogs({
   dialogRef,
   modal,
   setModal,
-  setDynamic,
-  targetHeight,
-  setTargetHeight,
-  display,
-  displayHeight,
-  setDisplayHeight,
-  displayHeightDraft,
-  setDisplayHeightDraft,
-  fit,
-  setFit,
-  phase,
-  setPhase,
-  inspectSplit,
-  setInspectSplit,
-  previewStatus,
-  effectiveHeight,
-  matchingGame,
-  previewMode,
-  s,
   rating,
   setRating,
   note,
@@ -74,7 +31,7 @@ export function Dialogs({
     >
       <div className="modal-header">
         <h2 id="studio-dialog-title">
-          {modal === "preview" ? "Inspect preview" : "Using the studio"}
+          Using the studio
         </h2>
         <button
           className="icon-button"
@@ -85,132 +42,6 @@ export function Dialogs({
         </button>
       </div>
 
-      {modal === "preview" && (
-        <div className="modal-content preview-settings-dialog">
-          <div className="preview-controls">
-            <label>
-              Game resolution
-              <select
-                aria-label="Preview scale"
-                disabled={matchingGame}
-                value={targetHeight}
-                onChange={(e) => setTargetHeight(Number(e.target.value))}
-              >
-                <option value={AS_DESIGNED}>As designed ({s.cl_crosshair_screen_height}p)</option>
-                <option value="-1">Use monitor estimate</option>
-                <option value="-2">Custom game render height</option>
-                <option value="0">CSS pixels</option>
-                {['4:3', '5:4', '16:9'].map(group => (
-                  <optgroup key={group} label={`${group} game resolutions`}>
-                    {previewGameHeights.filter(entry => entry.group === group).map(entry =>
-                      <option key={entry.height} value={entry.height}>{entry.label}</option>)}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
-            {matchingGame && (
-              <p className="display-note">
-                Match my in-game size is on in Preview options, so the preview uses that resolution instead.
-              </p>
-            )}
-            {!matchingGame && targetHeight === -2 && (
-              <label>
-                Game render height
-                <span className="display-height-field">
-                  <input
-                    className="display-height"
-                    aria-label="Game render height in physical pixels"
-                    type="number"
-                    min="240"
-                    max="8640"
-                    step="1"
-                    value={
-                      displayHeightDraft ??
-                      String(displayHeight)
-                    }
-                    onChange={(e) => {
-                      setDisplayHeightDraft(e.target.value);
-                      const value = Number(e.target.value);
-                      if (
-                        Number.isInteger(value) &&
-                        value >= 240 &&
-                        value <= 8640
-                      )
-                        setDisplayHeight(value);
-                    }}
-                    onBlur={() => setDisplayHeightDraft(null)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                    }}
-                  />
-                  px
-                </span>
-              </label>
-            )}
-            <p className="display-note">As designed draws the crosshair at the resolution it was made for, where every unit is exactly one pixel. Pick another resolution to see how CS2 re-rounds it there. Game pixels are shown 1:1; to see the stretched size on your monitor, turn on Match my in-game size in Preview options. The browser cannot detect the game resolution. Preview changes leave crosshair codes and exports unchanged.</p>
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={fit}
-                onChange={(e) => setFit(e.target.checked)}
-              />
-              Fit crosshair in preview
-            </label>
-            <label>
-              Inspection phase
-              <input
-                type="range"
-                style={
-                  { "--range-fill": `${phase * 100}%` } as React.CSSProperties
-                }
-                aria-label="Inspection phase"
-                min="0"
-                max="1"
-                step="0.01"
-                value={phase}
-                onChange={(e) => {
-                  setDynamic(false);
-                  setPhase(Number(e.target.value));
-                }}
-              />
-            </label>
-            {s.cl_crosshairstyle === 2 && (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={inspectSplit}
-                  onChange={(e) => setInspectSplit(e.target.checked)}
-                />
-                Inspect split arms
-              </label>
-            )}
-            <span aria-live="polite">
-              {previewStatus.clipped
-                ? "Crosshair exceeds preview bounds. Enable fit to see the full shape."
-                : fit
-                  ? "Fit view may reduce magnification; exported settings are unchanged."
-                  : effectiveHeight
-                    ? previewMode === "crosshair" && s.cl_crosshairstyle === 4 && s.cl_crosshair_gap >= 0
-                      ? "Static Cross pixels match measured CS2 captures at this target."
-                      : "Estimated target-resolution size; only Static Cross is calibrated against game captures."
-                    : "Reference height is exported metadata in CSS-pixel mode."}
-            </span>
-            <details className="preview-details">
-              <summary>Preview details</summary>
-              <p className="display-note">
-                GPU sharpening and game post-processing can change crosshair colors and edges.
-                This preview shows the crosshair before those effects.
-              </p>
-              <p className="display-note">
-                Display estimate {display.width} × {display.height} · pixel
-                ratio {display.dpr.toFixed(2)}. Monitor estimates can differ from the game render resolution. Fullscreen centers the crosshair on the screen. At 1×,
-                image size does not shrink the crosshair; 2×–8× magnify it for
-                editing.
-              </p>
-            </details>
-          </div>
-        </div>
-      )}
       {modal === "help" && (
         <div className="modal-content help-content">
           <h3>From the studio to CS2</h3>
@@ -234,16 +65,19 @@ export function Dialogs({
           </p>
           <h3>Preview accuracy</h3>
           <p>
-            The preview uses real game backgrounds. CSS-pixel mode shows editor
-            magnification. Estimated resolution modes scale by target height
-            divided by exported reference height and convert physical pixels
-            through the display pixel ratio. Static Cross with a nonnegative
-            gap matches measured game captures; other styles are approximate.
-            GPU sharpening can change colors and edges. Dynamic motion, recoil, quadrant
-            geometry and scope rendering are browser approximations. The
-            animation exercises the configured spread limit; it does not model
-            weapon inaccuracy, spread or the game's 64-pixel baseline. Verify
-            the final crosshair in CS2.
+            The preview uses real game backgrounds and draws the crosshair
+            at the resolution it was made for, where every unit is one game
+            pixel. If you play at another resolution, turn on Match my in-game
+            size under Preview options to see how CS2 rounds and stretches it
+            on your monitor; the browser cannot detect your game resolution, so
+            you choose it. A crosshair too large for the preview is shown
+            smaller to fit. Static Cross with a nonnegative gap matches
+            measured game captures; other styles are approximate. GPU
+            sharpening and game post-processing can change colors and edges.
+            Dynamic motion, recoil, quadrant geometry and scope rendering are
+            browser approximations. The animation exercises the configured
+            spread limit; it does not model weapon inaccuracy, spread or the
+            game's 64-pixel baseline. Verify the final crosshair in CS2.
           </p>
           <h3>Give yourself a note</h3>
           <p>Feedback stays on this device.</p>

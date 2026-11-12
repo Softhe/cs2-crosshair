@@ -7,10 +7,10 @@ test('preview tools collapse while zoom remains visible at every viewport',async
   for(const n of [1,2,4,8])await expect(page.getByRole('button',{name:`${n}x preview zoom`,exact:true})).toBeVisible();
   await expect(page.locator('.preview-caption')).toBeHidden();
   await page.getByLabel('Preview options',{exact:true}).click();
-  await expect(page.getByRole('button',{name:'Inspect preview',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Inspect preview',exact:true})).toHaveCount(0);
   await expect(page.locator('.preview-options .preview-caption')).toBeVisible();
   const panel=await page.locator('.preview-options-panel').boundingBox();
-  const action=await page.getByRole('button',{name:'Inspect preview',exact:true}).boundingBox();
+  const action=await page.getByRole('button',{name:'Start Dynamic Preview',exact:true}).boundingBox();
   expect(action!.width).toBeGreaterThan(200);
   expect(action!.x).toBeGreaterThanOrEqual(panel!.x);
   expect(action!.x+action!.width).toBeLessThanOrEqual(panel!.x+panel!.width);

@@ -20,11 +20,11 @@ test('settings and preview remain usable together while editing',async({page},in
  expect(preview!.y+preview!.height).toBeLessThan(info.project.name==='mobile'?770:1000);
  const field=page.getByLabel('Crosshair code or config',{exact:true});
  const code=await field.getAttribute('data-current-code');
- await openPreviewOptions(page);await page.getByRole('button',{name:'Inspect preview',exact:true}).click();
- await expect(page.getByRole('dialog',{name:'Inspect preview',exact:true})).toBeVisible();
- await page.getByLabel('Preview scale',{exact:true}).selectOption('1440');
+ await openPreviewOptions(page);
+ await page.getByLabel('Match my in-game size').check();
+ await expect(page.getByLabel('CS2 resolution')).toBeVisible();
  await page.keyboard.press('Escape');
- await expect(page.getByRole('button',{name:'Inspect preview',exact:true})).toBeFocused();
+ await expect(page.getByLabel('Preview options',{exact:true})).toBeFocused();
  await expect(field).toHaveAttribute('data-current-code',code!);
 });
 

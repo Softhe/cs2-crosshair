@@ -24,7 +24,7 @@ import {
 } from "./model";
 import { encode, decode, importCommands } from "./codec";
 import { convertLegacy } from "./converter";
-import { PREVIEW_RESOLUTION_VERSION, previewResolution, previewTargetHeight, useDisplayEstimate } from "./display";
+import { useDisplayEstimate } from "./display";
 import { downloadConfig } from "./config-export";
 import type { RenderStatus } from "./preview-renderer";
 import type { PreviewMode } from "./preview-geometry";
@@ -118,37 +118,24 @@ function App() {
   const [dynamic, setDynamic] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("crosshair");
   const display = useDisplayEstimate();
-  const [savedResolution] = useState(() => previewResolution(read("preview-resolution", null)));
-  const [displayHeight, setDisplayHeight] = useState(savedResolution.customHeight);
-  const [displayHeightDraft, setDisplayHeightDraft] = useState<string | null>(
-    null,
-  );
   const [fullscreen, setFullscreen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const [targetHeight, setTargetHeight] = useState(savedResolution.targetHeight);
   // Until the visitor picks a resolution, start from their monitor's own instead of assuming one.
   const [gameViewPreference, setGameViewPreference] = useState(() =>
     gameView(read("game-view", null) ?? { width: display.width, height: display.height }));
   useEffect(() => {
     write("game-view", gameViewPreference);
   }, [gameViewPreference]);
-  // Matching the game replaces the inspection resolution with the configured game render and its stretch.
-  const effectiveHeight = gameViewPreference.enabled
-    ? gameViewPreference.height
-    : previewTargetHeight(targetHeight, s.cl_crosshair_screen_height, display.height, displayHeight);
+  // The crosshair is drawn at the resolution it was made for, where one unit is one game pixel.
+  // Matching the game replaces that with the configured game render and its stretch.
+  const effectiveHeight = gameViewPreference.enabled ? gameViewPreference.height : s.cl_crosshair_screen_height;
   const stretch = gameViewPreference.enabled ? gameViewStretch(gameViewPreference, display) : undefined;
-  useEffect(() => {
-    write("preview-resolution", { targetHeight, customHeight: displayHeight, version: PREVIEW_RESOLUTION_VERSION });
-  }, [targetHeight, displayHeight]);
-  const [fit, setFit] = useState(false);
-  const [phase, setPhase] = useState(0);
-  const [inspectSplit, setInspectSplit] = useState(false);
   const [previewStatus, setPreviewStatus] = useState<RenderStatus>({
     clipped: false,
     scale: 1,
   });
   const [previewExpanded, setPreviewExpanded] = useState(false);
-  const [modal, setModal] = useState<"help" | "preview" | null>(null);
+  const [modal, setModal] = useState<"help" | null>(null);
   const [toast, setToast] = useState(
     new URLSearchParams(location.search).get("steam") === "failed"
       ? "Steam sign-in was not completed. Try again using the Steam button in the header."
@@ -683,9 +670,6 @@ function App() {
               dynamic={dynamic}
               previewMode={previewMode}
               setPreviewMode={setPreviewMode}
-              phase={phase}
-              fit={fit}
-              inspectSplit={inspectSplit}
               fullscreen={fullscreen}
               modal={modal}
               previewStatus={previewStatus}
@@ -697,13 +681,7 @@ function App() {
               previewExpanded={previewExpanded}
               setPreviewExpanded={setPreviewExpanded}
               setDynamic={setDynamic}
-              setFit={setFit}
               canUndo={undoHistory.canUndo}
-              onInspect={(button) => {
-                modalTrigger.current = button;
-                setModal("preview");
-              }}
-              setModal={setModal}
             />
             <SettingsList
               s={s}
@@ -877,33 +855,13 @@ function App() {
         </div>
       )}
       <Dialogs
-        previewMode={previewMode}
         dialogRef={dialogRef}
         modal={modal}
         setModal={setModal}
-        setDynamic={setDynamic}
-        targetHeight={targetHeight}
-        setTargetHeight={setTargetHeight}
-        display={display}
-        displayHeight={displayHeight}
-        setDisplayHeight={setDisplayHeight}
-        displayHeightDraft={displayHeightDraft}
-        setDisplayHeightDraft={setDisplayHeightDraft}
-        fit={fit}
-        setFit={setFit}
-        phase={phase}
-        setPhase={setPhase}
-        inspectSplit={inspectSplit}
-        setInspectSplit={setInspectSplit}
-        previewStatus={previewStatus}
-        effectiveHeight={effectiveHeight}
-        matchingGame={gameViewPreference.enabled}
-        s={s}
         rating={rating}
         setRating={setRating}
         note={note}
         setNote={setNote}
-        dynamic={dynamic}
       />
       <input
         ref={backupInput}

@@ -39,7 +39,7 @@ export type RenderingSettings = Record<typeof renderingKeys[number], number>;
 export function renderingSettings(s: Settings): RenderingSettings { return Object.fromEntries(renderingKeys.map(key => [key, s[key]])) as RenderingSettings; }
 export const motionEligible = (s: Settings, mode: PreviewMode) => mode === 'crosshair' && (!!s.cl_crosshair_recoil || [2,5].includes(s.cl_crosshairstyle) || ([0,1,7].includes(s.cl_crosshairstyle) && s.cl_crosshair_dynamic_spread_limit>0));
 // CSS-pixel editor geometry. Game-resolution calibration remains separate.
-export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase = 0, elapsed = 0, inspectSplit = false): Geometry {
+export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase = 0, elapsed = 0): Geometry {
     const shapes: Shape[] = [], style = s.cl_crosshairstyle, t = s.cl_crosshair_thickness, half = t / 2;
     // Static Cross arm spacing is measured in full native units. Other styles
     // retain their approximate mapping until their game captures are calibrated.
@@ -54,7 +54,7 @@ export function previewGeometry(s: RenderingSettings, mode: PreviewMode, phase =
         shapes.push({ kind: 'disc', radius: s.cl_ironsight_dot_scale * 1.5, alpha: 1 });
     else {
         if ([0, 2, 4, 5, 7].includes(style)) {
-            const split = style === 2 && (inspectSplit || spread > s.cl_crosshair_dynamic_splitdist);
+            const split = style === 2 && spread > s.cl_crosshair_dynamic_splitdist;
             const inner = split ? Math.round(length * (1 - s.cl_crosshair_dynamic_maxdist_splitratio)) : length;
             const arms = (distance: number, size: number, alpha: number) => { rect(-distance - size, -half, size, t, alpha); rect(distance, -half, size, t, alpha); rect(-half, distance, t, size, alpha); if (!s.cl_crosshair_t)
                 rect(-half, -distance - size, t, size, alpha); };

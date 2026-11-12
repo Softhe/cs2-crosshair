@@ -10,7 +10,7 @@ The single editable field distinguishes the applied crosshair from an unapplied 
 
 The title and appearance picker were removed to give the editor more space. A visually hidden page heading preserves screen-reader navigation. The interface uses one blue palette. Large desktops prioritize the live preview beside the settings columns; narrower desktops retain a preview beside a single settings column. Phones use a compact sticky preview with an expanded mode. Preview scaling remains independent of panel dimensions, and game geometry is approximate.
 
-Shape, Color and outline, and Behavior and scope group the controls. Starting presets are beside the style selector. Resolution mapping, fit and other inspection settings are in Inspect preview. Dialogs return focus to their originating button in Chromium, Firefox and WebKit.
+Shape, Color and outline, and Behavior and scope group the controls. Starting presets are beside the style selector. Preview options holds three controls: Match my in-game size, Crosshair or Scope dot, and the dynamic preview. Dialogs return focus to their originating button in Chromium, Firefox and WebKit.
 
 ## Steam account access
 
