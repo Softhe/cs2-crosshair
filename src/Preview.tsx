@@ -12,15 +12,13 @@ type Props = {
     stretch?: [number, number];
     dynamic?: boolean;
     mode?: PreviewMode;
-    phase?: number;
     fit?: boolean;
-    inspectSplit?: boolean;
     decorative?: boolean;
     paused?: boolean;
     onStatus?: (status: RenderStatus) => void;
     onFrame?: (frame: RasterFrame) => void;
 };
-export function Preview({ settings, zoom = 1, targetHeight, stretch = unstretched, dynamic = false, mode = 'crosshair', phase = 0, fit = false, inspectSplit = false, decorative = false, paused = false, onStatus, onFrame }: Props) {
+export function Preview({ settings, zoom = 1, targetHeight, stretch = unstretched, dynamic = false, mode = 'crosshair', fit = false, decorative = false, paused = false, onStatus, onFrame }: Props) {
     const ref = useRef<HTMLCanvasElement>(null), description = useId(), [unavailable, setUnavailable] = useState(false);
     const settingsKey = JSON.stringify([...renderingKeys.map(key => settings[key]),targetHeight?settings.cl_crosshair_screen_height:null]);
     // Extracted visual settings, cached on settingsKey so the rAF loop reuses one
@@ -30,8 +28,8 @@ export function Preview({ settings, zoom = 1, targetHeight, stretch = unstretche
         visual.current = renderingSettings(settings);
         visualKey.current = settingsKey;
     }
-    const latest = useRef({ settings, visual: visual.current, zoom, targetHeight, stretch, dynamic, mode, phase, fit, inspectSplit, paused, onStatus, onFrame });
-    latest.current = { settings, visual: visual.current, zoom, targetHeight, stretch, dynamic, mode, phase, fit, inspectSplit, paused, onStatus, onFrame };
+    const latest = useRef({ settings, visual: visual.current, zoom, targetHeight, stretch, dynamic, mode, fit, paused, onStatus, onFrame });
+    latest.current = { settings, visual: visual.current, zoom, targetHeight, stretch, dynamic, mode, fit, paused, onStatus, onFrame };
     const invalidate = useRef<() => void>(() => { });
     useEffect(() => {
         const canvas = ref.current;
@@ -59,15 +57,14 @@ export function Preview({ settings, zoom = 1, targetHeight, stretch = unstretche
         // feeds fit scaling and is untouched by per-tick animation; the still entry
         // serves every non-animating draw. Animating draws bypass the still cache
         // because phase/elapsed change every tick.
-        const peakCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, split: false, geometry: null as Geometry | null };
-        const stillCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, split: false, geometry: null as Geometry | null };
-        const cachedGeometry = (cache: typeof peakCache, v: RenderingSettings, m: PreviewMode, p: number, split: boolean) => {
-            if (cache.geometry === null || cache.visual !== v || cache.mode !== m || cache.phase !== p || cache.split !== split) {
+        const peakCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, geometry: null as Geometry | null };
+        const stillCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, geometry: null as Geometry | null };
+        const cachedGeometry = (cache: typeof peakCache, v: RenderingSettings, m: PreviewMode, p: number) => {
+            if (cache.geometry === null || cache.visual !== v || cache.mode !== m || cache.phase !== p) {
                 cache.visual = v;
                 cache.mode = m;
                 cache.phase = p;
-                cache.split = split;
-                cache.geometry = previewGeometry(v, m, p, 0, split);
+                cache.geometry = previewGeometry(v, m, p, 0);
             }
             return cache.geometry;
         };
@@ -85,9 +82,11 @@ export function Preview({ settings, zoom = 1, targetHeight, stretch = unstretche
             }
             if (animate && start === null)
                 start = time;
-            const elapsed = animate ? time - start! : 0, phaseNow = animate ? (1 - Math.cos(elapsed / 550)) / 2 : p.phase;
-            const geometry = animate ? previewGeometry(p.visual, p.mode, phaseNow, elapsed, p.inspectSplit) : cachedGeometry(stillCache, p.visual, p.mode, phaseNow, p.inspectSplit);
-            let peak = cachedGeometry(peakCache, p.visual, p.mode, p.dynamic ? 1 : p.phase, p.inspectSplit);
+            // Without motion the crosshair rests; a reduced-motion visitor who starts the dynamic
+            // preview gets the widest spread as a still image instead.
+            const elapsed = animate ? time - start! : 0, phaseNow = animate ? (1 - Math.cos(elapsed / 550)) / 2 : p.dynamic && reduced.matches ? 1 : 0;
+            const geometry = animate ? previewGeometry(p.visual, p.mode, phaseNow, elapsed) : cachedGeometry(stillCache, p.visual, p.mode, phaseNow);
+            let peak = cachedGeometry(peakCache, p.visual, p.mode, p.dynamic ? 1 : 0);
             if (p.dynamic && p.mode === 'crosshair' && p.settings.cl_crosshair_recoil) {
                 // Recoil sweeps the crosshair up to 3 CSS px sideways and 7 up. Widen a
                 // copy of the cached peak bounds (never the cached object itself) so
@@ -138,8 +137,8 @@ export function Preview({ settings, zoom = 1, targetHeight, stretch = unstretche
         observeResolution();
         return () => { cancelAnimationFrame(frame); resize.disconnect(); intersection.disconnect(); resolution.removeEventListener('change', observeResolution); reduced.removeEventListener('change', schedule); document.removeEventListener('visibilitychange', schedule); invalidate.current = () => { }; };
     }, []);
-    useEffect(() => { invalidate.current(); }, [settingsKey, zoom, targetHeight, stretch[0], stretch[1], dynamic, mode, phase, fit, inspectSplit, paused]);
+    useEffect(() => { invalidate.current(); }, [settingsKey, zoom, targetHeight, stretch[0], stretch[1], dynamic, mode, fit, paused]);
     return <><canvas ref={ref} role={decorative ? undefined : 'img'} aria-hidden={decorative || undefined} aria-label={decorative ? undefined : mode === 'scope' ? 'Scope dot preview' : 'Live crosshair preview'} aria-describedby={decorative ? undefined : description} className="crosshair-canvas"/>
-    {!decorative && <span id={description} className="sr-only">{mode === 'scope' ? 'Scope dot' : styles.find(([id]) => id === settings.cl_crosshairstyle)?.[1]}. {zoom}x {targetHeight?`estimated ${targetHeight}p size`:'CSS-pixel magnification'}. {fit ? 'Fit view may reduce the scale. ' : ''}Game geometry is approximate. {dynamic ? 'Synthetic motion. Reduced-motion preference uses the inspection phase.' : ''}</span>}
+    {!decorative && <span id={description} className="sr-only">{mode === 'scope' ? 'Scope dot' : styles.find(([id]) => id === settings.cl_crosshairstyle)?.[1]}. {zoom}x {targetHeight?`estimated ${targetHeight}p size`:'magnification'}. {fit ? 'Shown smaller when it does not fit. ' : ''}Game geometry is approximate. {dynamic ? 'Synthetic motion. With reduced motion, the widest spread is shown still.' : ''}</span>}
     {unavailable && <span className="preview-unavailable" role="status">Canvas rendering is unavailable. Settings can still be exported.</span>}</>;
 }

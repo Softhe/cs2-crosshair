@@ -23,10 +23,11 @@ test('scope scale remains responsive below one third and has no recoil', () => {
     }).radius > .15);
     assert.deepEqual(small.offset, [0, 0]);
 });
-test('split inspection exercises settings outside the synthetic motion range', () => {
-    const s = { ...defaults, cl_crosshairstyle: 2, cl_crosshair_dynamic_splitdist: 127, cl_crosshair_dynamic_maxdist_splitratio: .5, cl_crosshair_dynamic_splitalpha_innermod: 1 };
-    assert.equal(previewGeometry(renderingSettings(s), 'crosshair', 1).shapes.length, 4);
-    assert.equal(previewGeometry(renderingSettings(s), 'crosshair', 1, 0, true).shapes.length, 8);
+test('split arms appear only once the spread passes the split distance', () => {
+    const s = { ...defaults, cl_crosshairstyle: 2, cl_crosshair_dynamic_maxdist_splitratio: .5, cl_crosshair_dynamic_splitalpha_innermod: 1 };
+    assert.equal(previewGeometry(renderingSettings({ ...s, cl_crosshair_dynamic_splitdist: 127 }), 'crosshair', 1).shapes.length, 4);
+    assert.equal(previewGeometry(renderingSettings({ ...s, cl_crosshair_dynamic_splitdist: 3 }), 'crosshair', 1).shapes.length, 8);
+    assert.equal(previewGeometry(renderingSettings({ ...s, cl_crosshair_dynamic_splitdist: 3 }), 'crosshair', 0).shapes.length, 4);
 });
 test('animation eligibility excludes unchanged modes and fit uses full bounds', () => {
     assert.equal(motionEligible({ ...defaults, cl_crosshairstyle: 4 }, 'crosshair'), false);

@@ -51,16 +51,12 @@ export type MapPreviewProps = {
   dynamic: boolean;
   previewMode: PreviewMode;
   setPreviewMode: (value: PreviewMode) => void;
-  phase: number;
-  fit: boolean;
-  inspectSplit: boolean;
   fullscreen: boolean;
-  modal: "help" | "preview" | null;
+  modal: "help" | null;
   previewStatus: RenderStatus;
   mapRef: RefObject<HTMLDivElement | null>;
   setPreviewStatus: (value: RenderStatus) => void;
   toggleFullscreen: () => void;
-  setModal: (value: "preview" | null) => void;
   goBack: () => void;
   reset: () => void;
   canUndo: boolean;
@@ -81,9 +77,6 @@ export function MapPreview({
   dynamic,
   previewMode,
   setPreviewMode,
-  phase,
-  fit,
-  inspectSplit,
   fullscreen,
   modal,
   previewStatus,
@@ -96,15 +89,13 @@ export function MapPreview({
   previewExpanded,
   setPreviewExpanded,
   setDynamic,
-  setFit,
-  onInspect,
 }: MapPreviewProps & {
   previewExpanded: boolean;
   setPreviewExpanded: (value: boolean) => void;
   setDynamic: (value: boolean) => void;
-  setFit: (value: boolean) => void;
-  onInspect: (button: HTMLButtonElement) => void;
 }) {
+  // A crosshair too large for the preview is drawn smaller; say so instead of leaving the zoom label wrong.
+  const shown = previewStatus.magnification ?? zoom, fitted = shown < zoom - 1e-6;
   const optionsRef = useRef<HTMLDetailsElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null), rasterRef = useRef<RasterFrame | null>(null);
   const [detailClipped, setDetailClipped] = useState(false);
@@ -178,7 +169,7 @@ export function MapPreview({
           <span className="live-dot" />
           LIVE PREVIEW
         </span>
-        <small className="preview-target">{gameView.enabled ? <>{gameView.width}×{gameView.height}<span className="wide-label">{gameView.stretched ? " stretched" : " in game"}</span></> : effectiveHeight ? <>{effectiveHeight}p<span className="wide-label"> game target</span></> : "CSS-pixel view"}</small>
+        <small className="preview-target">{gameView.enabled ? <>{gameView.width}×{gameView.height}<span className="wide-label">{gameView.stretched ? " stretched" : " in game"}</span></> : <>{effectiveHeight}p<span className="wide-label"> as designed</span></>}</small>
         {zoomButtons}
         <button
           className="fullscreen-button"
@@ -204,16 +195,6 @@ export function MapPreview({
           </summary>
           <div className="preview-options-panel">
             <GameViewOptions view={gameView} setView={setGameView} monitor={display} syncStatus={gameViewSync} />
-            <button
-              className="preview-settings-button"
-              aria-label="Inspect preview"
-              aria-haspopup="dialog"
-              onClick={(event) => {
-                onInspect(event.currentTarget);
-              }}
-            >
-              <span>Inspect<span className="wide-label"> preview</span></span>
-            </button>
             <select
               aria-label="Preview mode"
               value={previewMode}
@@ -237,8 +218,7 @@ export function MapPreview({
                 {zoom}x /{" "}
                 {gameView.enabled
                   ? `${gameView.width} × ${gameView.height}${gameView.stretched ? " stretched" : ""}`
-                  : effectiveHeight ? `${effectiveHeight}p target` : "CSS pixels"}
-                {fit ? " / Fit enabled" : ""}
+                  : `${effectiveHeight}p as designed`}
               </span>
             </div>
           </div>
@@ -260,9 +240,7 @@ export function MapPreview({
           stretch={stretch}
           dynamic={dynamic}
           mode={previewMode}
-          phase={phase}
-          fit={fit}
-          inspectSplit={inspectSplit}
+          fit
           paused={modal !== null}
           onStatus={setPreviewStatus}
           onFrame={paintDetail}
@@ -317,13 +295,14 @@ export function MapPreview({
           </div>
         </div>
       </div>
-      {previewStatus.clipped && (
+      {previewStatus.clipped ? (
         <div className="clipping-warning" role="status">
           <AlertTriangle size={16} />
-          <span>{previewStatus.sourceClipped
-            ? "This crosshair is too large to preview completely. Choose a lower game render height."
-            : "Crosshair exceeds preview bounds."}</span>
-          {!previewStatus.sourceClipped && <button onClick={() => setFit(true)}>Fit preview</button>}
+          <span>This crosshair is too large to preview completely.</span>
+        </div>
+      ) : fitted && (
+        <div className="fit-note" role="status">
+          Too large for {zoom}×, so it is shown at {Number(shown.toFixed(2))}× to fit.
         </div>
       )}
     </section>
