@@ -241,7 +241,9 @@ export function Dialogs({
             gap matches measured game captures; other styles are approximate.
             GPU sharpening can change colors and edges. Dynamic motion, recoil, quadrant
             geometry and scope rendering are browser approximations. The
-            animation exercises the configured spread limit; it does not model
+            animation travels a short fixed distance, or the configured spread
+            limit if that is smaller; the Inspection phase slider reaches the
+            full limit. It does not model
             weapon inaccuracy, spread or the game's 64-pixel baseline. Verify
             the final crosshair in CS2.
           </p>

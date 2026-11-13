@@ -22,11 +22,16 @@ test('starting motion begins at rest regardless of the document timestamp',async
     await page.addInitScript(()=>{const raf=requestAnimationFrame.bind(window);(window as any).__time=100000;window.requestAnimationFrame=callback=>raf(()=>callback((window as any).__time));});
     await load(page,{});await openPreviewOptions(page);await page.getByRole('button',{name:'Start Dynamic Preview'}).click();
     await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
-    await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped','false');
+    // Width of the drawn crosshair: small at rest, wider at the animation's capped peak, and never clipped.
+    const canvas=page.locator('.map-preview > canvas');
+    const extent=()=>canvas.evaluate(element=>{const c=element as HTMLCanvasElement,d=c.getContext('2d')!.getImageData(0,0,c.width,c.height).data;let left=c.width,right=-1;for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(d[(y*c.width+x)*4+3]){left=Math.min(left,x);right=Math.max(right,x);}return right-left+1;});
+    const rest=await extent();
+    await expect(canvas).toHaveAttribute('data-clipped','false');
     await page.evaluate(()=>{(window as any).__time+=550*Math.PI;});
-    await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped','true');
+    await expect.poll(extent).toBeGreaterThanOrEqual(rest+60);
+    await expect(canvas).toHaveAttribute('data-clipped','false');
     await page.getByRole('button',{name:'Stop Dynamic Preview'}).click();
-    await expect(page.locator('.map-preview > canvas')).toHaveAttribute('data-clipped','false');
+    await expect.poll(extent).toBe(rest);
 });
 test('estimated resolution uses reference height without changing exports',async({page})=>{
     for(const reference of [1080,2160]){

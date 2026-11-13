@@ -49,6 +49,8 @@ export const defaults: Settings = {
   cl_grenadecrosshair_smoke: 1, cl_grenadecrosshairdelay_smoke: 2,
   cl_grenadecrosshair_decoy: 1, cl_grenadecrosshairdelay_decoy: 2,
 };
+/** What a first visit and Reset start from. `defaults` stays the fallback for values a code or config omits. */
+export const studioStart: Settings = {...defaults, cl_crosshairstyle: 4};
 const toggle = (key: string, label: string): Field => ({key,label,options:yesNo});
 const slider = (key: string, label: string, min: number, max: number, step=1): Field => ({key,label,min,max,step});
 export function styleFields(s: Settings): Field[] {

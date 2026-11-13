@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaults } from '../src/model';
+import { ANIMATED_SPREAD_CAP } from '../src/preview-motion';
 import { motionEligible, previewGeometry, renderingSettings } from '../src/preview-geometry';
 import { composite, createCoverage, fitScale, presentationScale } from '../src/preview-renderer';
 test('classic dynamic geometry preserves half-gap steps and symmetric negative gap values', () => {
@@ -83,4 +84,13 @@ test('zoomed views keep stretched game pixels whole; 1x keeps the true filtered 
   assert.deepEqual(presentationScale(8, stretch), [12, 9]);
   for (const zoom of [2, 4, 8]) for (const value of presentationScale(zoom, [2, 1.5])) assert.ok(Number.isInteger(value));
   assert.deepEqual(presentationScale(4, [1, 1]), [4, 4]);
+});
+
+test('animated dynamic preview travels a capped distance while inspection reaches the full limit', () => {
+    const s = renderingSettings({ ...defaults, cl_crosshairstyle: 0, cl_crosshair_gap: 0, cl_crosshair_length: 8, cl_crosshair_dynamic_spread_limit: 255 });
+    const reach = (g: ReturnType<typeof previewGeometry>) => Math.max(...g.bounds.map(Math.abs));
+    assert.ok(reach(previewGeometry(s, 'crosshair', 1)) > 255);
+    assert.ok(reach(previewGeometry(s, 'crosshair', 1, 0, false, ANIMATED_SPREAD_CAP)) <= ANIMATED_SPREAD_CAP + 8 + 1);
+    const low = renderingSettings({ ...defaults, cl_crosshairstyle: 0, cl_crosshair_dynamic_spread_limit: 5 });
+    assert.deepEqual(previewGeometry(low, 'crosshair', 1, 0, false, ANIMATED_SPREAD_CAP), previewGeometry(low, 'crosshair', 1));
 });
