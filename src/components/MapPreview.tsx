@@ -295,7 +295,12 @@ export function MapPreview({
           </div>
         )}
         <div className="detail-preview">
-          <span>{detailClipped ? "4× detail · cropped" : "4× detail"}</span>
+          <span>
+            {detailClipped ? "4× detail · cropped" : "4× detail"}
+            <small className="detail-explainer">
+              {detailClipped ? "The crosshair is larger than this box. The map preview shows all of it." : "Each crosshair pixel drawn four times larger."}
+            </small>
+          </span>
           <div>
             <canvas ref={detailRef} className="crosshair-canvas" aria-hidden="true" />
           </div>

@@ -287,3 +287,14 @@
 .map-preview>.detail-preview{width:152px}.map-preview>.detail-preview>div{height:132px}
 @media(max-width:700px){.map-preview>.detail-preview{width:124px}.map-preview>.detail-preview>div{height:108px}.preview-actions{padding-left:140px}}
 .settings-section>.setting-hint{margin:8px 0 6px;font-size:12px;line-height:1.5}
+/* Phones, expanded: the 4x inset sits in a row under the map instead of covering it. Fullscreen keeps the overlay. */
+.detail-explainer{display:none}
+@media(max-width:700px){
+  .workspace.preview-expanded .map-preview:not(:fullscreen){overflow:visible;margin-bottom:110px}
+  .workspace.preview-expanded .map-preview:not(:fullscreen)>.detail-preview{top:100%;bottom:auto;left:-1px;right:-1px;width:auto;display:flex;align-items:stretch;box-shadow:none}
+  .workspace.preview-expanded .map-preview:not(:fullscreen)>.detail-preview>span{flex:1;width:auto;border-bottom:0;border-right:1px solid var(--line);padding:10px 12px;line-height:1.5}
+  .workspace.preview-expanded .map-preview:not(:fullscreen)>.detail-preview>div{width:124px;flex:none;height:108px}
+  .workspace.preview-expanded .map-preview:not(:fullscreen)>.detail-preview .detail-explainer{display:block;margin-top:6px;font-size:12px;letter-spacing:0;color:var(--muted)}
+  .workspace.preview-expanded .map-preview:not(:fullscreen)>.preview-actions{padding-left:9px}
+}
+@media(max-width:480px){.preview-options>summary>span{text-transform:capitalize}}
