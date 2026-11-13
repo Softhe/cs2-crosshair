@@ -129,6 +129,8 @@ This is a usability problem even if geometry is accurate. Users can interpret a 
 
 Improvement: calculate complete drawing bounds, including outline, dot, and recoil displacement. Show a clipping indication when the shape exceeds the viewport. Offer a separate fit view with a visible effective scale. Preserve the configured spread limit and explicit 1x behavior; do not silently cap settings or auto-scale a view labeled 1x. Add a controlled spread slider so users can inspect intermediate states.
 
+Update, November 2026: the running Dynamic Preview animation now travels at most 32 units (`ANIMATED_SPREAD_CAP`), or the configured limit when that is smaller, so the default 255 limit no longer clips. The Inspection phase slider still reaches the full configured limit, and exported settings are unchanged.
+
 Acceptance: maximum supported length, gap, thickness, spread, outline, recoil, and zoom on desktop and mobile. Verify clipping warnings and that fit scale does not change exported settings.
 
 ## R6. Motion starts at an arbitrary phase and redraws unchanged content

@@ -28,12 +28,12 @@ export function ExportCard(p: ExportCardProps) {
           Download .cfg
         </button>
       </div>
-      <p className="code-hint">
-        Links and config files include every setting. The code above carries crosshair and scope dot settings.
-      </p>
       <details className="export-advanced">
         <summary>Advanced export</summary>
         <div className="advanced-export-content">
+          <p className="code-hint">
+            Links and config files include every setting. The share code carries crosshair and scope dot settings.
+          </p>
           <label className="field-label" htmlFor="alias">
             ALIAS NAME<span>OPTIONAL</span>
           </label>

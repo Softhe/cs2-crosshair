@@ -28,27 +28,43 @@ test('intro crossfades into the editor before playback ends', async ({ page }) =
   await expect(page.locator('#root')).not.toHaveAttribute('inert');
 });
 
-for (const path of ['/', '/?intro=preview']) test(`shortened intro plays on every refresh: ${path}`, async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.addInitScript(() => sessionStorage.setItem('delli-entrance-seen', '1'));
+async function expectIntro(page: import('@playwright/test').Page) {
+  await expect(page.locator('#entrance')).toBeVisible();
+  await expect(page.locator('#entrance button')).toHaveCount(0);
+  await expect.poll(() => page.locator('#entrance video').evaluate(element => {
+    const video = element as HTMLVideoElement;
+    return video.videoWidth === 1920 && !video.paused && video.currentTime > 0;
+  })).toBe(true);
+  const playback = await page.locator('#entrance video').evaluate(element => {
+    const video = element as HTMLVideoElement;
+    return { rate: video.playbackRate, loop: video.loop, duration: video.duration };
+  });
+  expect(playback.rate).toBe(1.25);
+  expect(playback.loop).toBe(false);
+  expect(playback.duration).toBeCloseTo(2, 1);
+  await expect(page.locator('#entrance')).toBeHidden({ timeout: 10000 });
+  await expect(page.locator('#root')).not.toHaveAttribute('inert');
+}
+
+test('shortened intro plays on the first visit only, not on refresh or return', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expectIntro(page);
+  for (const revisit of ['reload', 'navigate']) {
+    if (revisit === 'reload') await page.reload({ waitUntil: 'domcontentloaded' });
+    else await page.goto('/?view=library', { waitUntil: 'domcontentloaded' });
+    await page.locator('.header').waitFor();
+    await expect(page.locator('#entrance')).toBeHidden();
+    await expect(page.locator('#root')).not.toHaveAttribute('inert');
+    expect(await page.locator('#entrance video').evaluate(element => (element as HTMLVideoElement).currentSrc)).toBe('');
+  }
+});
+
+test('intro can be replayed on demand with ?intro=preview', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('delli.v3.intro-seen', '1'));
   for (let visit = 0; visit < 2; visit++) {
     if (visit) await page.reload({ waitUntil: 'domcontentloaded' });
-    else await page.goto(path, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('#entrance')).toBeVisible();
-    await expect(page.locator('#entrance button')).toHaveCount(0);
-    await expect.poll(() => page.locator('#entrance video').evaluate(element => {
-      const video = element as HTMLVideoElement;
-      return video.videoWidth === 1920 && !video.paused && video.currentTime > 0;
-    })).toBe(true);
-    const playback = await page.locator('#entrance video').evaluate(element => {
-      const video = element as HTMLVideoElement;
-      return { rate: video.playbackRate, loop: video.loop, duration: video.duration };
-    });
-    expect(playback.rate).toBe(1.25);
-    expect(playback.loop).toBe(false);
-    expect(playback.duration).toBeCloseTo(2, 1);
-    await expect(page.locator('#entrance')).toBeHidden({ timeout: 10000 });
-    await expect(page.locator('#root')).not.toHaveAttribute('inert');
+    else await page.goto('/?intro=preview', { waitUntil: 'domcontentloaded' });
+    await expectIntro(page);
   }
 });
 

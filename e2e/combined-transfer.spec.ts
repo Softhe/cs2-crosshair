@@ -32,18 +32,18 @@ test('combined advanced actions and responsive layout remain usable',async({page
 });
 
 
-test('transfer helper text occupies separate rows',async({page})=>{
+test('transfer helper text appears only while an import is pending and clears the actions',async({page})=>{
  await page.goto('/');
  const panel=page.getByRole('region',{name:'Import, share and export',exact:true});
  for(const width of [320,390,820,1440,2560]){
   await page.setViewportSize({width,height:1392});
-  for(const draft of [false,true]){
-   const field=panel.getByLabel('Crosshair code or config',{exact:true});
-   if(draft)await field.fill('CSinvalid');
-   const hints=panel.locator(':scope > .code-hint');
-   const selection=await hints.nth(0).boundingBox(),exportHint=await hints.nth(1).boundingBox();
-   expect(selection!.y+selection!.height,`helper overlap at ${width}, draft=${draft}`).toBeLessThanOrEqual(exportHint!.y);
-   if(draft)await panel.getByRole('button',{name:'Discard import',exact:true}).click();
-  }
+  // Applied state stays compact: the selection hint is for assistive technology only and the export note sits in Advanced export.
+  await expect(panel.locator(':scope > .code-hint')).toHaveCount(0);
+  await expect(panel.locator('#code-selection-hint')).toHaveClass('sr-only');
+  await panel.getByLabel('Crosshair code or config',{exact:true}).fill('CSinvalid');
+  const hint=await panel.locator(':scope > .code-hint').boundingBox(),actions=await panel.locator(':scope > .split-actions').boundingBox();
+  const apart=hint!.y+hint!.height<=actions!.y||actions!.y+actions!.height<=hint!.y;
+  expect(apart,'helper overlaps the actions at '+width).toBe(true);
+  await panel.getByRole('button',{name:'Discard import',exact:true}).click();
  }
 });

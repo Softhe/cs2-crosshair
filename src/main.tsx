@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import {
   styles,
-  defaults,
+  studioStart,
   commands,
   safeAlias,
   validateSettings,
@@ -80,20 +80,19 @@ function initial(): { settings: Settings; error?: string; note?: string } {
     if (full) return { settings: validateSettings(JSON.parse(full)) };
     let draft: Settings;
     try {
-      draft = validateSettings(read("draft", defaults));
+      draft = validateSettings(read("draft", studioStart));
     } catch {
       // A stale or corrupt local draft is not the user's link error: start from defaults quietly.
-      draft = defaults;
+      draft = studioStart;
     }
     return {
       settings: {
         ...draft,
-        cl_crosshair_recoil: 0,
         cl_crosshair_friendly_warning: 0,
       },
     };
   } catch (error) {
-    return { settings: { ...defaults }, error: message(error) };
+    return { settings: { ...studioStart }, error: message(error) };
   }
 }
 function message(error: unknown) {
@@ -286,9 +285,10 @@ function App() {
   }, []);
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => setToast(""), 7000);
+    // Errors stay longer: they usually need an action, not just a glance.
+    const timer = setTimeout(() => setToast(""), toastTone === "error" ? 15000 : 7000);
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toast, toastTone]);
   useEffect(() => {
     if (!modal) return;
     const trigger = modalTrigger.current ?? document.activeElement;
@@ -327,7 +327,7 @@ function App() {
     setSettings({ ...settings });
   }
   function reset() {
-    load({ ...defaults });
+    load({ ...studioStart });
     notify("Crosshair reset to the studio defaults.", "success");
   }
   function goBack() {
@@ -452,7 +452,8 @@ function App() {
   }
   function editSaved(item: Saved) {
     load(item.settings);
-    setAlias(item.alias);
+    // Synced favorites carry no alias, so loading one must not clear the alias being typed.
+    if (item.alias || !sync.user) setAlias(item.alias);
     setSavedName(item.name);
     setEditingId(item.favorite ? item.id : null);
     setView("editor");
@@ -541,9 +542,20 @@ function App() {
   }
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      if (view !== "editor" || modal || !(event.ctrlKey || event.metaKey)) return;
+      if (event.key === "Enter") {
         event.preventDefault();
         void copy(commands(s), "Console commands");
+      } else if (event.key.toLowerCase() === "z" && !event.shiftKey && !event.altKey) {
+        // Text fields keep their own undo; sliders, selects and the page undo the crosshair.
+        const target = event.target;
+        const typing =
+          target instanceof HTMLTextAreaElement ||
+          (target instanceof HTMLInputElement && !["range", "checkbox", "color"].includes(target.type)) ||
+          (target instanceof HTMLElement && target.isContentEditable);
+        if (typing || !undoHistory.canUndo) return;
+        event.preventDefault();
+        goBack();
       }
     };
     window.addEventListener("keydown", handler);

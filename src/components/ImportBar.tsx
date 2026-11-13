@@ -56,7 +56,7 @@ export function ImportBar(p:ImportBarProps){
         <Copy size={16}/><span>Copy applied code</span>
       </button>
     </div>
-    <p id="code-selection-hint" className="code-hint">{p.importDraft===null?'Click or tap to select the whole code. Paste to replace it.':'Edit your config draft, or paste to replace it.'}</p>
+    <p id="code-selection-hint" className={p.importDraft===null?'sr-only':'code-hint'}>{p.importDraft===null?'Click or tap to select the whole code. Paste to replace it.':'Edit your config draft, or paste to replace it.'}</p>
     {p.importDraft!==null&&<p className="transfer-pending-note">
       Copy, share and downloads use the applied crosshair until you import.
       <button onClick={resetImport}>Discard import</button>

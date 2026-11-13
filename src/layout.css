@@ -281,3 +281,8 @@
 .map-label span{text-shadow:0 1px 3px #000}
 /* Single-word toggle on phones, matching the shortened Options label. */
 @media(max-width:820px){.mobile-preview-toggle{white-space:nowrap}.mobile-preview-toggle .wide-label{display:none}}
+/* The target label is information, not a warning: match the toolbar text instead of the global small style. */
+.preview-toolbar>.preview-target{font-size:12px;color:var(--muted)}
+/* The 4× detail inset is large enough for typical crosshairs (arms out to 15 units) without cropping. */
+.map-preview>.detail-preview{width:152px}.map-preview>.detail-preview>div{height:132px}
+@media(max-width:700px){.map-preview>.detail-preview{width:124px}.map-preview>.detail-preview>div{height:108px}.preview-actions{padding-left:140px}}

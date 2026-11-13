@@ -3,6 +3,7 @@ import { styles, type Settings } from './model';
 import { motionEligible, previewGeometry, renderingSettings, renderingKeys, type Geometry, type PreviewMode, type RenderingSettings } from './preview-geometry';
 import { createPreviewRenderer, fitScale, type RenderStatus, type RasterFrame } from './preview-renderer';
 import { previewScale } from './display';
+import { ANIMATED_SPREAD_CAP } from './preview-motion';
 const unstretched: [number, number] = [1, 1];
 type Props = {
     settings: Settings;
@@ -59,15 +60,16 @@ export function Preview({ settings, zoom = 1, targetHeight, stretch = unstretche
         // feeds fit scaling and is untouched by per-tick animation; the still entry
         // serves every non-animating draw. Animating draws bypass the still cache
         // because phase/elapsed change every tick.
-        const peakCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, split: false, geometry: null as Geometry | null };
-        const stillCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, split: false, geometry: null as Geometry | null };
-        const cachedGeometry = (cache: typeof peakCache, v: RenderingSettings, m: PreviewMode, p: number, split: boolean) => {
-            if (cache.geometry === null || cache.visual !== v || cache.mode !== m || cache.phase !== p || cache.split !== split) {
+        const peakCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, split: false, cap: Infinity, geometry: null as Geometry | null };
+        const stillCache = { visual: null as RenderingSettings | null, mode: '' as PreviewMode | '', phase: 0, split: false, cap: Infinity, geometry: null as Geometry | null };
+        const cachedGeometry = (cache: typeof peakCache, v: RenderingSettings, m: PreviewMode, p: number, split: boolean, cap = Infinity) => {
+            if (cache.geometry === null || cache.visual !== v || cache.mode !== m || cache.phase !== p || cache.split !== split || cache.cap !== cap) {
                 cache.visual = v;
                 cache.mode = m;
                 cache.phase = p;
                 cache.split = split;
-                cache.geometry = previewGeometry(v, m, p, 0, split);
+                cache.cap = cap;
+                cache.geometry = previewGeometry(v, m, p, 0, split, cap);
             }
             return cache.geometry;
         };
@@ -86,8 +88,9 @@ export function Preview({ settings, zoom = 1, targetHeight, stretch = unstretche
             if (animate && start === null)
                 start = time;
             const elapsed = animate ? time - start! : 0, phaseNow = animate ? (1 - Math.cos(elapsed / 550)) / 2 : p.phase;
-            const geometry = animate ? previewGeometry(p.visual, p.mode, phaseNow, elapsed, p.inspectSplit) : cachedGeometry(stillCache, p.visual, p.mode, phaseNow, p.inspectSplit);
-            let peak = cachedGeometry(peakCache, p.visual, p.mode, p.dynamic ? 1 : p.phase, p.inspectSplit);
+            const geometry = animate ? previewGeometry(p.visual, p.mode, phaseNow, elapsed, p.inspectSplit, ANIMATED_SPREAD_CAP) : cachedGeometry(stillCache, p.visual, p.mode, phaseNow, p.inspectSplit);
+            // The running animation travels a capped distance, so fit and clipping follow that peak.
+            let peak = cachedGeometry(peakCache, p.visual, p.mode, p.dynamic ? 1 : p.phase, p.inspectSplit, animate ? ANIMATED_SPREAD_CAP : Infinity);
             if (p.dynamic && p.mode === 'crosshair' && p.settings.cl_crosshair_recoil) {
                 // Recoil sweeps the crosshair up to 3 CSS px sideways and 7 up. Widen a
                 // copy of the cached peak bounds (never the cached object itself) so
