@@ -1,53 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  Crosshair,
-  Copy,
-  Download,
-  X,
-  Check,
-  Bookmark,
-  Star,
-  Upload,
-  AlertCircle,
-  AlertTriangle,
-  Info,
-} from "lucide-react";
-import {
-  styles,
-  studioStart,
-  commands,
-  safeAlias,
-  validateSettings,
-  codeSettingKeys,
-  type Settings,
-} from "./model";
-import { encode, decode, describeAdjustments, importConfig } from "./codec";
-import { convertLegacy } from "./converter";
-import { PREVIEW_RESOLUTION_VERSION, previewResolution, previewTargetHeight, useDisplayEstimate } from "./display";
+import { Crosshair, Copy, Download, Upload } from "lucide-react";
+import { studioStart, commands, safeAlias, type Settings } from "./model";
+import { encode } from "./codec";
 import { downloadConfig } from "./config-export";
-import type { RenderStatus } from "./preview-renderer";
-import type { PreviewMode } from "./preview-geometry";
 import { copyText } from "./clipboard";
-import {
-  read,
-  write,
-  validateLibrary,
-  limitLibrary,
-  settingsKey,
-  type Saved,
-} from "./storage";
+import { read, write, validateLibrary, type Saved } from "./storage";
 import { useLibrarySync } from "./library-sync";
-import { gameView, gameViewStretch } from "./preferences";
 import { usePreferenceSync } from "./preference-sync";
+import { backupFile, BACKUP_MAX_BYTES, mergeBackup, parseBackup } from "./library-backup";
 import { LibraryView } from "./LibraryView";
-import { SteamAccount } from "./SteamAccount";
-import { newId } from "./ids";
+import { download, initial, message } from "./startup";
 import { useUndo } from "./useUndo";
+import { useToast } from "./useToast";
+import { usePreviewState } from "./usePreviewState";
+import { useFavorites } from "./useFavorites";
+import { useImport } from "./useImport";
+import { Header, type View } from "./components/Header";
 import { ImportBar } from "./components/ImportBar";
 import { MapPreview } from "./components/MapPreview";
+import { SaveFavorite } from "./components/SaveFavorite";
 import { SettingsList } from "./components/SettingsList";
 import { Dialogs } from "./components/Dialogs";
+import { Toast } from "./components/Toast";
 
 import "./style.css";
 import "./theme.css";
@@ -58,104 +33,50 @@ import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 
-function initial(): { settings: Settings; error?: string; note?: string } {
-  try {
-    const params = new URLSearchParams(location.search);
-    const code =
-      params.get("code") ??
-      params.get("crosshair") ??
-      (location.pathname.startsWith("/CS") ? location.pathname.slice(1) : null);
-    if (code) {
-      const result = decode(code);
-      const complete = params.get("settings");
-      if (complete) {
-        const full = validateSettings(JSON.parse(complete));
-        if (encode(full) !== encode(result.settings))
-          throw Error("The link contains conflicting crosshair settings.");
-        return { settings: full, note: result.note };
-      }
-      return { settings: result.settings, note: result.note };
-    }
-    const full = params.get("settings");
-    if (full) return { settings: validateSettings(JSON.parse(full)) };
-    let draft: Settings;
-    try {
-      draft = validateSettings(read("draft", studioStart));
-    } catch {
-      // A stale or corrupt local draft is not the user's link error: start from defaults quietly.
-      draft = studioStart;
-    }
-    return {
-      settings: {
-        ...draft,
-        cl_crosshair_friendly_warning: 0,
-      },
-    };
-  } catch (error) {
-    return { settings: { ...studioStart }, error: message(error) };
-  }
-}
-function message(error: unknown) {
-  return error instanceof Error ? error.message : "Something went wrong.";
-}
-function download(text: string, name: string, type = "text/plain") {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+const viewFromUrl = (): View =>
+  new URLSearchParams(location.search).get("view") === "library" ? "library" : "editor";
 
 function App() {
-  const [start] = useState(() => ({ current: initial() }));
-  const [s, setSettings] = useState(start.current.settings);
+  const [start] = useState(initial);
+  const [s, setSettings] = useState(start.settings);
   const undoHistory = useUndo(s);
   const [alias, setAlias] = useState(() => read<string>("alias", ""));
-  const [map, setMap] = useState(0);
-  const [zoom, setZoom] = useState(1);
-  const [dynamic, setDynamic] = useState(false);
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("crosshair");
-  const display = useDisplayEstimate();
-  const [savedResolution] = useState(() => previewResolution(read("preview-resolution", null)));
-  const [displayHeight, setDisplayHeight] = useState(savedResolution.customHeight);
-  const [displayHeightDraft, setDisplayHeightDraft] = useState<string | null>(
-    null,
-  );
-  const [fullscreen, setFullscreen] = useState(false);
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [targetHeight, setTargetHeight] = useState(savedResolution.targetHeight);
-  // Until the visitor picks a resolution, start from their monitor's own instead of assuming one.
-  const [gameViewPreference, setGameViewPreference] = useState(() =>
-    gameView(read("game-view", null) ?? { width: display.width, height: display.height }));
-  useEffect(() => {
-    write("game-view", gameViewPreference);
-  }, [gameViewPreference]);
-  // Matching the game replaces the inspection resolution with the configured game render and its stretch.
-  const effectiveHeight = gameViewPreference.enabled
-    ? gameViewPreference.height
-    : previewTargetHeight(targetHeight, s.cl_crosshair_screen_height, display.height, displayHeight);
-  const stretch = gameViewPreference.enabled ? gameViewStretch(gameViewPreference, display) : undefined;
-  useEffect(() => {
-    write("preview-resolution", { targetHeight, customHeight: displayHeight, version: PREVIEW_RESOLUTION_VERSION });
-  }, [targetHeight, displayHeight]);
-  const [fit, setFit] = useState(false);
-  const [phase, setPhase] = useState(0);
-  const [inspectSplit, setInspectSplit] = useState(false);
-  const [previewStatus, setPreviewStatus] = useState<RenderStatus>({
-    clipped: false,
-    scale: 1,
+  let aliasError = "";
+  try {
+    safeAlias(alias);
+  } catch (e) {
+    aliasError = message(e);
+  }
+  const code = encode(s);
+
+  const { toast, toastTone, notify, setToast } = useToast(() => {
+    const steamFailed = new URLSearchParams(location.search).get("steam") === "failed";
+    return {
+      text: steamFailed
+        ? "Steam sign-in was not completed. Try again using the Steam button in the header."
+        : (start.error ?? start.note ?? ""),
+      tone: start.error || steamFailed ? "error" : start.note ? "warning" : "info",
+    };
   });
-  const [previewExpanded, setPreviewExpanded] = useState(false);
+  const preview = usePreviewState(s.cl_crosshair_screen_height, notify);
+
   const [modal, setModal] = useState<"help" | "preview" | null>(null);
-  const [toast, setToast] = useState(
-    new URLSearchParams(location.search).get("steam") === "failed"
-      ? "Steam sign-in was not completed. Try again using the Steam button in the header."
-      : (start.current.error ?? start.current.note ?? ""),
-  );
-  const [importDraft, setImportText] = useState<string | null>(null);
-  const [importError, setImportError] = useState("");
-  const [legacyHeight, setLegacyHeight] = useState(1080);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const modalTrigger = useRef<HTMLElement | null>(null);
+  function openModal(kind: "help" | "preview", trigger: HTMLElement) {
+    modalTrigger.current = trigger;
+    setModal(kind);
+  }
+  useEffect(() => {
+    if (!modal) return;
+    const trigger = modalTrigger.current ?? document.activeElement;
+    dialogRef.current?.showModal();
+    return () => {
+      dialogRef.current?.close();
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
+    };
+  }, [modal]);
+
   const [guestLibrary, setGuestLibrary] = useState<Saved[]>(() => {
     try {
       return validateLibrary(read("library", []));
@@ -165,141 +86,14 @@ function App() {
   });
   const sync = useLibrarySync(guestLibrary, setGuestLibrary);
   const { library, setLibrary } = sync;
-  const preferenceSync = usePreferenceSync(sync.user?.steamId ?? null, gameViewPreference, setGameViewPreference);
-  const [view, setViewState] = useState<"editor" | "library">(() =>
-    new URLSearchParams(location.search).get("view") === "library"
-      ? "library"
-      : "editor",
+  const preferenceSync = usePreferenceSync(
+    sync.user?.steamId ?? null,
+    preview.gameViewPreference,
+    preview.setGameViewPreference,
   );
-  const [savedName, setSavedName] = useState("My crosshair");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [rating, setRating] = useState(() => read<number>("rating", 0));
-  const [note, setNote] = useState(() => read<string>("feedback-note", ""));
-  const backupInput = useRef<HTMLInputElement>(null);
-  const cfgInput = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const modalTrigger = useRef<HTMLElement | null>(null);
-  const clipboardRequest = useRef(0);
-  const code = encode(s);
-  const importText = importDraft ?? code;
-  let aliasError = "";
-  try {
-    safeAlias(alias);
-  } catch (e) {
-    aliasError = message(e);
-  }
-  const [toastTone, setToastTone] = useState<
-    "success" | "warning" | "error" | "info"
-  >(
-    start.current.error ||
-      new URLSearchParams(location.search).get("steam") === "failed"
-      ? "error"
-      : start.current.note
-        ? "warning"
-        : "info",
-  );
-  const notify = (
-    text: string,
-    tone: "success" | "warning" | "error" | "info" = "info",
-  ) => {
-    setToastTone(tone);
-    setToast(text);
-  };
-  const awaitingSaveSync = useRef(false);
-  const rateLimited = !!sync.error?.startsWith("Too many sync attempts");
-  useEffect(() => {
-    if (!sync.user) awaitingSaveSync.current = false;
-    if (!awaitingSaveSync.current || sync.syncing) return;
-    if (sync.status === "synced" || sync.status === "error") {
-      awaitingSaveSync.current = false;
-      setToastTone(sync.status === "synced" ? "success" : "warning");
-      setToast(sync.status === "synced"
-        ? "Crosshair saved and synced to Steam."
-        : rateLimited
-          ? "Crosshair saved. " + sync.error
-          : "Crosshair saved on this device. Sync failed. Retry sync in Library.");
-    }
-  }, [sync.status, sync.syncing, sync.user, sync.error]);
-  function notifySaved(message: string) {
-    awaitingSaveSync.current = !!sync.user;
-    notify(sync.user ? message + " Syncing to Steam…" : message + " Sign in with Steam to sync across devices.", sync.user ? "info" : "success");
-  }
-  const saveSyncLabel = sync.error?.startsWith("Changes could not be saved")
-    ? "Local save failed"
-    : sync.user
-      ? sync.syncing
-        ? "Saved on this device · Syncing to Steam…"
-        : sync.status === "synced"
-          ? "Saved and synced to Steam"
-          : sync.status === "loading"
-            ? "Loading library…"
-            : sync.status === "error"
-              ? rateLimited
-                ? "Saved on this device · Sync resumes automatically"
-                : "Saved on this device · Sync failed. Retry in Library."
-              : "Saved on this device · Waiting to sync"
-    : "Saved on this device · Sign in with Steam to sync";
-  useEffect(() => {
-    const update = () =>
-      setFullscreen(document.fullscreenElement === mapRef.current);
-    document.addEventListener("fullscreenchange", update);
-    return () => document.removeEventListener("fullscreenchange", update);
-  }, []);
-  const toggleFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await mapRef.current?.requestFullscreen();
-    } catch {
-      notify(
-        "Fullscreen is unavailable in this browser. The inline preview remains usable.",
-        "warning",
-      );
-    }
-  };
-  const [draftSaved, setDraftSaved] = useState(true);
-  const draftWasSaved = useRef(true);
-  useEffect(() => {
-    const saved = write("draft", s);
-    setDraftSaved(saved);
-    const failedNow = !saved && draftWasSaved.current;
-    draftWasSaved.current = saved;
-    if (failedNow)
-      notify(
-        "Browser storage is unavailable. Export a config to keep your changes.",
-        "error",
-      );
-  }, [s]);
-  useEffect(() => {
-    write("alias", alias);
-  }, [alias]);
-  useEffect(() => {
-    document.documentElement.dataset.theme = "cs2";
-    document
-      .querySelector("meta[name=theme-color]")
-      ?.setAttribute(
-        "content",
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--back")
-          .trim(),
-      );
-  }, []);
-  useEffect(() => {
-    if (!toast) return;
-    // Errors stay longer: they usually need an action, not just a glance.
-    const timer = setTimeout(() => setToast(""), toastTone === "error" ? 15000 : 7000);
-    return () => clearTimeout(timer);
-  }, [toast, toastTone]);
-  useEffect(() => {
-    if (!modal) return;
-    const trigger = modalTrigger.current ?? document.activeElement;
-    dialogRef.current?.showModal();
-    return () => {
-      dialogRef.current?.close();
-      if (trigger instanceof HTMLElement && trigger.isConnected)
-        trigger.focus();
-    };
-  }, [modal]);
-  function setView(next: "editor" | "library") {
+
+  const [view, setViewState] = useState<View>(viewFromUrl);
+  function setView(next: View) {
     if (next === view) return;
     setViewState(next);
     const url = new URL(location.href);
@@ -308,15 +102,11 @@ function App() {
     history.pushState(null, "", url.pathname + url.search + url.hash);
   }
   useEffect(() => {
-    const onPop = () =>
-      setViewState(
-        new URLSearchParams(location.search).get("view") === "library"
-          ? "library"
-          : "editor",
-      );
+    const onPop = () => setViewState(viewFromUrl());
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
   function change(key: string, value: number) {
     // Grouped by setting, so dragging a slider is one undo step rather than one per pixel.
     undoHistory.push(s, key);
@@ -333,153 +123,59 @@ function App() {
   function goBack() {
     undoHistory.goBack(setSettings);
   }
-  function remember(
-    settings = s,
-    name = styles.find(([id]) => id === settings.cl_crosshairstyle)?.[1] ??
-      "Crosshair",
-    favorite = false,
-  ) {
-    const entry: Saved = {
-      id: newId(),
-      name,
-      settings: { ...settings },
-      alias: aliasError ? "" : alias.trim(),
-      favorite,
-      date: new Date().toISOString(),
-    };
-    setLibrary((prev) => {
-      const same = prev.find(
-        (item) => settingsKey(item.settings) === settingsKey(settings),
-      );
-      if (same?.favorite) return prev;
-      if (same)
-        return prev.map((item) =>
-          item.id === same.id
-            ? {
-                ...item,
-                name: favorite ? name : item.name,
-                alias: entry.alias,
-                date: entry.date,
-                favorite: favorite || item.favorite,
-              }
-            : item,
-        );
-      return limitLibrary([entry, ...prev]);
-    });
-  }
-  const currentFavorite = library.find(
-    (item) => item.favorite && settingsKey(item.settings) === settingsKey(s),
-  );
+
+  const favorites = useFavorites({
+    s, alias, aliasError, setAlias, sync, notify, load, openEditor: () => setView("editor"),
+  });
+  const imports = useImport({
+    s,
+    code,
+    apply: (settings) => {
+      load(settings);
+      favorites.setEditingId(null);
+      favorites.remember(settings);
+    },
+    setModal,
+    notify,
+  });
+
+  const [rating, setRating] = useState(() => read<number>("rating", 0));
+  const [note, setNote] = useState(() => read<string>("feedback-note", ""));
+  const backupInput = useRef<HTMLInputElement>(null);
+  const cfgInput = useRef<HTMLInputElement>(null);
+
+  const [draftSaved, setDraftSaved] = useState(true);
+  const draftWasSaved = useRef(true);
   useEffect(() => {
-    if (currentFavorite) setSavedName(currentFavorite.name);
-  }, [currentFavorite?.id, currentFavorite?.name]);
-  const editingFavorite = library.find(
-    (item) => item.favorite && item.id === editingId,
-  );
-  function saveFavorite() {
-    if (!savedName.trim()) {
-      notify("Give your crosshair a name.", "warning");
-      document.getElementById("saved-name")?.focus();
-      return;
-    }
-    if (
-      !currentFavorite &&
-      library.filter((item) => item.favorite).length >= 50
-    ) {
-      notify(
-        "Your library has 50 favorites. Remove one before saving another.",
-        "warning",
-      );
-      return;
-    }
-    if (currentFavorite) {
-      notify("This crosshair is already saved.", "warning");
-      return;
-    }
-    const entry: Saved = {
-      id: newId(),
-      name: savedName.trim(),
-      settings: { ...s },
-      alias: aliasError ? "" : alias.trim(),
-      favorite: true,
-      date: new Date().toISOString(),
-    };
-    if (
-      setLibrary((items) =>
-        limitLibrary([
-          entry,
-          ...items.filter(
-            (item) =>
-              item.favorite || settingsKey(item.settings) !== settingsKey(s),
-          ),
-        ]),
-      )
-    ) {
-      setEditingId(entry.id);
-      notifySaved("Crosshair saved.");
-    } else
-      notify(
-        "Crosshair could not be saved on this device. Export a backup or free browser storage.",
-        "error",
-      );
-  }
-  function updateFavorite() {
-    if (!editingFavorite) return;
-    if (!savedName.trim()) {
-      notify("Give your crosshair a name.", "warning");
-      return;
-    }
-    if (
-      setLibrary((items) =>
-        items.map((item) =>
-          item.id === editingFavorite.id
-            ? {
-                ...item,
-                name: savedName.trim(),
-                settings: { ...s },
-                date: new Date().toISOString(),
-              }
-            : item,
-        ),
-      )
-    )
-      notifySaved("Saved crosshair updated.");
-    else
-      notify(
-        "Update could not be saved on this device. Export a backup or free browser storage.",
-        "error",
-      );
-  }
-  function editSaved(item: Saved) {
-    load(item.settings);
-    // Synced favorites carry no alias, so loading one must not clear the alias being typed.
-    if (item.alias || !sync.user) setAlias(item.alias);
-    setSavedName(item.name);
-    setEditingId(item.favorite ? item.id : null);
-    setView("editor");
-    notify(item.name + " loaded.");
-  }
+    const saved = write("draft", s);
+    setDraftSaved(saved);
+    const failedNow = !saved && draftWasSaved.current;
+    draftWasSaved.current = saved;
+    if (failedNow) notify("Browser storage is unavailable. Export a config to keep your changes.", "error");
+  }, [s]);
+  useEffect(() => {
+    write("alias", alias);
+  }, [alias]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = "cs2";
+    document
+      .querySelector("meta[name=theme-color]")
+      ?.setAttribute("content", getComputedStyle(document.documentElement).getPropertyValue("--back").trim());
+  }, []);
+
   async function copy(text: string, label: string) {
     if (await copyText(text)) notify(`${label} copied.`, "success");
-    else
-      notify(
-        "Clipboard access failed. Select and copy the text manually.",
-        "error",
-      );
+    else notify("Clipboard access failed. Select and copy the text manually.", "error");
   }
   function exportCfg() {
     if (aliasError) {
-      const panel =
-        document.querySelector<HTMLDetailsElement>(".export-advanced");
+      const panel = document.querySelector<HTMLDetailsElement>(".export-advanced");
       if (panel) panel.open = true;
       document.getElementById("alias")?.focus();
       notify(aliasError, "error");
       return;
     }
-    download(
-      downloadConfig(s, alias),
-      alias.trim() ? `crosshair_${alias.trim()}.cfg` : "crosshair.cfg",
-    );
+    download(downloadConfig(s, alias), alias.trim() ? `crosshair_${alias.trim()}.cfg` : "crosshair.cfg");
     notify("Config downloaded.", "success");
   }
   function shareLink() {
@@ -488,60 +184,18 @@ function App() {
     url.searchParams.set("settings", JSON.stringify(s));
     return url.toString();
   }
-  function doImport(text = importText) {
+  async function restoreBackup(file: File) {
     try {
-      let result;
-      if (text.trim().startsWith("CS") || /^https?:\/\//i.test(text.trim())) {
-        const parsed = decode(text, legacyHeight);
-        result = parsed.settings;
-        notify(
-          parsed.note ??
-            (/^https?:\/\//i.test(text.trim()) &&
-            new URL(text.trim()).searchParams.has("settings")
-              ? "Crosshair and complete settings imported from link."
-              : "Crosshair imported. Extra menu settings keep their current values."),
-          parsed.note ? "warning" : "success",
-        );
-        result =
-          /^https?:\/\//i.test(text.trim()) &&
-          new URL(text.trim()).searchParams.has("settings")
-            ? result
-            : {
-                ...s,
-                ...Object.fromEntries(codeSettingKeys.map((k) => [k, result![k]])),
-              };
-      } else if (
-        /\bcl_crosshair(?:size|thickness|gap|alpha|usealpha|color)\b/i.test(
-          text,
-        )
-      ) {
-        result = convertLegacy(text, legacyHeight, legacyHeight, s).settings;
-        notify(
-          "Old settings converted. Check the result in CS2. Use the converter panel to review warnings.",
-          "warning",
-        );
-      } else {
-        const imported = importConfig(text, s);
-        result = imported.settings;
-        if (imported.adjusted.length) notify(describeAdjustments(imported.adjusted), "warning");
-        else notify("Current CS2 config settings imported.", "success");
-      }
-      load(result);
-      setEditingId(null);
-      remember(result);
-      setImportText(null);
-      setImportError("");
-      setModal(null);
+      if (file.size > BACKUP_MAX_BYTES) throw Error("Backup is too large.");
+      const entries = parseBackup(await file.text());
+      if (setLibrary((prev) => mergeBackup(prev, entries)))
+        notify("Backup merged. Existing entries were retained within library limits.", "success");
+      else notify("Backup could not be saved. Free browser storage and try again.", "error");
     } catch (error) {
-      setImportError(message(error));
+      notify(message(error), "error");
     }
   }
-  function pasteCode(text: string) {
-    clipboardRequest.current++;
-    setImportText(text);
-    setImportError("");
-    doImport(text);
-  }
+
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (view !== "editor" || modal || !(event.ctrlKey || event.metaKey)) return;
@@ -563,13 +217,11 @@ function App() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   });
+
   const validPath =
     location.pathname === "/" ||
     location.pathname === "/custom" ||
-    (/^\/(CS[A-Za-z0-9]{44}|CSGO(-[A-Za-z0-9]{5}){5})$/.test(
-      location.pathname,
-    ) &&
-      !start.current.error);
+    (/^\/(CS[A-Za-z0-9]{44}|CSGO(-[A-Za-z0-9]{5}){5})$/.test(location.pathname) && !start.error);
   useEffect(() => {
     const url = new URL(location.href);
     const legacyPath = url.pathname === "/custom";
@@ -588,230 +240,93 @@ function App() {
         <a href="/">Open the studio</a>
       </main>
     );
+
   return (
     <>
-      <header className="header">
-        <a className="brand" href="/" aria-label="delli.cc home">
-          <Crosshair size={27} />
-          <strong>
-            delli<span>.cc</span>
-          </strong>
-          <span className="brand-divider" />
-          <span className="brand-subtitle">CROSSHAIR STUDIO</span>
-        </a>
-        <nav className="menu-nav" aria-label="Studio menu">
-          <button
-            className={view === "editor" ? "active" : ""}
-            aria-current={view === "editor" ? "page" : undefined}
-            onClick={() => {
-              setView("editor");
-              window.scrollTo({
-                top: 0,
-                behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-                  ? "instant"
-                  : "smooth",
-              });
-            }}
-          >
-            Crosshair / Scopes
-          </button>
-          <button
-            aria-label="Library"
-            className={view === "library" ? "active" : ""}
-            aria-current={view === "library" ? "page" : undefined}
-            onClick={() => setView("library")}
-          >
-            Library
-            <span className="count">
-              {library.filter((item) => item.favorite).length}
-            </span>
-          </button>
-          <button
-            onClick={(event) => {
-              modalTrigger.current = event.currentTarget;
-              setModal("help");
-            }}
-          >
-            Guide
-          </button>
-        </nav>
-        <div className="header-actions">
-          <SteamAccount
-            user={sync.user}
-            sessionState={sync.sessionState}
-            status={sync.status}
-            syncing={sync.syncing}
-            signIn={`${sync.signIn}?returnTo=${encodeURIComponent(view === "library" ? "/?view=library" : "/")}`}
-            view={view}
-            onOpenLibrary={() => setView("library")}
-            onRetry={sync.retry}
-            onSignOut={sync.signOut}
-          />
-        </div>
-      </header>
+      <Header
+        view={view}
+        setView={setView}
+        favorites={library.filter((item) => item.favorite).length}
+        onGuide={(trigger) => openModal("help", trigger)}
+        sync={sync}
+      />
       {view === "editor" && (
-        <>
-          <main
-            aria-label="Crosshair editor"
-            className={`workspace combined-transfer ${previewExpanded ? "preview-expanded" : ""}`}
-          >
-            <h1 className="sr-only">Crosshair editor</h1>
-            <ImportBar
-              code={code}
-              importText={importText}
-              importDraft={importDraft}
-              importError={importError}
-              legacyHeight={legacyHeight}
-              s={s}
-              clipboardRequest={clipboardRequest}
-              cfgInput={cfgInput}
-              setImportText={setImportText}
-              setImportError={setImportError}
-              setLegacyHeight={setLegacyHeight}
-              setModal={setModal}
-              pasteCode={pasteCode}
-              doImport={doImport}
-              load={load}
-              remember={remember}
-              notify={notify}
-              copy={copy}
-              setToast={setToast}
-              alias={alias}
-              aliasError={aliasError}
-              setAlias={setAlias}
-              shareLink={shareLink}
-              exportCfg={exportCfg}
-            />
-            <MapPreview
-              s={s}
-              map={map}
-              setMap={setMap}
-              zoom={zoom}
-              setZoom={setZoom}
-              effectiveHeight={effectiveHeight}
-              stretch={stretch}
-              gameView={gameViewPreference}
-              setGameView={setGameViewPreference}
-              gameViewSync={preferenceSync}
-              display={display}
-              dynamic={dynamic}
-              previewMode={previewMode}
-              setPreviewMode={setPreviewMode}
-              phase={phase}
-              fit={fit}
-              inspectSplit={inspectSplit}
-              fullscreen={fullscreen}
-              modal={modal}
-              previewStatus={previewStatus}
-              mapRef={mapRef}
-              setPreviewStatus={setPreviewStatus}
-              toggleFullscreen={toggleFullscreen}
-              goBack={goBack}
-              reset={reset}
-              previewExpanded={previewExpanded}
-              setPreviewExpanded={setPreviewExpanded}
-              setDynamic={setDynamic}
-              setFit={setFit}
-              canUndo={undoHistory.canUndo}
-              onInspect={(button) => {
-                modalTrigger.current = button;
-                setModal("preview");
-              }}
-              setModal={setModal}
-            />
-            <SettingsList
-              s={s}
-              set={change}
-              load={load}
-              draftSaved={draftSaved}
-            />
-            <aside className="sidebar">
-              <details className="save-disclosure">
-                <summary>
-                  <Bookmark size={16} />
-                  Save favorite
-                  <span className="saved-state">
-                    {currentFavorite
-                      ? "Saved as " + currentFavorite.name + " · " + saveSyncLabel
-                      : editingFavorite
-                        ? "Editing " + editingFavorite.name
-                        : "Keep a separate copy"}
-                  </span>
-                </summary>
-                <div className="library-save-bar">
-                  <div className="library-save-heading">
-                    <Bookmark size={18} />
-                    <div>
-                      <h2>Keep this crosshair</h2>
-                      <p aria-live="polite">
-                        {currentFavorite
-                          ? "Saved as " + currentFavorite.name
-                          : editingFavorite
-                            ? "Editing " +
-                              editingFavorite.name +
-                              ". Your saved copy stays unchanged."
-                            : "Save a name or player nickname. Your saved copy stays unchanged while you edit."}
-                        {currentFavorite && <span aria-label="Save sync status"> · {saveSyncLabel}</span>}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="library-save-controls">
-                    <div className="library-name-field">
-                      <label htmlFor="saved-name">Crosshair name</label>
-                      <input
-                        id="saved-name"
-                        className="text-input"
-                        value={savedName}
-                        maxLength={80}
-                        onChange={(e) => setSavedName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            if (editingFavorite) updateFavorite();
-                            else saveFavorite();
-                          }
-                        }}
-                      />
-                    </div>
-                    {editingFavorite ? (
-                      <>
-                        <button
-                          className="primary-button"
-                          onClick={updateFavorite}
-                        >
-                          Update saved crosshair
-                        </button>
-                        <button className="quiet-button" onClick={saveFavorite}>
-                          Save as new
-                        </button>
-                      </>
-                    ) : (
-                      <button className="primary-button" onClick={saveFavorite}>
-                        <Star size={16} />
-                        Save to favorites
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </details>
-
-
-            </aside>
-          </main>
-        </>
+        <main
+          aria-label="Crosshair editor"
+          className={`workspace combined-transfer ${preview.previewExpanded ? "preview-expanded" : ""}`}
+        >
+          <h1 className="sr-only">Crosshair editor</h1>
+          <ImportBar
+            code={code}
+            importText={imports.importText}
+            importDraft={imports.importDraft}
+            importError={imports.importError}
+            legacyHeight={imports.legacyHeight}
+            s={s}
+            clipboardRequest={imports.clipboardRequest}
+            cfgInput={cfgInput}
+            setImportText={imports.setImportText}
+            setImportError={imports.setImportError}
+            setLegacyHeight={imports.setLegacyHeight}
+            setModal={setModal}
+            pasteCode={imports.pasteCode}
+            doImport={imports.doImport}
+            load={load}
+            remember={favorites.remember}
+            notify={notify}
+            copy={copy}
+            setToast={setToast}
+            alias={alias}
+            aliasError={aliasError}
+            setAlias={setAlias}
+            shareLink={shareLink}
+            exportCfg={exportCfg}
+          />
+          <MapPreview
+            s={s}
+            map={preview.map}
+            setMap={preview.setMap}
+            zoom={preview.zoom}
+            setZoom={preview.setZoom}
+            effectiveHeight={preview.effectiveHeight}
+            stretch={preview.stretch}
+            gameView={preview.gameViewPreference}
+            setGameView={preview.setGameViewPreference}
+            gameViewSync={preferenceSync}
+            display={preview.display}
+            dynamic={preview.dynamic}
+            previewMode={preview.previewMode}
+            setPreviewMode={preview.setPreviewMode}
+            phase={preview.phase}
+            fit={preview.fit}
+            inspectSplit={preview.inspectSplit}
+            fullscreen={preview.fullscreen}
+            modal={modal}
+            previewStatus={preview.previewStatus}
+            mapRef={preview.mapRef}
+            setPreviewStatus={preview.setPreviewStatus}
+            toggleFullscreen={preview.toggleFullscreen}
+            goBack={goBack}
+            reset={reset}
+            previewExpanded={preview.previewExpanded}
+            setPreviewExpanded={preview.setPreviewExpanded}
+            setDynamic={preview.setDynamic}
+            setFit={preview.setFit}
+            canUndo={undoHistory.canUndo}
+            onInspect={(button) => openModal("preview", button)}
+            setModal={setModal}
+          />
+          <SettingsList s={s} set={change} load={load} draftSaved={draftSaved} />
+          <SaveFavorite f={favorites} />
+        </main>
       )}
       {view === "library" && (
         <LibraryView
           library={library}
           setLibrary={setLibrary}
-          onLoad={editSaved}
+          onLoad={favorites.editSaved}
           onCopy={(text, label) => void copy(text, label)}
-          onBackup={() =>
-            download(
-              JSON.stringify({ version: 1, entries: library }, null, 2),
-              "delli-crosshair-library.json",
-              "application/json",
-            )
-          }
+          onBackup={() => download(backupFile(library), "delli-crosshair-library.json", "application/json")}
           onRestore={() => backupInput.current?.click()}
           notify={notify}
           user={sync.user}
@@ -831,17 +346,17 @@ function App() {
         />
       )}
       <footer className="site-footer">
-          <p className="privacy-note">
-                <span className="live-dot" />
-                {sync.user
-                  ? "Drafts and other preferences stay on this device. Saved crosshairs and your in-game size setting sync to your Steam account."
-                  : "Drafts and preferences stay on this device. Sign in with Steam to sync saved crosshairs."}
-              </p>
-          <div className="footer-meta">
-            <span>delli.cc</span>
-            <span>Independent tool. Not affiliated with Valve.</span>
-          </div>
-        </footer>
+        <p className="privacy-note">
+          <span className="live-dot" />
+          {sync.user
+            ? "Drafts and other preferences stay on this device. Saved crosshairs and your in-game size setting sync to your Steam account."
+            : "Drafts and preferences stay on this device. Sign in with Steam to sync saved crosshairs."}
+        </p>
+        <div className="footer-meta">
+          <span>delli.cc</span>
+          <span>Independent tool. Not affiliated with Valve.</span>
+        </div>
+      </footer>
       {view === "editor" && (
         <div className="mobile-actions">
           <button onClick={() => void copy(code, "Share code")}>
@@ -855,9 +370,7 @@ function App() {
           <button
             onClick={() => {
               document.getElementById("import-text")?.focus();
-              document
-                .querySelector(".inline-import")
-                ?.scrollIntoView({ block: "start" });
+              document.querySelector(".inline-import")?.scrollIntoView({ block: "start" });
             }}
           >
             <Upload size={15} />
@@ -865,59 +378,35 @@ function App() {
           </button>
         </div>
       )}
-      {toast && (
-        <div
-          className={`toast toast-${toastTone}`}
-          data-tone={toastTone}
-          role="status"
-        >
-          {toastTone === "error" ? (
-            <AlertCircle size={18} />
-          ) : toastTone === "warning" ? (
-            <AlertTriangle size={18} />
-          ) : toastTone === "success" ? (
-            <Check size={18} />
-          ) : (
-            <Info size={18} />
-          )}
-          <span>{toast}</span>
-          <button
-            className="icon-button"
-            aria-label="Dismiss notification"
-            onClick={() => setToast("")}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
+      <Toast text={toast} tone={toastTone} onDismiss={() => setToast("")} />
       <Dialogs
-        previewMode={previewMode}
+        previewMode={preview.previewMode}
         dialogRef={dialogRef}
         modal={modal}
         setModal={setModal}
-        setDynamic={setDynamic}
-        targetHeight={targetHeight}
-        setTargetHeight={setTargetHeight}
-        display={display}
-        displayHeight={displayHeight}
-        setDisplayHeight={setDisplayHeight}
-        displayHeightDraft={displayHeightDraft}
-        setDisplayHeightDraft={setDisplayHeightDraft}
-        fit={fit}
-        setFit={setFit}
-        phase={phase}
-        setPhase={setPhase}
-        inspectSplit={inspectSplit}
-        setInspectSplit={setInspectSplit}
-        previewStatus={previewStatus}
-        effectiveHeight={effectiveHeight}
-        matchingGame={gameViewPreference.enabled}
+        setDynamic={preview.setDynamic}
+        targetHeight={preview.targetHeight}
+        setTargetHeight={preview.setTargetHeight}
+        display={preview.display}
+        displayHeight={preview.displayHeight}
+        setDisplayHeight={preview.setDisplayHeight}
+        displayHeightDraft={preview.displayHeightDraft}
+        setDisplayHeightDraft={preview.setDisplayHeightDraft}
+        fit={preview.fit}
+        setFit={preview.setFit}
+        phase={preview.phase}
+        setPhase={preview.setPhase}
+        inspectSplit={preview.inspectSplit}
+        setInspectSplit={preview.setInspectSplit}
+        previewStatus={preview.previewStatus}
+        effectiveHeight={preview.effectiveHeight}
+        matchingGame={preview.gameViewPreference.enabled}
         s={s}
         rating={rating}
         setRating={setRating}
         note={note}
         setNote={setNote}
-        dynamic={dynamic}
+        dynamic={preview.dynamic}
       />
       <input
         ref={backupInput}
@@ -925,54 +414,10 @@ function App() {
         type="file"
         accept=".json,application/json"
         aria-label="Library backup file"
-        onChange={async (e) => {
+        onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = "";
-          if (!file) return;
-          try {
-            if (file.size > 500000) throw Error("Backup is too large.");
-            const data = JSON.parse(await file.text());
-            if (data.version !== 1) throw Error("Unsupported backup version.");
-            const entries = validateLibrary(data.entries);
-            if (
-              entries.filter((i) => i.favorite).length > 50 ||
-              entries.filter((i) => !i.favorite).length > 20
-            )
-              throw Error("Backup exceeds library limits.");
-            const accepted = setLibrary((prev) => {
-              const keys = new Set<string>();
-              const ids = new Set<string>();
-              const combined = [...prev, ...entries]
-                .filter((item) => {
-                  const key =
-                    settingsKey(item.settings) +
-                    (item.favorite ? "saved" : "recent");
-                  if (keys.has(key)) return false;
-                  keys.add(key);
-                  return true;
-                })
-                .map((item) => {
-                  if (ids.has(item.id)) {
-                    item = { ...item, id: newId() };
-                  }
-                  ids.add(item.id);
-                  return item;
-                });
-              return limitLibrary(combined);
-            });
-            if (accepted)
-              notify(
-                "Backup merged. Existing entries were retained within library limits.",
-                "success",
-              );
-            else
-              notify(
-                "Backup could not be saved. Free browser storage and try again.",
-                "error",
-              );
-          } catch (error) {
-            notify(message(error), "error");
-          }
+          if (file) void restoreBackup(file);
         }}
       />
       <input
@@ -981,19 +426,10 @@ function App() {
         type="file"
         accept=".cfg,.txt,.vcfg"
         aria-label="Crosshair config file"
-        onChange={async (e) => {
+        onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = "";
-          if (!file) return;
-          if (file.size > 200000) {
-            setImportError("Config is too large.");
-            return;
-          }
-          try {
-            pasteCode(await file.text());
-          } catch (error) {
-            setImportError(message(error));
-          }
+          if (file) void imports.importFile(file);
         }}
       />
     </>
