@@ -22,7 +22,7 @@ import {
   codeSettingKeys,
   type Settings,
 } from "./model";
-import { encode, decode, importCommands } from "./codec";
+import { encode, decode, describeAdjustments, importConfig } from "./codec";
 import { convertLegacy } from "./converter";
 import { PREVIEW_RESOLUTION_VERSION, previewResolution, previewTargetHeight, useDisplayEstimate } from "./display";
 import { downloadConfig } from "./config-export";
@@ -521,8 +521,10 @@ function App() {
           "warning",
         );
       } else {
-        result = importCommands(text, s);
-        notify("Current CS2 config settings imported.", "success");
+        const imported = importConfig(text, s);
+        result = imported.settings;
+        if (imported.adjusted.length) notify(describeAdjustments(imported.adjusted), "warning");
+        else notify("Current CS2 config settings imported.", "success");
       }
       load(result);
       setEditingId(null);

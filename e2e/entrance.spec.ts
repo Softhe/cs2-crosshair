@@ -14,9 +14,18 @@ test('page sections keep their layout when the intro restores scrolling', async 
   expect(await measure()).toEqual(during);
 });
 
-test('intro crossfades into the editor before playback ends', async ({ page }) => {
+test('reduced motion skips the intro on a first visit', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.locator('.header').waitFor();
+  await expect(page.locator('#entrance')).toBeHidden();
+  await expect(page.locator('#root')).not.toHaveAttribute('inert');
+  expect(await page.locator('#entrance video').evaluate(element => (element as HTMLVideoElement).currentSrc)).toBe('');
+});
+
+test('intro crossfades into the editor before playback ends, even when replayed under reduced motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?intro=preview', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => {
     const entrance = document.querySelector('#entrance') as HTMLElement;
     const root = document.querySelector('#root') as HTMLElement;

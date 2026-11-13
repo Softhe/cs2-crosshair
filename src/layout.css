@@ -286,3 +286,4 @@
 /* The 4× detail inset is large enough for typical crosshairs (arms out to 15 units) without cropping. */
 .map-preview>.detail-preview{width:152px}.map-preview>.detail-preview>div{height:132px}
 @media(max-width:700px){.map-preview>.detail-preview{width:124px}.map-preview>.detail-preview>div{height:108px}.preview-actions{padding-left:140px}}
+.settings-section>.setting-hint{margin:8px 0 6px;font-size:12px;line-height:1.5}

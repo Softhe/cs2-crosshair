@@ -57,7 +57,8 @@ export function styleFields(s: Settings): Field[] {
   const style = s.cl_crosshairstyle;
   const fields: Field[] = [{key:'cl_crosshairstyle',label:'Style',options:styles},
     {key:'cl_crosshair_drawoutline',label:'Outline',options:[[1,'Full Outline'],[2,'Half Outline'],[0,'No Outline']]},
-    slider('cl_crosshair_thickness','Thickness',0,32)];
+    {...slider('cl_crosshair_thickness','Thickness',0,32),
+      ...(s.cl_crosshair_thickness===0?{hint:'At 0 the preview draws nothing: no lines, dot or outline.'}:{})}];
   if(style!==6) fields.push(toggle('cl_crosshairdot','Center Dot'));
   if([0,2,4,5,7].includes(style)) fields.push(slider('cl_crosshair_length','Length',0,255));
   if([0,2,3,4,5,7,8,9].includes(style)) fields.push(slider('cl_crosshair_gap','Gap',-10,128));
@@ -122,6 +123,18 @@ export function validateSettings(value: unknown): Settings {
     out[key]=val;
   }
   return out;
+}
+/**
+ * Fit a config value into what the studio can carry: sliders clamp to their range and round to
+ * their step; a choice the studio does not offer returns undefined so the caller keeps its value.
+ */
+export function fitSetting(key: string, val: number): number | undefined {
+  const field=fieldBounds(key);
+  if(!field||!Number.isFinite(val)) return undefined;
+  if(field.options) return field.options.some(([n])=>n===val)?val:undefined;
+  const min=field.min??0,max=field.max??255,step=field.step??1;
+  const fitted=Math.min(max,Math.max(min,Math.round(val/step)*step));
+  return step<1?Number(fitted.toFixed(2)):fitted;
 }
 /** Validate stored settings, migrating heights above HEIGHT_MAX (previously allowed up to 65535) instead of rejecting the entry. */
 export function migrateSettings(value: unknown): Settings {
