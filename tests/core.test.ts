@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {encode,decode,importCommands} from '../src/codec';
+import {encode,decode,importCommands,importConfig,describeAdjustments} from '../src/codec';
 import {defaults,styles,styleFields,validateSettings,commands,cfg,safeAlias,autoexec} from '../src/model';
 import {validateLibrary} from '../src/storage';
 import {simulatedSpread} from '../src/preview-motion';
@@ -61,8 +61,22 @@ test('config importer round trips all settings and ignores unrelated commands',(
   assert.equal(importCommands('cl_crosshair_recoil "TRUE"').cl_crosshair_recoil,1);
   assert.equal(importCommands('cl_crosshair_recoil "False"').cl_crosshair_recoil,0);
   assert.throws(()=>importCommands('alias stolen "quit"; quit'));
-  assert.throws(()=>importCommands('cl_crosshair_length "999"'));
+  assert.equal(importCommands('cl_crosshair_length "999"').cl_crosshair_length,255);
   assert.ok(!commands(defaults).includes('cl_crosshairsize'));
+});
+test('config import fits values the game accepts but a share code cannot carry, and reports them',()=>{
+  const {settings,adjusted}=importConfig('cl_crosshair_gap "-15"; cl_crosshair_thickness "1.5"; cl_crosshairstyle "11"; cl_ironsight_dot_scale ".333"; cl_crosshair_length "3"',{...defaults,cl_crosshairstyle:4});
+  assert.equal(settings.cl_crosshair_gap,-10);
+  assert.equal(settings.cl_crosshair_thickness,2);
+  assert.equal(settings.cl_crosshairstyle,4,'an unsupported style keeps the current one');
+  assert.equal(settings.cl_ironsight_dot_scale,.33);
+  assert.equal(settings.cl_crosshair_length,3);
+  assert.deepEqual(adjusted.map(a=>[a.key,a.from,a.to,a.kept]),[
+    ['cl_crosshair_gap',-15,-10,false],['cl_crosshair_thickness',1.5,2,false],
+    ['cl_crosshairstyle',11,4,true],['cl_ironsight_dot_scale',.333,.33,false]]);
+  assert.match(describeAdjustments(adjusted),/^Config imported. Adjusted to supported values: cl_crosshair_gap -15 → -10; .*cl_crosshairstyle 11 is not supported, kept 4, and 1 more\./);
+  assert.deepEqual(importConfig(cfg(defaults)).adjusted,[]);
+  assert.deepEqual(importConfig('cl_crosshair_gap "-15"; cl_crosshair_gap "2"').adjusted,[],'a later valid value clears the report');
 });
 test('alias and file names cannot inject commands or traverse directories',()=>{
   for(const name of ['../bad','bad;quit','bad"quit','quit','exec','cl_test','bad space','1bad'])assert.throws(()=>safeAlias(name));

@@ -1,5 +1,5 @@
 import { convertLegacy, COMMUNITY_MODEL_VERSION } from './converter';
-import { defaults, validateSettings, sameCodeSettings, type Settings } from './model';
+import { defaults, fitSetting, validateSettings, sameCodeSettings, type Settings } from './model';
 
 // CS2 1.41.8.8. Byte layout verified against codes exported by the game.
 const alphabet='ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
@@ -99,15 +99,35 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
   }
   throw Error('Paste a complete CS crosshair code or a supported CSGO crosshair code.');
 }
-export function importCommands(text: string, base=defaults): Settings {
+/** A config value the importer changed: fitted into range, or not supported and left as it was. */
+export type ConfigAdjustment = {key: string; from: number; to: number; kept: boolean};
+/**
+ * Read cl_ settings from a .cfg file or console line. Values the game accepts but the studio cannot
+ * carry (gap -15, thickness 1.5, style 11) are fitted or kept at their current value and reported,
+ * rather than failing the whole import.
+ */
+export function importConfig(text: string, base=defaults): {settings: Settings; adjusted: ConfigAdjustment[]} {
   if(text.length>200000) throw Error('Config is too large.');
-  const s={...base};let count=0;
+  const s={...base};let count=0;const adjusted=new Map<string,ConfigAdjustment>();
   for(const command of text.replace(/\/\/[^\n]*/g,'').split(/[;\r\n]/)) {
-    const match=/^\s*"?(cl_[a-z0-9_]+)"?\s+"?(-?\d+(?:\.\d+)?|true|false)"?\s*$/i.exec(command);
+    const match=/^\s*"?(cl_[a-z0-9_]+)"?\s+"?(-?\d+(?:\.\d+)?|-?\.\d+|true|false)"?\s*$/i.exec(command);
     const key=match?.[1]?.toLowerCase();
     const raw=match?.[2]?.toLowerCase();
-    if(key!==undefined && Object.hasOwn(defaults,key)){s[key]=raw==='true'?1:raw==='false'?0:Number(raw);count++;}
+    if(key===undefined||!Object.hasOwn(defaults,key)) continue;
+    const val=raw==='true'?1:raw==='false'?0:Number(raw);
+    const fitted=fitSetting(key,val);
+    count++;
+    if(fitted===val){s[key]=val;adjusted.delete(key);continue;}
+    if(fitted!==undefined) s[key]=fitted;
+    adjusted.set(key,{key,from:val,to:s[key]!,kept:fitted===undefined});
   }
   if(!count) throw Error('No current CS2 crosshair settings found. Unrelated commands are ignored.');
-  return validateSettings(s);
+  return {settings:validateSettings(s),adjusted:[...adjusted.values()]};
+}
+export function importCommands(text: string, base=defaults): Settings { return importConfig(text,base).settings; }
+/** One-line summary of config adjustments for a notice. */
+export function describeAdjustments(adjusted: ConfigAdjustment[]): string {
+  const shown=adjusted.slice(0,3).map(a=>a.kept?`${a.key} ${a.from} is not supported, kept ${a.to}`:`${a.key} ${a.from} → ${a.to}`);
+  const more=adjusted.length>3?`, and ${adjusted.length-3} more`:'';
+  return `Config imported. Adjusted to supported values: ${shown.join('; ')}${more}.`;
 }

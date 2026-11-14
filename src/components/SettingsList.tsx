@@ -50,6 +50,7 @@ export function NumberControl({
         step={field.step ?? 1}
         value={draft}
         disabled={disabled}
+        aria-describedby={field.hint ? `${field.key}-hint` : undefined}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -70,6 +71,7 @@ export function Row({
   set: (key: string, value: number) => void;
 }) {
   return (
+    <>
     <div className="setting-row">
       <label htmlFor={field.key}>
         {field.label}
@@ -78,6 +80,7 @@ export function Row({
         <select
           id={field.key}
           aria-label={field.label}
+          aria-describedby={field.hint ? `${field.key}-hint` : undefined}
           value={s[field.key] ?? 0}
           onChange={(e) => set(field.key, Number(e.target.value))}
         >
@@ -91,6 +94,8 @@ export function Row({
         <NumberControl field={field} value={s[field.key] ?? 0} onChange={(value) => set(field.key, value)} />
       )}
     </div>
+    {field.hint && <p id={`${field.key}-hint`} className="code-hint setting-hint">{field.hint}</p>}
+    </>
   );
 }
 

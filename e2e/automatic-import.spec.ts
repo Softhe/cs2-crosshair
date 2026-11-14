@@ -41,6 +41,30 @@ test('choosing a legacy config imports immediately and allows choosing the same 
   }
 });
 
+test('a config with values a share code cannot carry is fitted and the changes are listed', async ({page}) => {
+  await page.goto('/');
+  await page.getByLabel('Crosshair config file', {exact:true}).setInputFiles({name:'game.cfg', mimeType:'text/plain',
+    buffer:Buffer.from('cl_crosshairstyle "4"\ncl_crosshair_gap "-15"\ncl_crosshair_thickness "1.5"\ncl_crosshair_length "3"')});
+  await expect(page.getByRole('spinbutton', {name:'Gap', exact:true})).toHaveValue('-10');
+  await expect(page.getByRole('spinbutton', {name:'Thickness', exact:true})).toHaveValue('2');
+  await expect(page.getByRole('spinbutton', {name:'Length', exact:true})).toHaveValue('3');
+  await expect(page.getByText(/Adjusted to supported values: cl_crosshair_gap -15 → -10; cl_crosshair_thickness 1.5 → 2\./)).toBeVisible();
+  await expect(page.getByText('Applied crosshair', {exact:true})).toBeVisible();
+});
+
+test('thickness 0 explains why the preview is empty', async ({page}) => {
+  await page.goto('/');
+  const thickness = page.getByRole('spinbutton', {name:'Thickness', exact:true});
+  await expect(page.locator('#cl_crosshair_thickness-hint')).toHaveCount(0);
+  await thickness.fill('0');
+  await thickness.blur();
+  await expect(thickness).toHaveAttribute('aria-describedby', 'cl_crosshair_thickness-hint');
+  await expect(page.locator('#cl_crosshair_thickness-hint')).toHaveText(/draws nothing/);
+  await thickness.fill('1');
+  await thickness.blur();
+  await expect(page.locator('#cl_crosshair_thickness-hint')).toHaveCount(0);
+});
+
 test('invalid uploads preserve the applied crosshair and show an error', async ({page}) => {
   await page.goto('/');
   const field = page.getByLabel('Crosshair code or config', {exact:true});
