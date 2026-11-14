@@ -25,3 +25,9 @@ The 404 fallback loads the application but preserves the HTTP 404 response on pa
 The replacement preserves the previous commits. To undo it, revert its commit in a new commit and push the revert to `main`. Vercel will deploy the reverted source. A hosting rollback to GitHub Pages also requires restoring its publishing workflow and changing Cloudflare DNS back to the previous provider. Preserve Neon data when rolling back frontend code. Do not reset or force-push shared history for a routine rollback.
 
 A local Git bundle of all pre-replacement refs was also saved beside the replacement checkout. It is an extra recovery copy and is not uploaded to GitHub.
+
+## Content Security Policy
+
+`vercel.json` sends the policy as `Content-Security-Policy-Report-Only`, so production only logs violations in the browser console. `vite preview`, which the browser tests run against, reads the same value and enforces it, and `e2e/csp.spec.ts` fails on any violation.
+
+To enforce it in production, rename the header key in `vercel.json` to `Content-Security-Policy` and update the lookup in `vite.config.ts`. Before that, open delli.cc with the console open, sign in with Steam, and check that no `Content Security Policy` messages appear. A new external origin (fonts, images, analytics, an API) must be added to the policy and covered by the CSP test first.
