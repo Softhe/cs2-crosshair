@@ -13,6 +13,24 @@ const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 const equal = (a: string, b: string) =>
   a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const signInReturn = (value: string | null) => (value === '/?view=library' ? '/?view=library' : '/');
+/** A storage failure: the request was fine, the service is not. Answered with 503 so clients retry. */
+class StoreUnavailable extends Error {}
+// Methods are looked up per call, so a store swapped or patched after creation is still guarded.
+function guarded(store: Store): Store {
+  return new Proxy(store, {
+    get(target, key, receiver) {
+      const value = Reflect.get(target, key, receiver);
+      if (typeof value !== 'function' || key === 'close') return value;
+      return async (...args: unknown[]) => {
+        try {
+          return await value.apply(target, args);
+        } catch (cause) {
+          throw new StoreUnavailable('Storage request failed.', { cause });
+        }
+      };
+    },
+  });
+}
 export type Options = {
   origin?: string;
   databasePath?: string;
@@ -35,15 +53,21 @@ export function createHandler(options: Options = {}) {
     throw Error('Production requires an explicit HTTPS public origin.');
   let pendingStore: Promise<Store> | undefined;
   const storage = () =>
-    (pendingStore ??= options.store
-      ? Promise.resolve(options.store)
-      : databaseUrl
-        ? import('./neon-store.js').then((module) => module.createNeonStore(databaseUrl))
-        : import('./sqlite-store.js').then((module) =>
-            module.createSqliteStore(
-              options.databasePath ?? process.env.DATABASE_PATH ?? resolve('data/library.sqlite'),
-            ),
-          ));
+    (pendingStore ??= (
+      options.store
+        ? Promise.resolve(options.store)
+        : databaseUrl
+          ? import('./neon-store.js').then((module) => module.createNeonStore(databaseUrl))
+          : import('./sqlite-store.js').then((module) =>
+              module.createSqliteStore(
+                options.databasePath ?? process.env.DATABASE_PATH ?? resolve('data/library.sqlite'),
+              ),
+            )
+    ).then(guarded, (cause: unknown) => {
+      // Let the next request try again instead of caching a failed connection forever.
+      pendingStore = undefined;
+      throw new StoreUnavailable('Storage could not be opened.', { cause });
+    }));
   const now = options.now ?? Date.now,
     requestFetch = options.fetch ?? fetch,
     dist = resolve(options.distPath ?? 'dist');
@@ -392,6 +416,17 @@ export function createHandler(options: Options = {}) {
           'Cache-Control': 'no-store',
         });
         res.end();
+        return;
+      }
+      if (error instanceof StoreUnavailable) {
+        // Log the class only: driver messages can contain connection strings.
+        console.error('Storage request failed.');
+        json(
+          res,
+          503,
+          { error: 'The account service is temporarily unavailable. Try again shortly.' },
+          { 'Retry-After': '5' },
+        );
         return;
       }
       json(res, 400, { error: 'The request could not be completed. Check your input or try again.' });
