@@ -302,8 +302,16 @@ export function createHandler(options: Options = {}) {
           const ipAllowed = await allowed(db, 'put-ip:' + clientIp(req), 60, 60000, t);
           if (!ipAllowed || !(await allowed(db, 'put-owner:' + s.owner, 120, 3600000, t))) {
             const windowMs = ipAllowed ? 3600000 : 60000;
-            const retryAfter = Math.max(1, Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000));
-            json(res, 429, { error: 'Too many sync attempts. Try again later.' }, { 'Retry-After': String(retryAfter) });
+            const retryAfter = Math.max(
+              1,
+              Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000),
+            );
+            json(
+              res,
+              429,
+              { error: 'Too many sync attempts. Try again later.' },
+              { 'Retry-After': String(retryAfter) },
+            );
             return;
           }
           const input = await body(req);
@@ -342,8 +350,16 @@ export function createHandler(options: Options = {}) {
           const ipAllowed = await allowed(db, 'pref-ip:' + clientIp(req), 60, 60000, t);
           if (!ipAllowed || !(await allowed(db, 'pref-owner:' + s.owner, 240, 3600000, t))) {
             const windowMs = ipAllowed ? 3600000 : 60000;
-            const retryAfter = Math.max(1, Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000));
-            json(res, 429, { error: 'Too many sync attempts. Try again later.' }, { 'Retry-After': String(retryAfter) });
+            const retryAfter = Math.max(
+              1,
+              Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000),
+            );
+            json(
+              res,
+              429,
+              { error: 'Too many sync attempts. Try again later.' },
+              { 'Retry-After': String(retryAfter) },
+            );
             return;
           }
           const preferences = validatePreferences((await body(req))?.preferences);
