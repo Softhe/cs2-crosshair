@@ -1,6 +1,6 @@
 # Vercel and Neon deployment
 
-The static Vite editor and private-library API are deployed to Vercel with separate preview and production Neon databases. The existing GitHub Pages workflow remains configured. This does not move `delli.cc` or change its DNS.
+The static Vite editor and private-library API are deployed to Vercel with separate preview and production Neon databases. `delli.cc` has served from Vercel since the 2026-10-15 cutover recorded below; GitHub Pages publishing is retired.
 
 ## Runtime and routing
 
@@ -54,7 +54,7 @@ Report real Steam sign-in and two-browser persistence separately from mocked bro
 
 The `softhe` team owns the `delli-crosshair` project. Its Vercel production address is https://delli-crosshair-five.vercel.app. The `delli-crosshair-preview` Neon resource is connected only to Preview and Development. The separate `delli-crosshair-production` resource is connected only to Production. Both schemas have been migrated. Local environment and protection-bypass files are ignored by Git and deployment uploads.
 
-Production uses `PUBLIC_ORIGIN=https://delli.cc`. Preview derives its origin from `VERCEL_URL`. The existing `delli.cc` DNS and GitHub Pages deployment are unchanged.
+Production uses `PUBLIC_ORIGIN=https://delli.cc`. Preview derives its origin from `VERCEL_URL`.
 
 Runtime imports inside `server/` and `api/` use `.js` extensions so the emitted Node functions resolve them. Explicit Steam sign-in, callback, and logout route files cover nested API paths alongside the shared catchall adapter.
 

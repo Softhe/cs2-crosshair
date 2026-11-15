@@ -12,7 +12,7 @@
 
 The editor has Style Settings and Crosshair Settings. Gap controls accept values from -10 to 128. The preview offers seven game backgrounds, four zoom levels, a scope dot view, and simulated dynamic motion.
 
-The preview defaults to an estimated monitor-resolution size. Correct the display height when the browser's estimate differs from your monitor, or use fullscreen to place the crosshair at the screen center. The detail view helps inspect arm and outline symmetry at 4×, or at a smaller labeled scale when the crosshair would not fit. A short intro plays at 1.25× speed on every refresh and fades into the editor.
+The preview defaults to an estimated monitor-resolution size. Correct the display height when the browser's estimate differs from your monitor, or use fullscreen to place the crosshair at the screen center. The detail view helps inspect arm and outline symmetry at 4×, or at a smaller labeled scale when the crosshair would not fit. A short intro plays at 1.25× speed on a browser's first visit and fades into the editor. Later visits open the editor directly; add `?intro=preview` to the address to replay it.
 
 Current `CS` codes carry crosshair and scope dot settings. Older `CSGO-` codes are supported with an approximation notice when conversion is needed. Config files and website links preserve additional settings. Imported console commands are parsed as data; the website does not execute them.
 
@@ -30,7 +30,7 @@ Downloaded configs include the share code, the commented alias shortcut, and a s
 
 Drafts, preferences, aliases, feedback notes, up to 50 favorites, and up to 20 recent crosshairs stay in your browser. Use the library's JSON backup to save a copy elsewhere. Share links include settings in the URL, so anyone with the link can read them.
 
-The editor works without an account and has no analytics. Optional Steam sign-in syncs saved crosshairs; see below. Fonts and map backgrounds are served with the site. GitHub Pages receives normal page requests. Opening an issue draft takes you to GitHub, where you can review the text before submitting it.
+The editor works without an account and has no analytics. Optional Steam sign-in syncs saved crosshairs; see below. Fonts and map backgrounds are served with the site, and Vercel receives normal page requests. Opening an issue draft takes you to GitHub, where you can review the text before submitting it.
 
 This replacement uses a separate `delli.v3` storage namespace. It does not automatically migrate the previous website's drafts or library. Old stored data is left in place. Legacy share-code links still work.
 
@@ -71,7 +71,7 @@ The preview is a browser approximation. Dynamic movement, recoil, quadrant geome
 
 GitHub Actions verifies changes on `main`. Vercel deploys the frontend and Steam/library API from the connected repository. Previous GitHub Pages configuration remains recoverable in Git history.
 
-Counter-Strike and the map preview assets belong to Valve. This project is independent and is not endorsed by Valve. No separate license for the project's source code is declared.
+The project's source code is released under the [MIT License](LICENSE). Vendored third-party code keeps its own notices; see [third-party notices](docs/THIRD_PARTY.md). Counter-Strike, the map preview images and the intro video belong to Valve and are not covered by the MIT License. This project is independent and is not endorsed by Valve.
 
 ## Steam sign-in and private library sync
 
@@ -88,6 +88,6 @@ Open http://127.0.0.1:4181. This serves the frontend and Steam/library API from 
 
 The SQLite file is `data/library.sqlite`; preserve and back it up when deploying. Pending account changes are durably cached in browser storage and retried after connectivity returns. First login offers an explicit merge of the device's guest favorites; it never silently uploads them. Concurrent divergent edits retain both versions rather than silently overwriting one.
 
-GitHub Pages can only host the static editor and cannot run this backend. Production Steam login requires an HTTPS same-origin backend, supplied by Vercel Functions in the configured deployment or by the local Node service behind a reverse proxy. Set `PUBLIC_ORIGIN` to the exact stable public origin. Do not publish the SQLite file, environment files, or server sources as static assets. See [library sync](docs/LIBRARY_SYNC.md) for configuration, privacy, verification, and deployment details.
+Production Steam login requires an HTTPS same-origin backend, supplied by Vercel Functions in the configured deployment or by the local Node service behind a reverse proxy. Set `PUBLIC_ORIGIN` to the exact stable public origin. Do not publish the SQLite file, environment files, or server sources as static assets. See [library sync](docs/LIBRARY_SYNC.md) for configuration, privacy, verification, and deployment details.
 
 Vercel hosting is configured under the `softhe` team with separate Neon databases for preview and production. The Node API runs as Vercel Functions and keeps durable sessions and favorites in Postgres. See [Vercel deployment](docs/VERCEL_DEPLOYMENT.md) for environment setup, verification, and the boundary between the Vercel address and the existing `delli.cc` site.
