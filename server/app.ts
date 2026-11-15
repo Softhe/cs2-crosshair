@@ -5,6 +5,7 @@ import { resolve, sep, extname } from 'node:path';
 import type { Store } from './store.js';
 import { validateSettings } from '../src/model.js';
 import { validatePreferences } from '../src/preferences.js';
+import { securityHeaders } from './security-headers.js';
 
 const provider = 'https://steamcommunity.com/openid/login';
 const namespace = 'http://specs.openid.net/auth/2.0';
@@ -112,10 +113,10 @@ export function createHandler(options: Options = {}) {
   }
   function json(res: ServerResponse, status: number, value: unknown, headers: Record<string, string> = {}) {
     res.writeHead(status, {
+      ...securityHeaders,
       ...headers,
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
     });
     res.end(JSON.stringify(value));
   }
@@ -389,13 +390,13 @@ export function createHandler(options: Options = {}) {
         '.svg': 'image/svg+xml',
         '.png': 'image/png',
         '.webp': 'image/webp',
+        '.webm': 'video/webm',
         '.woff2': 'font/woff2',
         '.ico': 'image/x-icon',
       };
       res.writeHead(200, {
+        ...securityHeaders,
         'Content-Type': mime[extname(file)] ?? 'application/octet-stream',
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'same-origin',
         'Cache-Control': extname(file) === '.html' ? 'no-cache' : 'public, max-age=3600',
       });
       res.end(req.method === 'HEAD' ? undefined : content);

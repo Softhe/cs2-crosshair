@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {deploymentOrigin} from '../api/[...path].ts';
+import {securityHeaders} from '../server/security-headers.ts';
 
 test('deployment origin uses explicit configuration or the trusted Vercel deployment hostname',()=>{
   assert.equal(deploymentOrigin({PUBLIC_ORIGIN:'https://preview.example.com',VERCEL:'1',VERCEL_URL:'ignored.vercel.app'}),'https://preview.example.com');
@@ -17,4 +18,13 @@ test('Vercel SPA fallback preserves code links and never captures account API ro
   for(const path of ['/','/custom','/CSxkMfFVRUG6fRehdb2CvLNuajHopsuAQ5O38aVLPTTPHj','/missing'])assert.equal(fallback.test(path),true,path);
   for(const path of ['/api','/api/','/api/session','/api/auth/steam/callback','/api/unknown'])assert.equal(fallback.test(path),false,path);
   assert.equal(config.rewrites[0].destination,'/index.html');
+});
+
+test('Vercel serves the same security headers as the local server and vite preview',()=>{
+  const config=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
+  assert.equal(config.headers.length,1);assert.equal(config.headers[0].source,'/(.*)');
+  const deployed=Object.fromEntries(config.headers[0].headers.map((h:{key:string;value:string})=>[h.key,h.value]));
+  assert.deepEqual(deployed,securityHeaders);
+  assert.match(securityHeaders['Content-Security-Policy']!,/frame-ancestors 'none'/);
+  assert.doesNotMatch(securityHeaders['Content-Security-Policy']!,/unsafe-inline|unsafe-eval/);
 });
