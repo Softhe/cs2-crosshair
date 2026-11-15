@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   unit:
-    name: unit + typecheck
+    name: unit + typecheck + format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -24,8 +24,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run format:check
       - run: npm test
-      - run: npx tsc --noEmit
+      # The build type-checks (tsc --noEmit) before bundling.
       - run: npm run build
 
   e2e-desktop:
