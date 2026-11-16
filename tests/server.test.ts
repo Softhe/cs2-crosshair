@@ -131,3 +131,26 @@ test('preview preferences are private to the account, CSRF-protected and validat
     assert.equal((await (await fetch(base+'/api/preferences',{headers:headers('account-a')})).json()).preferences.gameView.stretched,false);
   }finally{await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));store.close();}
 });
+
+test('Steam sign-in started on another host name moves to the configured origin first',async()=>{
+  const server=createApp({databasePath:':memory:',origin:'https://delli.example'});
+  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const port=(server.address() as {port:number}).port;
+  const {request:send}=await import('node:http');
+  const get=(host:string)=>new Promise<{status:number;location:string;cookie:string[]}>((resolve,reject)=>{
+    send({host:'127.0.0.1',port,path:'/api/auth/steam?returnTo=%2Flibrary',headers:{Host:host}},response=>{
+      response.resume();
+      resolve({status:response.statusCode!,location:response.headers.location??'',cookie:response.headers['set-cookie']??[]});
+    }).on('error',reject).end();
+  });
+  try{
+    const alias=await get('delli-git-branch.vercel.app');
+    assert.equal(alias.status,302);
+    assert.equal(alias.location,'https://delli.example/api/auth/steam?returnTo=%2Flibrary');
+    assert.deepEqual(alias.cookie,[]);
+    const canonical=await get('delli.example');
+    assert.equal(canonical.status,302);
+    assert.match(canonical.location,/^https:\/\/steamcommunity\.com\/openid\/login\?/);
+    assert.match(canonical.cookie[0]!,/^delli_auth_state=/);
+  }finally{await new Promise(resolve=>server.close(resolve));}
+});

@@ -68,8 +68,10 @@ test('Node handler accepts Vercel parsed JSON and redacts database failures',asy
     t+=6*60*1000;
     store.cleanup=async()=>{throw Error('postgres://sensitive-user:secret-password@private-host/database');};
     assert.equal((await fetch(base+'/api/session')).status,200);
+    // Invalid input is still the client's fault, not a service outage.
+    const invalid=await fetch(base+'/api/library',{method:'PUT',headers:{Cookie:`delli_session=${id}`,Origin:'http://127.0.0.1:4181','X-CSRF-Token':csrf,'Content-Type':'text/plain'},body:'x'});assert.equal(invalid.status,400);
     store.session=async()=>{throw Error('postgres://sensitive-user:secret-password@private-host/database');};
-    const failure=await fetch(base+'/api/session',{headers:{Cookie:`delli_session=${id}`}});assert.equal(failure.status,400);assert.ok(!(await failure.text()).includes('secret-password'));
+    const failure=await fetch(base+'/api/session',{headers:{Cookie:`delli_session=${id}`}});assert.equal(failure.status,503);assert.equal(failure.headers.get('retry-after'),'5');assert.ok(!(await failure.text()).includes('secret-password'));
   }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));await handler.close();}
 });
 test('an injected store takes precedence over a configured database URL',async()=>{

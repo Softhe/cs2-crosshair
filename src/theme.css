@@ -46,14 +46,14 @@ code,kbd {font-size:12px;line-height:1.7}
 .quiet-button kbd {font-size:12px;color:var(--muted)}
 .field-label,.field-label>span,.section-title>span,.code-state{font-size:12px;color:var(--muted);letter-spacing:0}
 
-.code-hint,.section-note,.privacy-note,.intro,.library-save-heading p,.sync-panel p,.preview-controls .display-note,.preview-details .display-note{font-size:13px;line-height:1.7;color:var(--muted)}
+.code-hint,.section-note,.privacy-note,.intro,.library-save-heading p,.sync-panel p{font-size:13px;line-height:1.7;color:var(--muted)}
 .site-footer,.count,.library-info>span,.library-name-field label,.collection-count{font-size:12px;color:var(--muted)}
 .site-footer{border-color:var(--line)}
-details summary,.preview-details>summary,.export-advanced>summary,.inline-import>.legacy-converter>summary,.config-import>summary{font-size:13px;color:var(--muted);line-height:1.6}
+details summary,.export-advanced>summary,.inline-import>.legacy-converter>summary,.config-import>summary{font-size:13px;color:var(--muted);line-height:1.6}
 details p,details code,.help-content p,.help-content ol,.modal-content>p,.empty-library p {font-size:13px;line-height:1.8;color:var(--muted)}
 .preview-toolbar,.preview-caption {background:var(--panel);color:var(--muted);font-size:12px;letter-spacing:0;line-height:1.6}
 .preview-toolbar {height:auto;min-height:44px}
-.preview-toolbar select,.preview-toolbar .preview-settings-button,.fullscreen-button,.zoom-buttons button {font-size:12px;color:var(--text)}
+.preview-toolbar select,.fullscreen-button,.zoom-buttons button {font-size:12px;color:var(--text)}
 .zoom-buttons button.active{color:var(--accent);background:var(--selected)}
 
 

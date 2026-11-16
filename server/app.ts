@@ -5,6 +5,7 @@ import { resolve, sep, extname } from 'node:path';
 import type { Store } from './store.js';
 import { validateSettings } from '../src/model.js';
 import { validatePreferences } from '../src/preferences.js';
+import { securityHeaders } from './security-headers.js';
 
 const provider = 'https://steamcommunity.com/openid/login';
 const namespace = 'http://specs.openid.net/auth/2.0';
@@ -12,7 +13,31 @@ const token = () => randomBytes(32).toString('hex');
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const equal = (a: string, b: string) =>
   a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const DAY_MS = 86400000;
+/** Sessions last 30 days from the last renewal; one used with under 15 days left is renewed. */
+const SESSION_DAYS = 30,
+  RENEW_BELOW_DAYS = 15,
+  /** Sign-ins beyond this many end the account's oldest sessions. */
+  MAX_SESSIONS_PER_ACCOUNT = 10;
 const signInReturn = (value: string | null) => (value === '/?view=library' ? '/?view=library' : '/');
+/** A storage failure: the request was fine, the service is not. Answered with 503 so clients retry. */
+class StoreUnavailable extends Error {}
+// Methods are looked up per call, so a store swapped or patched after creation is still guarded.
+function guarded(store: Store): Store {
+  return new Proxy(store, {
+    get(target, key, receiver) {
+      const value = Reflect.get(target, key, receiver);
+      if (typeof value !== 'function' || key === 'close') return value;
+      return async (...args: unknown[]) => {
+        try {
+          return await value.apply(target, args);
+        } catch (cause) {
+          throw new StoreUnavailable('Storage request failed.', { cause });
+        }
+      };
+    },
+  });
+}
 export type Options = {
   origin?: string;
   databasePath?: string;
@@ -35,15 +60,21 @@ export function createHandler(options: Options = {}) {
     throw Error('Production requires an explicit HTTPS public origin.');
   let pendingStore: Promise<Store> | undefined;
   const storage = () =>
-    (pendingStore ??= options.store
-      ? Promise.resolve(options.store)
-      : databaseUrl
-        ? import('./neon-store.js').then((module) => module.createNeonStore(databaseUrl))
-        : import('./sqlite-store.js').then((module) =>
-            module.createSqliteStore(
-              options.databasePath ?? process.env.DATABASE_PATH ?? resolve('data/library.sqlite'),
-            ),
-          ));
+    (pendingStore ??= (
+      options.store
+        ? Promise.resolve(options.store)
+        : databaseUrl
+          ? import('./neon-store.js').then((module) => module.createNeonStore(databaseUrl))
+          : import('./sqlite-store.js').then((module) =>
+              module.createSqliteStore(
+                options.databasePath ?? process.env.DATABASE_PATH ?? resolve('data/library.sqlite'),
+              ),
+            )
+    ).then(guarded, (cause: unknown) => {
+      // Let the next request try again instead of caching a failed connection forever.
+      pendingStore = undefined;
+      throw new StoreUnavailable('Storage could not be opened.', { cause });
+    }));
   const now = options.now ?? Date.now,
     requestFetch = options.fetch ?? fetch,
     dist = resolve(options.distPath ?? 'dist');
@@ -81,17 +112,26 @@ export function createHandler(options: Options = {}) {
       (req.headers.cookie ?? '').split(';').map((p) => p.trim().split('=').slice(0, 2)),
     );
   }
-  async function session(req: IncomingMessage) {
+  /** The request's session. With `res`, a session close to expiry is renewed and its cookie re-sent. */
+  async function session(req: IncomingMessage, res?: ServerResponse) {
     const id = cookies(req).delli_session;
     if (!id) return undefined;
-    return (await storage()).session(hash(id), now());
+    const db = await storage(),
+      t = now(),
+      s = await db.session(hash(id), t);
+    if (s && res && s.expires - t < RENEW_BELOW_DAYS * DAY_MS) {
+      s.expires = t + SESSION_DAYS * DAY_MS;
+      await db.renewSession(s.id, s.expires);
+      res.setHeader('Set-Cookie', cookie('delli_session', id, SESSION_DAYS * 86400));
+    }
+    return s;
   }
   function json(res: ServerResponse, status: number, value: unknown, headers: Record<string, string> = {}) {
     res.writeHead(status, {
+      ...securityHeaders,
       ...headers,
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
     });
     res.end(JSON.stringify(value));
   }
@@ -132,11 +172,27 @@ export function createHandler(options: Options = {}) {
           }
         }
         if (path === '/api/session' && req.method === 'GET') {
-          const s = await session(req);
+          const s = await session(req, res);
           json(res, 200, s ? { user: { steamId: s.owner }, csrfToken: s.csrf } : { user: null });
           return;
         }
         if (path === '/api/auth/steam' && req.method === 'GET') {
+          // Cookies belong to a host name. Starting on another host (a Vercel branch alias, say) would set the
+          // state cookie where Steam's return to this origin cannot see it, so move to this origin first.
+          let requestHost = '';
+          try {
+            requestHost = new URL(`http://${req.headers.host ?? ''}`).hostname;
+          } catch {
+            /* A malformed Host header is answered on this origin as usual. */
+          }
+          if (requestHost && requestHost !== parsedOrigin.hostname) {
+            res.writeHead(302, {
+              Location: new URL(url.pathname + url.search, origin).href,
+              'Cache-Control': 'no-store',
+            });
+            res.end();
+            return;
+          }
           if (!(await allowed(db, 'steam:' + clientIp(req), 60, 60000, t))) {
             json(res, 429, { error: 'Too many sign-in attempts. Try again later.' });
             return;
@@ -229,20 +285,26 @@ export function createHandler(options: Options = {}) {
           if (old) await db.deleteSession(old.id);
           const id = token(),
             csrf = token();
-          await db.addSession({
-            id: hash(id),
-            owner: identity.split('/').at(-1)!,
-            csrf,
-            expires: now() + 30 * 86400000,
-          });
+          await db.addSession(
+            {
+              id: hash(id),
+              owner: identity.split('/').at(-1)!,
+              csrf,
+              expires: now() + SESSION_DAYS * DAY_MS,
+            },
+            MAX_SESSIONS_PER_ACCOUNT,
+          );
           res.writeHead(302, {
             Location: destination,
-            'Set-Cookie': [cookie('delli_session', id, 30 * 86400), cookie('delli_auth_state', '', 0)],
+            'Set-Cookie': [
+              cookie('delli_session', id, SESSION_DAYS * 86400),
+              cookie('delli_auth_state', '', 0),
+            ],
           });
           res.end();
           return;
         }
-        const s = await session(req);
+        const s = await session(req, res);
         if (!s) {
           json(res, 401, { error: 'Sign in with Steam first.' });
           return;
@@ -267,7 +329,9 @@ export function createHandler(options: Options = {}) {
           return;
         }
         if (path === '/api/auth/logout' && req.method === 'POST') {
-          await db.deleteSession(s.id);
+          // ?scope=all signs the account out on every device, not just this one.
+          if (url.searchParams.get('scope') === 'all') await db.deleteSessions(s.owner);
+          else await db.deleteSession(s.id);
           res.setHeader('Set-Cookie', cookie('delli_session', '', 0));
           json(res, 200, { user: null });
           return;
@@ -277,8 +341,16 @@ export function createHandler(options: Options = {}) {
           const ipAllowed = await allowed(db, 'put-ip:' + clientIp(req), 60, 60000, t);
           if (!ipAllowed || !(await allowed(db, 'put-owner:' + s.owner, 120, 3600000, t))) {
             const windowMs = ipAllowed ? 3600000 : 60000;
-            const retryAfter = Math.max(1, Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000));
-            json(res, 429, { error: 'Too many sync attempts. Try again later.' }, { 'Retry-After': String(retryAfter) });
+            const retryAfter = Math.max(
+              1,
+              Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000),
+            );
+            json(
+              res,
+              429,
+              { error: 'Too many sync attempts. Try again later.' },
+              { 'Retry-After': String(retryAfter) },
+            );
             return;
           }
           const input = await body(req);
@@ -317,8 +389,16 @@ export function createHandler(options: Options = {}) {
           const ipAllowed = await allowed(db, 'pref-ip:' + clientIp(req), 60, 60000, t);
           if (!ipAllowed || !(await allowed(db, 'pref-owner:' + s.owner, 240, 3600000, t))) {
             const windowMs = ipAllowed ? 3600000 : 60000;
-            const retryAfter = Math.max(1, Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000));
-            json(res, 429, { error: 'Too many sync attempts. Try again later.' }, { 'Retry-After': String(retryAfter) });
+            const retryAfter = Math.max(
+              1,
+              Math.ceil((Math.floor(t / windowMs) * windowMs + windowMs - t) / 1000),
+            );
+            json(
+              res,
+              429,
+              { error: 'Too many sync attempts. Try again later.' },
+              { 'Retry-After': String(retryAfter) },
+            );
             return;
           }
           const preferences = validatePreferences((await body(req))?.preferences);
@@ -365,13 +445,13 @@ export function createHandler(options: Options = {}) {
         '.svg': 'image/svg+xml',
         '.png': 'image/png',
         '.webp': 'image/webp',
+        '.webm': 'video/webm',
         '.woff2': 'font/woff2',
         '.ico': 'image/x-icon',
       };
       res.writeHead(200, {
+        ...securityHeaders,
         'Content-Type': mime[extname(file)] ?? 'application/octet-stream',
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'same-origin',
         'Cache-Control': extname(file) === '.html' ? 'no-cache' : 'public, max-age=3600',
       });
       res.end(req.method === 'HEAD' ? undefined : content);
@@ -392,6 +472,17 @@ export function createHandler(options: Options = {}) {
           'Cache-Control': 'no-store',
         });
         res.end();
+        return;
+      }
+      if (error instanceof StoreUnavailable) {
+        // Log the class only: driver messages can contain connection strings.
+        console.error('Storage request failed.');
+        json(
+          res,
+          503,
+          { error: 'The account service is temporarily unavailable. Try again shortly.' },
+          { 'Retry-After': '5' },
+        );
         return;
       }
       json(res, 400, { error: 'The request could not be completed. Check your input or try again.' });

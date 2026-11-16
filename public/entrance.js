@@ -1,7 +1,7 @@
 (() => {
   // The intro greets a first visit only. Refreshes and return visits open the editor directly;
   // ?intro=preview replays it on demand. Without storage it cannot be remembered, so it is skipped
-  // rather than shown on every load.
+  // rather than shown on every load. A browser asking for reduced motion skips it unless replayed.
   const replay = new URLSearchParams(location.search).get('intro') === 'preview';
   try {
     const seen = localStorage.getItem('delli.v3.intro-seen');
@@ -10,6 +10,7 @@
   } catch {
     if (!replay) return;
   }
+  if (!replay && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const entrance = document.getElementById('entrance');
   const root = document.getElementById('root');
   const video = entrance.querySelector('video');

@@ -1,18 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
 import { defaults } from '../src/model';
-import { openPreviewOptions } from './preview-options-helper';
+import { openPreviewOptions, playAt } from './preview-options-helper';
 
-async function fixture(page: Page, extra: Record<string, number> = {}) {
+// Without a size the crosshair is drawn as designed: the default 1080 reference, one pixel per unit.
+async function fixture(page: Page, extra: Record<string, number> = {}, size?: [number, number]) {
+  if (size) await playAt(page, ...size);
   await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
   await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, cl_crosshairstyle: 4,
     cl_crosshair_thickness: 1, cl_crosshair_length: 2, cl_crosshair_gap: 2,
     cl_crosshairdot: 1, cl_crosshair_drawoutline: 0, cl_crosshair_recoil: 0, ...extra })));
   if (await page.getByRole('button', { name: 'Expand preview', exact: true }).isVisible())
     await page.getByRole('button', { name: 'Expand preview', exact: true }).click();
-  await openPreviewOptions(page);
-  await page.getByRole('button', { name: 'Inspect preview', exact: true }).click();
-  await page.getByLabel('Preview scale', { exact: true }).selectOption('1080');
-  await page.getByRole('button', { name: 'Close dialog' }).click();
   await expect(page.locator('.detail-preview canvas')).toHaveAttribute('data-frame', /[1-9]/);
 }
 
@@ -77,24 +75,16 @@ test('large detail stays at four times magnification and reports cropping', asyn
 });
 
 
-test('oversized native raster reports clipping and fit shows the complete shape', async ({ page }, testInfo) => {
+test('a crosshair beyond the bounded raster is drawn smaller instead of cut off', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'One bounded-allocation regression is sufficient.');
-  await fixture(page, { cl_crosshair_length: 255, cl_crosshair_screen_height: 240 });
-  await openPreviewOptions(page);
-  await page.getByRole('button', { name: 'Inspect preview', exact: true }).click();
-  await page.getByLabel('Preview scale', { exact: true }).selectOption('-2');
-  await page.getByLabel('Game render height in physical pixels').fill('8192');
-  await page.getByLabel('Game render height in physical pixels').press('Enter');
+  // 255 units of a 240-reference code at 8192 rows would need a native frame past the allocation bound.
+  await fixture(page, { cl_crosshair_length: 255, cl_crosshair_screen_height: 240 }, [14563, 8192]);
   const canvas = page.locator('.map-preview > canvas');
-  // The native frame exceeds the bounded allocation, so the view is reported incomplete.
-  await expect(canvas).toHaveAttribute('data-source-clipped', 'true');
-  await expect(canvas).toHaveAttribute('data-clipped', 'true');
   // Below 1x, fit rasterizes directly at the fitted scale instead of shrinking the native frame.
-  await page.getByLabel('Fit crosshair in preview').check();
-  await page.getByRole('button', { name: 'Close dialog' }).click();
   await expect(canvas).toHaveAttribute('data-source-clipped', 'false');
   await expect(canvas).toHaveAttribute('data-clipped', 'false');
-  await expect(page.getByText('This crosshair is too large to preview completely. Choose a lower game render height.')).toHaveCount(0);
+  await expect(page.locator('.fit-note')).toContainText('to fit');
+  await expect(page.locator('.clipping-warning')).toHaveCount(0);
 });
 
 // Fit used to stretch the native frame by a fractional factor, which made opposing arms
@@ -104,17 +94,15 @@ for (const dpr of [1, 1.25, 1.5]) test(`fit keeps arms symmetric and visible at 
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: dpr });
   try {
     const page = await context.newPage();
-    for (const [settings, zoom] of [[{ cl_crosshair_thickness: 2, cl_crosshair_length: 60 }, 8], [{ cl_crosshair_length: 255, cl_crosshair_gap: 3, cl_crosshair_screen_height: 540 }, 1]] as const) {
-      await fixture(page, settings);
+    // The second case plays at 2160 rows, twice the 1080 reference, so fit must go below 1×.
+    for (const [settings, zoom, size] of [[{ cl_crosshair_thickness: 2, cl_crosshair_length: 60 }, 8, undefined], [{ cl_crosshair_length: 255, cl_crosshair_gap: 3 }, 1, [3840, 2160]]] as const) {
+      await fixture(page, settings, size ? [...size] : undefined);
       await page.getByRole('button', { name: `${zoom}x preview zoom` }).click();
-      await openPreviewOptions(page);
-      await page.getByRole('button', { name: 'Inspect preview', exact: true }).click();
-      await page.getByLabel('Fit crosshair in preview').check();
-      await page.getByRole('button', { name: 'Close dialog' }).click();
       const canvas = page.locator('.map-preview > canvas');
       await expect(canvas).toHaveAttribute('data-clipped', 'false');
       // The inputs must actually need fitting for this test to exercise it.
-      expect(Number(await canvas.getAttribute('data-scale'))).toBeLessThan(zoom * 1080 / (settings.cl_crosshair_screen_height ?? 1080) / dpr);
+      expect(Number(await canvas.getAttribute('data-scale'))).toBeLessThan(zoom * (size ? size[1] : 1080) / 1080 / dpr);
+      await expect(page.locator('.fit-note')).toContainText(`Too large for ${zoom}×`);
       const magnification = Number(await canvas.getAttribute('data-magnification'));
       expect(Number.isInteger(magnification)).toBe(true);
       const result = await canvas.evaluate(element => {

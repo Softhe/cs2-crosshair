@@ -24,10 +24,11 @@ test('scope scale remains responsive below one third and has no recoil', () => {
     }).radius > .15);
     assert.deepEqual(small.offset, [0, 0]);
 });
-test('split inspection exercises settings outside the synthetic motion range', () => {
-    const s = { ...defaults, cl_crosshairstyle: 2, cl_crosshair_dynamic_splitdist: 127, cl_crosshair_dynamic_maxdist_splitratio: .5, cl_crosshair_dynamic_splitalpha_innermod: 1 };
-    assert.equal(previewGeometry(renderingSettings(s), 'crosshair', 1).shapes.length, 4);
-    assert.equal(previewGeometry(renderingSettings(s), 'crosshair', 1, 0, true).shapes.length, 8);
+test('split arms appear only once the spread passes the split distance', () => {
+    const s = { ...defaults, cl_crosshairstyle: 2, cl_crosshair_dynamic_maxdist_splitratio: .5, cl_crosshair_dynamic_splitalpha_innermod: 1 };
+    assert.equal(previewGeometry(renderingSettings({ ...s, cl_crosshair_dynamic_splitdist: 127 }), 'crosshair', 1).shapes.length, 4);
+    assert.equal(previewGeometry(renderingSettings({ ...s, cl_crosshair_dynamic_splitdist: 3 }), 'crosshair', 1).shapes.length, 8);
+    assert.equal(previewGeometry(renderingSettings({ ...s, cl_crosshair_dynamic_splitdist: 3 }), 'crosshair', 0).shapes.length, 4);
 });
 test('animation eligibility excludes unchanged modes and fit uses full bounds', () => {
     assert.equal(motionEligible({ ...defaults, cl_crosshairstyle: 4 }, 'crosshair'), false);
@@ -86,11 +87,11 @@ test('zoomed views keep stretched game pixels whole; 1x keeps the true filtered 
   assert.deepEqual(presentationScale(4, [1, 1]), [4, 4]);
 });
 
-test('animated dynamic preview travels a capped distance while inspection reaches the full limit', () => {
+test('dynamic preview travels a capped distance below the full spread limit', () => {
     const s = renderingSettings({ ...defaults, cl_crosshairstyle: 0, cl_crosshair_gap: 0, cl_crosshair_length: 8, cl_crosshair_dynamic_spread_limit: 255 });
     const reach = (g: ReturnType<typeof previewGeometry>) => Math.max(...g.bounds.map(Math.abs));
     assert.ok(reach(previewGeometry(s, 'crosshair', 1)) > 255);
-    assert.ok(reach(previewGeometry(s, 'crosshair', 1, 0, false, ANIMATED_SPREAD_CAP)) <= ANIMATED_SPREAD_CAP + 8 + 1);
+    assert.ok(reach(previewGeometry(s, 'crosshair', 1, 0, ANIMATED_SPREAD_CAP)) <= ANIMATED_SPREAD_CAP + 8 + 1);
     const low = renderingSettings({ ...defaults, cl_crosshairstyle: 0, cl_crosshair_dynamic_spread_limit: 5 });
-    assert.deepEqual(previewGeometry(low, 'crosshair', 1, 0, false, ANIMATED_SPREAD_CAP), previewGeometry(low, 'crosshair', 1));
+    assert.deepEqual(previewGeometry(low, 'crosshair', 1, 0, ANIMATED_SPREAD_CAP), previewGeometry(low, 'crosshair', 1));
 });

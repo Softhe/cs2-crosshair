@@ -2,12 +2,15 @@
   "name": "delli-crosshair",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4180 --strictPort",
     "build": "tsc --noEmit && vite build && node scripts/pages-fallback.mjs",
     "test": "tsx --test tests/*.test.ts",
     "check": "npm test && npm run build",
+    "format": "prettier --write server api",
+    "format:check": "prettier --check server api",
     "test:e2e": "playwright test",
     "api": "tsx server/index.ts",
     "start": "tsx server/index.ts",
@@ -21,22 +24,23 @@
     "esbuild": "0.28.2"
   },
   "dependencies": {
-    "@fontsource/inter": "5.2.8",
-    "@fontsource/jetbrains-mono": "5.2.8",
-    "@neondatabase/serverless": "1.2.0",
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@neondatabase/serverless": "1.2.1",
     "lucide-react": "0.468.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@playwright/test": "1.58.2",
+    "@playwright/test": "1.65.1",
     "@types/node": "24.10.1",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "prettier": "3.9.10",
     "sharp": "0.35.5",
-    "tsx": "4.21.0",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
-    "vite": "8.3.2"
+    "vite": "8.3.8"
   },
   "engines": {
     "node": "24.x"

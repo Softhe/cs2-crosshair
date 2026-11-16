@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {defaults} from '../src/model';
 import {settingsKey,validateLibrary,type Saved} from '../src/storage';
-import {SyncRateLimitError,retryAfterSeconds,cloudFavorites,hasUnmergedGuestFavorites,persistGuest,LibraryStorageError,syncErrorMessage,mergeConflict,mergeGuestFavorites,persistQueue,queueKey,validateSnapshot,type CloudEntry} from '../src/library-sync';
+import {SyncUnavailableError,outageRetryMs,SyncRateLimitError,retryAfterSeconds,cloudFavorites,hasUnmergedGuestFavorites,persistGuest,LibraryStorageError,syncErrorMessage,mergeConflict,mergeGuestFavorites,persistQueue,queueKey,validateSnapshot,type CloudEntry} from '../src/library-sync';
 const item=(id:string,name=id,length=8):CloudEntry=>({id,name,settings:{...defaults,cl_crosshair_length:length}});
 const account='76561198000000001';
 test('library validation preserves IDs and migrates legacy entries',()=>{
@@ -82,4 +82,10 @@ test('rate-limited syncs explain the automatic retry and honor Retry-After',()=>
  assert.match(syncErrorMessage(error),/^Too many sync attempts\. .*about 3 minutes\.$/);
  assert.equal(retryAfterSeconds(new Response(null,{status:429})),60);
  assert.match(new SyncRateLimitError(30).message,/about 1 minute\.$/);
+});
+
+test('outage retries start at 5 seconds, double to 5 minutes and never undercut Retry-After',()=>{
+  assert.deepEqual([1,2,3,4,7,20].map(n=>outageRetryMs(n)),[5000,10000,20000,40000,300000,300000]);
+  assert.equal(outageRetryMs(1,30),30000);assert.equal(outageRetryMs(7,30),300000);assert.equal(outageRetryMs(1,99999),3600000);
+  assert.equal(syncErrorMessage(new SyncUnavailableError(5)),'Library sync is unavailable. Your saved local changes are retained.');
 });

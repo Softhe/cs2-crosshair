@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {Check,ChevronDown,Cloud,CloudOff,ExternalLink,LoaderCircle,LogOut,RefreshCw} from 'lucide-react';
+import {Check,ChevronDown,Cloud,CloudOff,ExternalLink,LoaderCircle,LogOut,MonitorSmartphone,RefreshCw} from 'lucide-react';
 
 type Props={
  user:{steamId:string}|null;
@@ -10,7 +10,8 @@ type Props={
  view:string;
  onOpenLibrary:()=>void;
  onRetry:()=>Promise<unknown>;
- onSignOut:()=>Promise<boolean>;
+ /** `everywhere` also ends this account's sessions on other devices. */
+ onSignOut:(everywhere?:boolean)=>Promise<boolean>;
 };
 
 function SteamMark(){
@@ -18,7 +19,7 @@ function SteamMark(){
 }
 
 export function SteamAccount(p:Props){
- const [open,setOpen]=useState(false),[signingOut,setSigningOut]=useState(false),[logoutError,setLogoutError]=useState('');
+ const [open,setOpen]=useState(false),[signingOut,setSigningOut]=useState<false|'here'|'everywhere'>(false),[logoutError,setLogoutError]=useState('');
  const root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null);
  useEffect(()=>{setOpen(false);setLogoutError('');},[p.view,p.user?.steamId]);
  useEffect(()=>{
@@ -29,14 +30,14 @@ export function SteamAccount(p:Props){
   return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape);};
  },[open]);
  const syncLabel=p.syncing?'Syncing…':p.status==='synced'?'Synced':p.status==='loading'?'Loading library…':p.status==='error'?'Sync needs attention':p.status==='pending'?'Saved changes waiting to sync':'Waiting to sync';
- async function signOut(){setSigningOut(true);setLogoutError('');try{if(await p.onSignOut())setOpen(false);else setLogoutError('Could not sign out. Try again.');}catch{setLogoutError('Could not sign out. Try again.');}finally{setSigningOut(false);}}
+ async function signOut(everywhere=false){setSigningOut(everywhere?'everywhere':'here');setLogoutError('');try{if(await p.onSignOut(everywhere))setOpen(false);else setLogoutError('Could not sign out. Try again.');}catch{setLogoutError('Could not sign out. Try again.');}finally{setSigningOut(false);}}
  return <div className="steam-account" ref={root} onBlur={event=>{if(event.relatedTarget instanceof Node&&!event.currentTarget.contains(event.relatedTarget))setOpen(false);}}>
   {p.user?<button className="steam-account-trigger" ref={trigger} aria-label="Steam account" aria-expanded={open} aria-controls="steam-account-panel" onClick={()=>setOpen(!open)}><SteamMark/><span><strong>Steam connected</strong>{p.status==='error'&&<small className="needs-attention"><Cloud size={12}/> {syncLabel}</small>}</span><ChevronDown size={15}/></button>
    :p.sessionState==='checking'?<button className="steam-sign-in" disabled aria-busy="true"><LoaderCircle size={18} className="account-spinner"/><span>Checking Steam…</span></button>
    :p.sessionState==='ready'?<a className="steam-sign-in" href={p.signIn} aria-label="Sign in with Steam" title="Sign in with Steam to sync your saved crosshairs"><SteamMark/><span>Sign in<span className="steam-sign-in-extra"> with Steam</span></span></a>
    :<button className="steam-sign-in steam-unavailable" ref={trigger} aria-expanded={open} aria-controls="steam-account-panel" onClick={()=>setOpen(!open)}><SteamMark/><span>Steam unavailable</span><ChevronDown size={14}/></button>}
   {open&&<section id="steam-account-panel" className="steam-account-panel" aria-label={p.user?'Steam account details':'Steam sign-in availability'}>
-   {p.user?<><p className="account-panel-title"><SteamMark/>Signed in with Steam</p><p className="account-id">Steam ID <code>{p.user.steamId}</code></p><p className={'account-sync'+(p.status==='error'?' needs-attention':'')} aria-live="polite">{p.syncing?<LoaderCircle size={14} className="account-spinner"/>:p.status==='synced'?<Check size={14}/>:<Cloud size={14}/>}<span>{syncLabel}{syncLabel.endsWith('…')?'':'.'} Only saved crosshairs sync.</span></p><button onClick={()=>{setOpen(false);p.onOpenLibrary();}}><ExternalLink size={16}/>Open your library</button><button disabled={signingOut} onClick={()=>void signOut()}><LogOut size={16}/>{signingOut?'Signing out…':'Sign out of Steam'}</button>{logoutError&&<p className="error-text" role="alert">{logoutError}</p>}</>
+   {p.user?<><p className="account-panel-title"><SteamMark/>Signed in with Steam</p><p className="account-id">Steam ID <code>{p.user.steamId}</code></p><p className={'account-sync'+(p.status==='error'?' needs-attention':'')} aria-live="polite">{p.syncing?<LoaderCircle size={14} className="account-spinner"/>:p.status==='synced'?<Check size={14}/>:<Cloud size={14}/>}<span>{syncLabel}{syncLabel.endsWith('…')?'':'.'} Only saved crosshairs sync.</span></p><button onClick={()=>{setOpen(false);p.onOpenLibrary();}}><ExternalLink size={16}/>Open your library</button><button disabled={!!signingOut} onClick={()=>void signOut()}><LogOut size={16}/>{signingOut==='here'?'Signing out…':'Sign out of Steam'}</button><button disabled={!!signingOut} title="Also signs out every other browser and device using this Steam account" onClick={()=>void signOut(true)}><MonitorSmartphone size={16}/>{signingOut==='everywhere'?'Signing out everywhere…':'Sign out of all devices'}</button>{logoutError&&<p className="error-text" role="alert">{logoutError}</p>}</>
     :<><p className="account-panel-title"><CloudOff size={18}/>Steam sign-in is unavailable</p><p>We could not connect to sign-in on this host. You can keep editing and saving on this device.</p><button onClick={()=>{setOpen(false);void p.onRetry();}}><RefreshCw size={16}/>Retry connection</button></>}
   </section>}
  </div>;
