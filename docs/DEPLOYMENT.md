@@ -22,7 +22,7 @@ On Vercel, every non-`/api` path is rewritten to `index.html` with HTTP 200, so 
 
 ## Security headers
 
-Every page and API response carries a Content-Security-Policy (same-origin scripts, styles, fonts, media and requests; no framing), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`, a restrictive `Permissions-Policy` and HSTS. The list lives in `server/security-headers.ts`; `vercel.json` repeats it for the deployed site, and `tests/vercel.test.ts` fails if the two differ. `vite preview` and the local Node server apply the same list, so the browser suite runs under the production CSP. The Vite dev server does not, because hot reload needs inline scripts.
+Every page and API response carries a Content-Security-Policy (same-origin scripts, styles, fonts, media and requests; no framing), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`, a restrictive `Permissions-Policy` and HSTS. The list lives in `server/security-headers.ts`; `vercel.json` repeats it for the deployed site, and `tests/vercel.test.ts` fails if the two differ. `vite preview` and the local Node server apply the same list, so the browser suite runs under the production CSP, and `e2e/csp.spec.ts` fails on any violation. A new external origin (fonts, images, analytics, an API) must be added to the policy and covered by that test first. The Vite dev server does not, because hot reload needs inline scripts.
 
 ## Rollback
 

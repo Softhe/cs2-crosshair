@@ -6,7 +6,7 @@ export const contentSecurityPolicy = [
   "script-src 'self'",
   "style-src 'self'",
   // The editor's checkbox and select styling embed small SVGs as data: URLs.
-  "img-src 'self' data: blob:",
+  "img-src 'self' data:",
   "font-src 'self'",
   "media-src 'self'",
   "connect-src 'self'",
