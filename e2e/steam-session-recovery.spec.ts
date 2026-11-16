@@ -42,6 +42,28 @@ test('unresolved write conflicts explicitly identify saved changes waiting to sy
  expect(await page.evaluate(steamId=>JSON.parse(localStorage.getItem('delli.v3.steam-library.'+steamId)!).entries.length,steamId)).toBe(1);
 });
 
+test('a library that cannot converge retries on its own after a pause',async({page})=>{
+ const entry={id:'pending',name:'Pending favorite',settings:defaults};
+ await page.addInitScript(({steamId,entry})=>localStorage.setItem('delli.v3.steam-library.'+steamId,JSON.stringify({base:{revision:0,entries:[]},entries:[entry],history:[]})),{steamId,entry});
+ let writes=0;
+ await page.route('**/api/**',route=>{
+  const path=new URL(route.request().url()).pathname;
+  if(path==='/api/session')return route.fulfill({json:{user:{steamId},csrfToken:'test-csrf'}});
+  if(path==='/api/library'){
+   if(route.request().method()==='PUT'){writes++;return route.fulfill({status:409,json:{revision:0,entries:[]}});}
+   return route.fulfill({json:{revision:0,entries:[]}});
+  }
+  return route.fulfill({status:404});
+ });
+ await page.clock.install();
+ // Step the fake clock in small slices so mocked responses can land between timers.
+ const advance=async(ms:number)=>{for(let t=0;t<ms;t+=250){await page.clock.runFor(250);await page.waitForTimeout(5);}};
+ await page.goto('/');
+ await advance(3000);await expect.poll(()=>writes).toBe(3);
+ await advance(20000);expect(writes).toBe(3);
+ await advance(12000);await expect.poll(()=>writes).toBeGreaterThan(3);
+});
+
 test('session expiry returns to guest controls while retaining the account queue',async({page})=>{
  let signedIn=true;
  await page.route('**/api/**',route=>{

@@ -2,12 +2,12 @@ import {test,expect,type Page} from '@playwright/test';
 const steamId='76561198000000001';
 test.beforeEach(async({page})=>{await page.route('**/entrance.js*',r=>r.fulfill({contentType:'text/javascript',body:''}));});
 async function accountApi(page:Page,signedIn=false){
- const state={signedIn,failLogout:false};
+ const state={signedIn,failLogout:false,logoutScopes:[] as (string|null)[]};
  await page.route('**/api/**',async route=>{
   const request=route.request(),path=new URL(request.url()).pathname;
   if(path==='/api/session')return route.fulfill({json:state.signedIn?{user:{steamId},csrfToken:'test-csrf'}:{user:null}});
   if(path==='/api/library')return route.fulfill({json:{revision:0,entries:[]}});
-  if(path==='/api/auth/logout'){expect(request.method()).toBe('POST');expect(request.headers()['x-csrf-token']).toBe('test-csrf');if(state.failLogout)return route.fulfill({status:503,json:{error:'Unavailable'}});state.signedIn=false;return route.fulfill({json:{user:null}});}
+  if(path==='/api/auth/logout'){expect(request.method()).toBe('POST');state.logoutScopes.push(new URL(request.url()).searchParams.get('scope'));expect(request.headers()['x-csrf-token']).toBe('test-csrf');if(state.failLogout)return route.fulfill({status:503,json:{error:'Unavailable'}});state.signedIn=false;return route.fulfill({json:{user:null}});}
   if(path==='/api/auth/steam')return route.fulfill({contentType:'text/html',body:'<h1>Steam sign-in handoff</h1>'});
   return route.fulfill({status:404,json:{error:'Not found'}});
  });return state;
@@ -29,6 +29,14 @@ test('signed-in header opens account actions and handles failed then successful 
  await trigger.click();await page.getByRole('button',{name:'Open your library',exact:true}).click();await expect(page.getByRole('main',{name:'Crosshair library'})).toBeVisible();await expect(trigger).toHaveAttribute('aria-expanded','false');
  await trigger.click();state.failLogout=true;await page.getByRole('button',{name:'Sign out of Steam',exact:true}).click();await expect(page.getByRole('region',{name:'Steam account details'}).getByRole('alert')).toContainText('Could not sign out');await expect(trigger).toBeVisible();
  state.failLogout=false;await page.getByRole('button',{name:'Sign out of Steam',exact:true}).click();await expect(page.getByRole('banner').getByRole('link',{name:'Sign in with Steam',exact:true})).toBeVisible();await expect(trigger).toHaveCount(0);
+});
+
+test('sign out of all devices asks the server to end every session',async({page})=>{
+ const state=await accountApi(page,true);await page.goto('/?layout=combined');
+ await page.getByRole('button',{name:'Steam account',exact:true}).click();
+ await page.getByRole('button',{name:'Sign out of all devices',exact:true}).click();
+ await expect(page.getByRole('banner').getByRole('link',{name:'Sign in with Steam',exact:true})).toBeVisible();
+ expect(state.logoutScopes).toEqual(['all']);
 });
 
 test('unavailable sign-in explains the problem and retries without losing the draft',async({page})=>{

@@ -38,6 +38,8 @@ export function hasUnmergedGuestFavorites(guest: Saved[], account: Saved[]): boo
 }
 export type SyncStatus = 'local' | 'loading' | 'synced' | 'pending' | 'error';
 const API_TIMEOUT_MS = 12_000;
+/** Delay before another pass when three in a row could not converge with the server. */
+export const PENDING_RETRY_MS = 30_000;
 function apiRequest(path: string, options: RequestInit = {}) {
   return fetch(path, { ...options, signal: timeoutSignal() });
 }
@@ -187,6 +189,12 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
     rerun = useRef(false),
     retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const publish = (q: Queue) => setAccountLibrary([...saved(q.entries), ...q.history]);
+  function scheduleRetry(id: string, delayMs: number) {
+    clearTimeout(retryTimer.current);
+    retryTimer.current = setTimeout(() => {
+      if (active.current === id) void synchronize(id, generation.current);
+    }, delayMs);
+  }
   async function synchronize(id: string, epoch: number) {
     // A request that arrives mid-sync (another tab's storage event, a retry) runs once the current pass ends instead of being dropped.
     if (busy.current) {
@@ -234,6 +242,7 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       publish(q);
       for (let attempt = 0; attempt < 3; attempt++) {
         if (JSON.stringify(q.entries) === JSON.stringify(q.base.entries)) {
+          clearTimeout(retryTimer.current);
           setError(null);
           setStatus('synced');
           return true;
@@ -276,16 +285,14 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
         queue.current = q;
         publish(q);
       }
+      // Still diverged after three passes (other devices keep editing): try again later
+      // instead of waiting for a focus or reconnect event that may never come.
       setStatus('pending');
+      scheduleRetry(id, PENDING_RETRY_MS);
     } catch (cause) {
       if (generation.current === epoch) {
         fail(cause);
-        if (cause instanceof SyncRateLimitError) {
-          clearTimeout(retryTimer.current);
-          retryTimer.current = setTimeout(() => {
-            if (active.current === id) void synchronize(id, generation.current);
-          }, Math.min(cause.retryAfterSeconds, 3600) * 1000);
-        }
+        if (cause instanceof SyncRateLimitError) scheduleRetry(id, Math.min(cause.retryAfterSeconds, 3600) * 1000);
       }
     } finally {
       busy.current = false;
@@ -453,9 +460,9 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       return false;
     }
   };
-  async function signOut() {
+  async function signOut(everywhere = false) {
     try {
-      const response = await apiRequest('/api/auth/logout', {
+      const response = await apiRequest(everywhere ? '/api/auth/logout?scope=all' : '/api/auth/logout', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'X-CSRF-Token': csrf.current },
@@ -482,7 +489,8 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
     if (!active.current || !queue.current) return false;
     try {
       return setLibrary((previous) => [
-        ...saved(mergeGuestFavorites(cloudFavorites(previous), cloudFavorites(guestLibrary))),
+        // guestRef, not the render-time guestLibrary: a guest write since the last render must be merged too.
+        ...saved(mergeGuestFavorites(cloudFavorites(previous), cloudFavorites(guestRef.current))),
         ...previous.filter((e) => !e.favorite),
       ]);
     } catch (cause) {
