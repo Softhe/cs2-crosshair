@@ -8,6 +8,7 @@ export const schema = [
   'CREATE TABLE IF NOT EXISTS rate_limits (id TEXT PRIMARY KEY, hits INTEGER NOT NULL, expires BIGINT NOT NULL)',
   'CREATE TABLE IF NOT EXISTS preferences (owner TEXT PRIMARY KEY, value JSONB NOT NULL, updated BIGINT NOT NULL)',
   'CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires)',
+  'CREATE INDEX IF NOT EXISTS sessions_owner ON sessions(owner)',
   'CREATE INDEX IF NOT EXISTS states_expiry ON states(expires)',
   'CREATE INDEX IF NOT EXISTS nonces_expiry ON nonces(expires)',
   'CREATE INDEX IF NOT EXISTS rate_limits_expiry ON rate_limits(expires)',
@@ -41,16 +42,25 @@ export async function createNeonStore(databaseUrl: string, query?: Query): Promi
       ]);
       return row ? ({ ...row, expires: Number(row.expires) } as Session) : undefined;
     },
-    async addSession(s) {
-      await run('INSERT INTO sessions(id,owner,csrf,expires) VALUES ($1,$2,$3,$4)', [
-        s.id,
-        s.owner,
-        s.csrf,
-        s.expires,
-      ]);
+    async addSession(s, keep) {
+      // One statement, so the insert and the prune are atomic over the HTTP driver. The DELETE runs
+      // on the snapshot before the INSERT, so it keeps the owner's keep-1 newest older sessions.
+      // LIMIT NULL is Postgres for "no limit".
+      await run(
+        'WITH added AS (INSERT INTO sessions(id,owner,csrf,expires) VALUES ($1,$2,$3,$4) RETURNING id) ' +
+          'DELETE FROM sessions WHERE owner=$2 AND id NOT IN (SELECT id FROM added) AND id NOT IN ' +
+          '(SELECT id FROM sessions WHERE owner=$2 ORDER BY expires DESC, id LIMIT $5)',
+        [s.id, s.owner, s.csrf, s.expires, keep === undefined ? null : Math.max(0, keep - 1)],
+      );
+    },
+    async renewSession(id, expires) {
+      await run('UPDATE sessions SET expires=$2 WHERE id=$1', [id, expires]);
     },
     async deleteSession(id) {
       await run('DELETE FROM sessions WHERE id=$1', [id]);
+    },
+    async deleteSessions(owner) {
+      await run('DELETE FROM sessions WHERE owner=$1', [owner]);
     },
     async addState(id, expires) {
       await run('INSERT INTO states(id,expires) VALUES ($1,$2)', [id, expires]);

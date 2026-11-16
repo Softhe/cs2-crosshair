@@ -31,8 +31,25 @@ export function createSqliteStore(path: string): Store {
       return db.prepare('SELECT * FROM sessions WHERE id=? AND expires>?').get(id, now) as
         Session | undefined;
     },
-    async addSession(s) {
-      db.prepare('INSERT INTO sessions VALUES (?,?,?,?)').run(s.id, s.owner, s.csrf, s.expires);
+    async addSession(s, keep) {
+      // LIMIT -1 is SQLite for "no limit".
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        db.prepare('INSERT INTO sessions VALUES (?,?,?,?)').run(s.id, s.owner, s.csrf, s.expires);
+        db.prepare(
+          'DELETE FROM sessions WHERE owner=? AND id NOT IN (SELECT id FROM sessions WHERE owner=? ORDER BY expires DESC, id LIMIT ?)',
+        ).run(s.owner, s.owner, keep ?? -1);
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+    },
+    async renewSession(id, expires) {
+      db.prepare('UPDATE sessions SET expires=? WHERE id=?').run(expires, id);
+    },
+    async deleteSessions(owner) {
+      db.prepare('DELETE FROM sessions WHERE owner=?').run(owner);
     },
     async deleteSession(id) {
       db.prepare('DELETE FROM sessions WHERE id=?').run(id);

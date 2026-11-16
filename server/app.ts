@@ -13,6 +13,12 @@ const token = () => randomBytes(32).toString('hex');
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const equal = (a: string, b: string) =>
   a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const DAY_MS = 86400000;
+/** Sessions last 30 days from the last renewal; one used with under 15 days left is renewed. */
+const SESSION_DAYS = 30,
+  RENEW_BELOW_DAYS = 15,
+  /** Sign-ins beyond this many end the account's oldest sessions. */
+  MAX_SESSIONS_PER_ACCOUNT = 10;
 const signInReturn = (value: string | null) => (value === '/?view=library' ? '/?view=library' : '/');
 /** A storage failure: the request was fine, the service is not. Answered with 503 so clients retry. */
 class StoreUnavailable extends Error {}
@@ -106,10 +112,19 @@ export function createHandler(options: Options = {}) {
       (req.headers.cookie ?? '').split(';').map((p) => p.trim().split('=').slice(0, 2)),
     );
   }
-  async function session(req: IncomingMessage) {
+  /** The request's session. With `res`, a session close to expiry is renewed and its cookie re-sent. */
+  async function session(req: IncomingMessage, res?: ServerResponse) {
     const id = cookies(req).delli_session;
     if (!id) return undefined;
-    return (await storage()).session(hash(id), now());
+    const db = await storage(),
+      t = now(),
+      s = await db.session(hash(id), t);
+    if (s && res && s.expires - t < RENEW_BELOW_DAYS * DAY_MS) {
+      s.expires = t + SESSION_DAYS * DAY_MS;
+      await db.renewSession(s.id, s.expires);
+      res.setHeader('Set-Cookie', cookie('delli_session', id, SESSION_DAYS * 86400));
+    }
+    return s;
   }
   function json(res: ServerResponse, status: number, value: unknown, headers: Record<string, string> = {}) {
     res.writeHead(status, {
@@ -157,7 +172,7 @@ export function createHandler(options: Options = {}) {
           }
         }
         if (path === '/api/session' && req.method === 'GET') {
-          const s = await session(req);
+          const s = await session(req, res);
           json(res, 200, s ? { user: { steamId: s.owner }, csrfToken: s.csrf } : { user: null });
           return;
         }
@@ -254,20 +269,26 @@ export function createHandler(options: Options = {}) {
           if (old) await db.deleteSession(old.id);
           const id = token(),
             csrf = token();
-          await db.addSession({
-            id: hash(id),
-            owner: identity.split('/').at(-1)!,
-            csrf,
-            expires: now() + 30 * 86400000,
-          });
+          await db.addSession(
+            {
+              id: hash(id),
+              owner: identity.split('/').at(-1)!,
+              csrf,
+              expires: now() + SESSION_DAYS * DAY_MS,
+            },
+            MAX_SESSIONS_PER_ACCOUNT,
+          );
           res.writeHead(302, {
             Location: destination,
-            'Set-Cookie': [cookie('delli_session', id, 30 * 86400), cookie('delli_auth_state', '', 0)],
+            'Set-Cookie': [
+              cookie('delli_session', id, SESSION_DAYS * 86400),
+              cookie('delli_auth_state', '', 0),
+            ],
           });
           res.end();
           return;
         }
-        const s = await session(req);
+        const s = await session(req, res);
         if (!s) {
           json(res, 401, { error: 'Sign in with Steam first.' });
           return;
@@ -292,7 +313,9 @@ export function createHandler(options: Options = {}) {
           return;
         }
         if (path === '/api/auth/logout' && req.method === 'POST') {
-          await db.deleteSession(s.id);
+          // ?scope=all signs the account out on every device, not just this one.
+          if (url.searchParams.get('scope') === 'all') await db.deleteSessions(s.owner);
+          else await db.deleteSession(s.id);
           res.setHeader('Set-Cookie', cookie('delli_session', '', 0));
           json(res, 200, { user: null });
           return;

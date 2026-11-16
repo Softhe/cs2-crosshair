@@ -3,8 +3,13 @@ export type Snapshot = { revision: number; entries: unknown[] };
 export interface Store {
   cleanup(now: number): Promise<void>;
   session(id: string, now: number): Promise<Session | undefined>;
-  addSession(session: Session): Promise<void>;
+  /** Adds a session; with `keep`, also ends all but the owner's `keep` newest sessions. */
+  addSession(session: Session, keep?: number): Promise<void>;
+  /** Moves an active session's expiry forward. */
+  renewSession(id: string, expires: number): Promise<void>;
   deleteSession(id: string): Promise<void>;
+  /** Ends every session of one Steam account. */
+  deleteSessions(owner: string): Promise<void>;
   addState(id: string, expires: number): Promise<void>;
   consumeState(id: string, now: number): Promise<boolean>;
   hasNonce(nonce: string): Promise<boolean>;
