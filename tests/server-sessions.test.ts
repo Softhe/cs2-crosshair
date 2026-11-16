@@ -30,15 +30,16 @@ test('SQLite keeps only the newest sessions per account when a cap is given',asy
   store.close();
 });
 
-test('Neon session queries are parameterized and prune in the same statement',async()=>{
+test('Neon session queries are parameterized and prune after the insert',async()=>{
   const calls:{text:string;params:unknown[]}[]=[];
   const query:Query=async(text,params=[])=>{calls.push({text,params});return [];};
   const store=await createNeonStore('unused-test-url',query);
   const hostile="owner'; DELETE FROM sessions; --";
   await store.addSession({id:'id',owner:hostile,csrf:'c',expires:9},10);
-  assert.match(calls.at(-1)!.text,/^WITH added AS \(INSERT INTO sessions.*DELETE FROM sessions WHERE owner=\$2.*LIMIT \$5\)$/);
-  assert.deepEqual(calls.at(-1)!.params,['id',hostile,'c',9,9]);
-  await store.addSession({id:'id',owner:'o',csrf:'c',expires:9});assert.equal(calls.at(-1)!.params[4],null);
+  assert.match(calls.at(-2)!.text,/^INSERT INTO sessions/);assert.deepEqual(calls.at(-2)!.params,['id',hostile,'c',9]);
+  assert.match(calls.at(-1)!.text,/^DELETE FROM sessions WHERE owner=\$1 AND id NOT IN .*LIMIT \$2\)$/);
+  assert.deepEqual(calls.at(-1)!.params,[hostile,10]);assert.ok(!calls.at(-1)!.text.includes(hostile));
+  const before=calls.length;await store.addSession({id:'id',owner:'o',csrf:'c',expires:9});assert.equal(calls.length,before+1);assert.match(calls.at(-1)!.text,/^INSERT/);
   await store.renewSession('id',99);assert.deepEqual(calls.at(-1)!.params,['id',99]);
   await store.deleteSessions(hostile);assert.deepEqual(calls.at(-1)!.params,[hostile]);assert.ok(!calls.at(-1)!.text.includes(hostile));
 });

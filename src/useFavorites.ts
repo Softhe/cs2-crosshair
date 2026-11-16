@@ -104,10 +104,15 @@ export function useFavorites({ s, alias, aliasError, setAlias, sync, notify, loa
       return;
     }
     const entry: Saved = { id: newId(), name: savedName.trim(), settings: { ...s }, alias: savedAlias, favorite: true, date: new Date().toISOString() };
-    const saved = setLibrary((items) =>
-      limitLibrary([entry, ...items.filter((item) => item.favorite || settingsKey(item.settings) !== settingsKey(s))]),
-    );
-    if (saved) {
+    // Another tab may have filled the library since this render; adding a 51st would push out the oldest favorite.
+    let full = false;
+    const saved = setLibrary((items) => {
+      full = items.filter((item) => item.favorite).length >= 50;
+      if (full) return items;
+      return limitLibrary([entry, ...items.filter((item) => item.favorite || settingsKey(item.settings) !== settingsKey(s))]);
+    });
+    if (full) notify('Your library has 50 favorites. Remove one before saving another.', 'warning');
+    else if (saved) {
       setEditingId(entry.id);
       notifySaved('Crosshair saved.');
     } else notify('Crosshair could not be saved on this device. Export a backup or free browser storage.', 'error');
@@ -121,7 +126,7 @@ export function useFavorites({ s, alias, aliasError, setAlias, sync, notify, loa
     }
     const saved = setLibrary((items) =>
       items.map((item) =>
-        item.id === editingFavorite.id ? { ...item, name: savedName.trim(), settings: { ...s }, date: new Date().toISOString() } : item,
+        item.id === editingFavorite.id ? { ...item, name: savedName.trim(), settings: { ...s }, alias: savedAlias, date: new Date().toISOString() } : item,
       ),
     );
     if (saved) notifySaved('Saved crosshair updated.');

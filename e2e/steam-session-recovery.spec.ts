@@ -64,6 +64,30 @@ test('a library that cannot converge retries on its own after a pause',async({pa
  await advance(12000);await expect.poll(()=>writes).toBeGreaterThan(3);
 });
 
+test('a save that fails during a storage outage is retried without the visitor doing anything',async({page})=>{
+ const entry={id:'pending',name:'Pending favorite',settings:defaults};
+ await page.addInitScript(({steamId,entry})=>localStorage.setItem('delli.v3.steam-library.'+steamId,JSON.stringify({base:{revision:0,entries:[]},entries:[entry],history:[]})),{steamId,entry});
+ let writes=0,down=true,stored={revision:0,entries:[] as unknown[]};
+ await page.route('**/api/**',route=>{
+  const path=new URL(route.request().url()).pathname;
+  if(path==='/api/session')return route.fulfill({json:{user:{steamId},csrfToken:'test-csrf'}});
+  if(path==='/api/library'){
+   if(route.request().method()!=='PUT')return route.fulfill({json:stored});
+   writes++;
+   if(down)return route.fulfill({status:503,headers:{'Retry-After':'5'},json:{error:'unavailable'}});
+   stored={revision:1,entries:[entry]};return route.fulfill({json:stored});
+  }
+  return route.fulfill({status:404});
+ });
+ await page.clock.install();
+ const advance=async(ms:number)=>{for(let t=0;t<ms;t+=250){await page.clock.runFor(250);await page.waitForTimeout(5);}};
+ await page.goto('/');
+ await advance(2000);await expect.poll(()=>writes).toBe(1);
+ down=false;await advance(6000);await expect.poll(()=>writes).toBe(2);
+ await page.getByRole('button',{name:'Steam account',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Steam account details'})).toContainText('Synced');
+});
+
 test('session expiry returns to guest controls while retaining the account queue',async({page})=>{
  let signedIn=true;
  await page.route('**/api/**',route=>{

@@ -43,14 +43,20 @@ export async function createNeonStore(databaseUrl: string, query?: Query): Promi
       return row ? ({ ...row, expires: Number(row.expires) } as Session) : undefined;
     },
     async addSession(s, keep) {
-      // One statement, so the insert and the prune are atomic over the HTTP driver. The DELETE runs
-      // on the snapshot before the INSERT, so it keeps the owner's keep-1 newest older sessions.
-      // LIMIT NULL is Postgres for "no limit".
+      await run('INSERT INTO sessions(id,owner,csrf,expires) VALUES ($1,$2,$3,$4)', [
+        s.id,
+        s.owner,
+        s.csrf,
+        s.expires,
+      ]);
+      if (keep === undefined) return;
+      // A separate statement, so it sees every session committed so far. Whichever of several
+      // concurrent sign-ins prunes last sees them all, which a single insert-and-prune statement
+      // cannot: each would prune from a snapshot taken before the other's insert.
       await run(
-        'WITH added AS (INSERT INTO sessions(id,owner,csrf,expires) VALUES ($1,$2,$3,$4) RETURNING id) ' +
-          'DELETE FROM sessions WHERE owner=$2 AND id NOT IN (SELECT id FROM added) AND id NOT IN ' +
-          '(SELECT id FROM sessions WHERE owner=$2 ORDER BY expires DESC, id LIMIT $5)',
-        [s.id, s.owner, s.csrf, s.expires, keep === undefined ? null : Math.max(0, keep - 1)],
+        'DELETE FROM sessions WHERE owner=$1 AND id NOT IN ' +
+          '(SELECT id FROM sessions WHERE owner=$1 ORDER BY expires DESC, id LIMIT $2)',
+        [s.owner, keep],
       );
     },
     async renewSession(id, expires) {

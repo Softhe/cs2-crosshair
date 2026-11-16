@@ -18,17 +18,18 @@ export function parseBackup(text: string): Saved[] {
 }
 
 /**
- * Add backup entries to the library. Existing entries win: a crosshair already saved (or already
- * in history) is not duplicated, clashing ids get fresh ones, and the result stays within limits.
+ * Add backup entries to the library. Every existing entry is kept, even two favorites with the
+ * same settings. A backup entry already saved (or already in history) is skipped, clashing ids
+ * get fresh ones, and the result stays within limits.
  */
 export function mergeBackup(library: Saved[], entries: Saved[]): Saved[] {
-  const keys = new Set<string>();
-  const ids = new Set<string>();
-  const combined = [...library, ...entries]
+  const key = (item: Saved) => settingsKey(item.settings) + (item.favorite ? 'saved' : 'recent');
+  const keys = new Set(library.map(key));
+  const ids = new Set(library.map((item) => item.id));
+  const added = entries
     .filter((item) => {
-      const key = settingsKey(item.settings) + (item.favorite ? 'saved' : 'recent');
-      if (keys.has(key)) return false;
-      keys.add(key);
+      if (keys.has(key(item))) return false;
+      keys.add(key(item));
       return true;
     })
     .map((item) => {
@@ -36,5 +37,5 @@ export function mergeBackup(library: Saved[], entries: Saved[]): Saved[] {
       ids.add(item.id);
       return item;
     });
-  return limitLibrary(combined);
+  return limitLibrary([...library, ...added]);
 }

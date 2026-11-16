@@ -150,19 +150,29 @@ function timeoutSignal(): AbortSignal | undefined {
   }
 }
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** The server or network failed, not the request: queued changes are kept and sync tries again by itself. */
+export class SyncUnavailableError extends Error {
+  constructor(readonly retryAfterSeconds = 0) {
+    super('Library sync failed.');
+  }
+}
+/** Wait before the next automatic attempt after `failures` consecutive outages: 5s doubling to 5 minutes, never less than the server asked. */
+export function outageRetryMs(failures: number, retryAfterSeconds = 0): number {
+  return Math.max(Math.min(300_000, 5000 * 2 ** Math.max(0, failures - 1)), Math.min(retryAfterSeconds, 3600) * 1000);
+}
 async function fetchLibrary(url: string, init: RequestInit = {}, retries = 3): Promise<Response> {
-  let error: unknown = null;
+  let retryAfter = 0;
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) await sleep(300 * 2 ** (attempt - 1));
     try {
       const response = await apiRequest(url, init);
-      if (response.ok || ![502, 503, 504].includes(response.status)) return response;
-      error = new Error('Library sync failed.');
-    } catch (cause) {
-      error = cause;
+      if (response.status < 500) return response;
+      retryAfter = Number(response.headers.get('Retry-After')) || 0;
+    } catch {
+      /* Offline, timed out or refused: retried like a server outage. */
     }
   }
-  throw error instanceof Error ? error : new Error('Library sync failed.');
+  throw new SyncUnavailableError(retryAfter);
 }
 export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<SetStateAction<Saved[]>>) {
   const [sessionState, setSessionState] = useState<'checking' | 'ready' | 'unavailable'>('checking');
@@ -187,7 +197,8 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
     generation = useRef(0),
     busy = useRef(false),
     rerun = useRef(false),
-    retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
+    outages = useRef(0);
   const publish = (q: Queue) => setAccountLibrary([...saved(q.entries), ...q.history]);
   function scheduleRetry(id: string, delayMs: number) {
     clearTimeout(retryTimer.current);
@@ -243,6 +254,7 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       for (let attempt = 0; attempt < 3; attempt++) {
         if (JSON.stringify(q.entries) === JSON.stringify(q.base.entries)) {
           clearTimeout(retryTimer.current);
+          outages.current = 0;
           setError(null);
           setStatus('synced');
           return true;
@@ -293,6 +305,9 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
       if (generation.current === epoch) {
         fail(cause);
         if (cause instanceof SyncRateLimitError) scheduleRetry(id, Math.min(cause.retryAfterSeconds, 3600) * 1000);
+        // An outage is not the user's to fix: keep the queue and retry with a growing pause.
+        else if (cause instanceof SyncUnavailableError)
+          scheduleRetry(id, outageRetryMs(++outages.current, cause.retryAfterSeconds));
       }
     } finally {
       busy.current = false;

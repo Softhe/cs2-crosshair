@@ -20,6 +20,9 @@ test('reduced motion skips the intro on a first visit', async ({ page }) => {
   await page.locator('.header').waitFor();
   await expect(page.locator('#entrance')).toBeHidden();
   await expect(page.locator('#root')).not.toHaveAttribute('inert');
+  // A played-then-dismissed intro is hidden with an empty source too; these only hold if it never started.
+  expect(await page.locator('#entrance').getAttribute('class')).toBeNull();
+  expect(await page.locator('#root').evaluate(element => element.classList.contains('entrance-pending'))).toBe(false);
   expect(await page.locator('#entrance video').evaluate(element => (element as HTMLVideoElement).currentSrc)).toBe('');
 });
 

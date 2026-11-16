@@ -28,3 +28,10 @@ test('mergeBackup keeps existing entries, skips duplicates and renames clashing 
   assert.notEqual(merged[1]!.id, 'a', 'a clashing id gets a fresh one');
   assert.equal(new Set(merged.map((item) => item.id)).size, merged.length);
 });
+
+test('mergeBackup never removes existing entries, even favorites with identical settings', () => {
+  const library = [entry('a', true, 1, 'Mine'), entry('b', true, 1, 'Same settings, other name'), entry('r', false, 1)];
+  assert.deepEqual(mergeBackup(library, []), library);
+  assert.deepEqual(mergeBackup(library, [entry('x', true, 1, 'Theirs'), entry('y', true, 2, 'New')]).map((item) => item.name),
+    ['Mine', 'Same settings, other name', 'New', 'r']);
+});
