@@ -168,6 +168,8 @@ async function fetchLibrary(url: string, init: RequestInit = {}, retries = 3): P
       const response = await apiRequest(url, init);
       if (response.status < 500) return response;
       retryAfter = Number(response.headers.get('Retry-After')) || 0;
+      // The server named its own wait: hand it to the outer scheduler instead of retrying sooner.
+      if (retryAfter > 0) break;
     } catch {
       /* Offline, timed out or refused: retried like a server outage. */
     }
@@ -308,6 +310,9 @@ export function useLibrarySync(guestLibrary: Saved[], setGuestLibrary: Dispatch<
         // An outage is not the user's to fix: keep the queue and retry with a growing pause.
         else if (cause instanceof SyncUnavailableError)
           scheduleRetry(id, outageRetryMs(++outages.current, cause.retryAfterSeconds));
+        // The scheduled retry reads the stored queue, so it also carries any edit that asked for a rerun;
+        // running that rerun now would skip the wait.
+        if (cause instanceof SyncRateLimitError || cause instanceof SyncUnavailableError) rerun.current = false;
       }
     } finally {
       busy.current = false;

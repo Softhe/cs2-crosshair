@@ -88,6 +88,20 @@ test('a save that fails during a storage outage is retried without the visitor d
  await expect(page.getByRole('region',{name:'Steam account details'})).toContainText('Synced');
 });
 
+test('an outage that names its own wait is not retried sooner',async({page})=>{
+ let reads=0;
+ await page.route('**/api/**',route=>{
+  const path=new URL(route.request().url()).pathname;
+  if(path==='/api/session')return route.fulfill({json:{user:{steamId},csrfToken:'test-csrf'}});
+  if(path==='/api/library'){reads++;return route.fulfill({status:503,headers:{'Retry-After':'5'},json:{error:'unavailable'}});}
+  return route.fulfill({status:404});
+ });
+ await page.clock.install();
+ const advance=async(ms:number)=>{for(let t=0;t<ms;t+=250){await page.clock.runFor(250);await page.waitForTimeout(5);}};
+ await page.goto('/');
+ await advance(3000);await expect.poll(()=>reads).toBe(1);
+ await advance(3000);await expect.poll(()=>reads).toBe(2);
+});
 test('session expiry returns to guest controls while retaining the account queue',async({page})=>{
  let signedIn=true;
  await page.route('**/api/**',route=>{
