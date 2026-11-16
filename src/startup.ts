@@ -45,6 +45,9 @@ export function download(text: string, name: string, type = 'text/plain') {
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
+  // Some browsers ignore a click on a link that is not in the document.
+  document.body.append(a);
   a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

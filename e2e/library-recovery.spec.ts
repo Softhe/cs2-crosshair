@@ -35,5 +35,5 @@ test('failed persistence keeps the entry and does not offer a false undo',async(
   await page.getByRole('button',{name:'Remove Alpha',exact:true}).click();
   await expect(page.getByRole('button',{name:'Preview Alpha',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Undo removal of Alpha',exact:true})).toHaveCount(0);
-  await expect(page.getByRole('status')).toContainText('Removal could not be saved');
+  await expect(page.getByRole('alert')).toContainText('Removal could not be saved');
 });

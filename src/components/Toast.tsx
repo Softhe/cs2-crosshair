@@ -7,7 +7,8 @@ export function Toast({ text, tone, onDismiss }: { text: string; tone: Tone; onD
   if (!text) return null;
   const Icon = icons[tone];
   return (
-    <div className={`toast toast-${tone}`} data-tone={tone} role="status">
+    // Failures interrupt the screen reader; confirmations wait their turn.
+    <div className={`toast toast-${tone}`} data-tone={tone} role={tone === 'error' ? 'alert' : 'status'}>
       <Icon size={18} />
       <span>{text}</span>
       <button className="icon-button" aria-label="Dismiss notification" onClick={onDismiss}>
