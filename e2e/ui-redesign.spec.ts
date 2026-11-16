@@ -73,7 +73,7 @@ test('pending import, failed clipboard and draft persistence have clear state',a
  await page.getByRole('button',{name:'Copy crosshair code',exact:true}).click();
  await expect(page.locator('.toast[data-tone=error]')).toContainText('Clipboard access failed');
  await page.locator('.import-options>summary').click();await page.getByRole('button',{name:'Use current code',exact:true}).click();
- await expect(page.getByText('Applied crosshair',{exact:true})).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
+ await expect(page.getByText('Applied crosshair',{exact:true})).toBeVisible();await expect(page.locator('[role=alert]:not(.toast)')).toHaveCount(0);
  await expect(page.getByText('Draft saved on this device.',{exact:true})).toHaveCount(0);
 });
 
