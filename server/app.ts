@@ -177,6 +177,22 @@ export function createHandler(options: Options = {}) {
           return;
         }
         if (path === '/api/auth/steam' && req.method === 'GET') {
+          // Cookies belong to a host name. Starting on another host (a Vercel branch alias, say) would set the
+          // state cookie where Steam's return to this origin cannot see it, so move to this origin first.
+          let requestHost = '';
+          try {
+            requestHost = new URL(`http://${req.headers.host ?? ''}`).hostname;
+          } catch {
+            /* A malformed Host header is answered on this origin as usual. */
+          }
+          if (requestHost && requestHost !== parsedOrigin.hostname) {
+            res.writeHead(302, {
+              Location: new URL(url.pathname + url.search, origin).href,
+              'Cache-Control': 'no-store',
+            });
+            res.end();
+            return;
+          }
           if (!(await allowed(db, 'steam:' + clientIp(req), 60, 60000, t))) {
             json(res, 429, { error: 'Too many sign-in attempts. Try again later.' });
             return;
