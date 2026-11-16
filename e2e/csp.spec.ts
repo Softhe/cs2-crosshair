@@ -29,7 +29,7 @@ test('the main screens run under the content security policy without violations'
   await openPreviewOptions(page);
   await page.getByRole('button', { name: 'Start Dynamic Preview' }).click();
   await page.getByRole('button', { name: 'Stop Dynamic Preview' }).click();
-  await page.getByRole('button', { name: 'Inspect preview' }).click();
+  await page.getByRole('button', { name: 'Guide', exact: true }).click();
   await page.getByRole('button', { name: 'Close dialog' }).click();
 
   const download = page.waitForEvent('download');

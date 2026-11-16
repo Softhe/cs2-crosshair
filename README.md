@@ -12,7 +12,7 @@
 
 The editor has Style Settings and Crosshair Settings. Gap controls accept values from -10 to 128. The preview offers seven game backgrounds, four zoom levels, a scope dot view, and simulated dynamic motion.
 
-The preview defaults to an estimated monitor-resolution size. Correct the display height when the browser's estimate differs from your monitor, or use fullscreen to place the crosshair at the screen center. The detail view helps inspect arm and outline symmetry at 4×, or at a smaller labeled scale when the crosshair would not fit. A short intro plays at 1.25× speed on a browser's first visit and fades into the editor. Later visits open the editor directly; add `?intro=preview` to the address to replay it.
+The preview draws the crosshair at the resolution it was made for, where one unit is one game pixel. If you play at another resolution, turn on **Match my in-game size** under Preview options to see how CS2 rounds and stretches it on your monitor. A crosshair too large for the preview is drawn smaller to fit, with a note giving the magnification shown. Use fullscreen to place the crosshair at the screen center. The detail view helps inspect arm and outline symmetry at 4×. A short intro plays at 1.25× speed on a browser's first visit (not with reduced motion) and fades into the editor. Later visits open the editor directly; add `?intro=preview` to the address to replay it.
 
 Current `CS` codes carry crosshair and scope dot settings. Older `CSGO-` codes are supported with an approximation notice when conversion is needed. Config files and website links preserve additional settings. Imported console commands are parsed as data; the website does not execute them.
 

@@ -60,10 +60,10 @@ function App() {
   });
   const preview = usePreviewState(s.cl_crosshair_screen_height, notify);
 
-  const [modal, setModal] = useState<"help" | "preview" | null>(null);
+  const [modal, setModal] = useState<"help" | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const modalTrigger = useRef<HTMLElement | null>(null);
-  function openModal(kind: "help" | "preview", trigger: HTMLElement) {
+  function openModal(kind: "help", trigger: HTMLElement) {
     modalTrigger.current = trigger;
     setModal(kind);
   }
@@ -297,9 +297,6 @@ function App() {
             dynamic={preview.dynamic}
             previewMode={preview.previewMode}
             setPreviewMode={preview.setPreviewMode}
-            phase={preview.phase}
-            fit={preview.fit}
-            inspectSplit={preview.inspectSplit}
             fullscreen={preview.fullscreen}
             modal={modal}
             previewStatus={preview.previewStatus}
@@ -311,10 +308,7 @@ function App() {
             previewExpanded={preview.previewExpanded}
             setPreviewExpanded={preview.setPreviewExpanded}
             setDynamic={preview.setDynamic}
-            setFit={preview.setFit}
             canUndo={undoHistory.canUndo}
-            onInspect={(button) => openModal("preview", button)}
-            setModal={setModal}
           />
           <SettingsList s={s} set={change} load={load} draftSaved={draftSaved} />
           <SaveFavorite f={favorites} />
@@ -380,33 +374,13 @@ function App() {
       )}
       <Toast text={toast} tone={toastTone} onDismiss={() => setToast("")} />
       <Dialogs
-        previewMode={preview.previewMode}
         dialogRef={dialogRef}
         modal={modal}
         setModal={setModal}
-        setDynamic={preview.setDynamic}
-        targetHeight={preview.targetHeight}
-        setTargetHeight={preview.setTargetHeight}
-        display={preview.display}
-        displayHeight={preview.displayHeight}
-        setDisplayHeight={preview.setDisplayHeight}
-        displayHeightDraft={preview.displayHeightDraft}
-        setDisplayHeightDraft={preview.setDisplayHeightDraft}
-        fit={preview.fit}
-        setFit={preview.setFit}
-        phase={preview.phase}
-        setPhase={preview.setPhase}
-        inspectSplit={preview.inspectSplit}
-        setInspectSplit={preview.setInspectSplit}
-        previewStatus={preview.previewStatus}
-        effectiveHeight={preview.effectiveHeight}
-        matchingGame={preview.gameViewPreference.enabled}
-        s={s}
         rating={rating}
         setRating={setRating}
         note={note}
         setNote={setNote}
-        dynamic={preview.dynamic}
       />
       <input
         ref={backupInput}

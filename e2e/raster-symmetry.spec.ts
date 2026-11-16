@@ -1,4 +1,4 @@
-import {openPreviewOptions} from './preview-options-helper';
+import {playAt} from './preview-options-helper';
 import { test, expect } from '@playwright/test';
 import { defaults } from '../src/model';
 
@@ -7,10 +7,10 @@ for (const dpr of [1, 1.25, 2]) for (const thickness of [1, 2, 3]) test(`rectang
   const page = await context.newPage();
   await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
   try {
-    await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, cl_crosshairstyle: 4, cl_crosshair_recoil: 0, cl_crosshair_drawoutline: 1 })));
-    await openPreviewOptions(page);await page.getByRole('button', {name:'Inspect preview',exact:true}).click();
-    await page.getByLabel('Preview scale', { exact: true }).selectOption('1440');
-    await page.getByRole('button', {name:'Close dialog'}).click();
+    // A 4:3 re-rounding, 2160 rows for a 1620 reference. The monitor must be at least the window in
+    // physical pixels, or the app raises its estimate and the game pixels get a fractional stretch.
+    await playAt(page, 3840, 2160);
+    await page.goto('/?settings=' + encodeURIComponent(JSON.stringify({ ...defaults, cl_crosshairstyle: 4, cl_crosshair_recoil: 0, cl_crosshair_drawoutline: 1, cl_crosshair_screen_height: 1620 })));
     for (const gap of [-9, 0, 5]) for (const zoom of [1, 4]) {
       await page.getByLabel('Thickness', { exact: true }).fill(String(thickness));
       await page.getByLabel('Thickness', { exact: true }).press('Enter');
