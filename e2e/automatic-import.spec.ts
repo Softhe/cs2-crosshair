@@ -107,3 +107,81 @@ test('a backup that cannot be restored keeps the pasted text and explains why', 
   await expect(page.getByRole('alert')).toContainText('Unsupported backup version');
   await expect(field).toHaveValue(text);
 });
+
+test('dropping a config file on the panel imports it', async ({page}) => {
+  await page.goto('/');
+  const panel = page.getByRole('region', {name:'Import, share and export', exact:true});
+  const data = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['cl_crosshairstyle 4\ncl_crosshair_gap "-3"\ncl_crosshair_length "7"'], 'drop.cfg', {type:'text/plain'}));
+    return transfer;
+  });
+  await panel.dispatchEvent('dragover', {dataTransfer:data});
+  await expect(panel.locator('.drop-hint')).toBeVisible();
+  await panel.dispatchEvent('drop', {dataTransfer:data});
+  await expect(panel.locator('.drop-hint')).toHaveCount(0);
+  await expect(page.getByRole('spinbutton', {name:'Gap', exact:true})).toHaveValue('-3');
+  await expect(page.getByRole('spinbutton', {name:'Length', exact:true})).toHaveValue('7');
+});
+
+test('dropping link text on the panel imports the crosshair', async ({page}) => {
+  await page.goto('/');
+  const panel = page.getByRole('region', {name:'Import, share and export', exact:true});
+  const field = page.getByLabel('Crosshair code or config', {exact:true});
+  const data = await page.evaluateHandle((text) => {
+    const transfer = new DataTransfer();
+    transfer.setData('text/plain', text);
+    return transfer;
+  }, `delli.cc/?code=${current}`);
+  await panel.dispatchEvent('drop', {dataTransfer:data});
+  await expect(field).toHaveAttribute('data-current-code', current);
+});
+
+test('an old config shows its conversion notes under the import box', async ({page}) => {
+  await page.goto('/');
+  const field = page.getByLabel('Crosshair code or config', {exact:true});
+  await field.evaluate((element, text) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', text);
+    element.dispatchEvent(new ClipboardEvent('paste', {bubbles:true, cancelable:true, clipboardData}));
+  }, config);
+  const notes = page.locator('.conversion-notes');
+  await expect(notes).toHaveAttribute('open', '');
+  await expect(notes.locator('li').first()).toBeVisible();
+  await notes.getByRole('button', {name:'Dismiss notes', exact:true}).click();
+  await expect(notes).toHaveCount(0);
+});
+
+test('a multi-line config draft gets a taller box', async ({page}) => {
+  await page.goto('/');
+  const field = page.getByLabel('Crosshair code or config', {exact:true});
+  const before = (await field.boundingBox())!.height;
+  await field.fill('cl_crosshair_gap 2\ncl_crosshair_length 4\ncl_crosshairdot 1');
+  await expect(field).toHaveClass(/is-multiline/);
+  expect((await field.boundingBox())!.height).toBeGreaterThan(before * 2);
+  // A height set with the resize handle must not outlive the draft.
+  await field.evaluate((element) => { element.style.height = '320px'; });
+  await page.getByRole('button', {name:'Import crosshair', exact:true}).click();
+  await expect(field).not.toHaveClass(/is-multiline/);
+  await expect.poll(async () => (await field.boundingBox())!.height).toBeLessThanOrEqual(before + 1);
+});
+
+test('moving text inside the draft does not import it', async ({page}) => {
+  await page.goto('/');
+  const panel = page.getByRole('region', {name:'Import, share and export', exact:true});
+  const field = page.getByLabel('Crosshair code or config', {exact:true});
+  const previous = await field.getAttribute('data-current-code');
+  await field.fill('cl_crosshair_gap 2\ncl_crosshair_length 4');
+  const data = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.setData('text/plain', 'cl_crosshair_gap 2');
+    return transfer;
+  });
+  await field.dispatchEvent('dragstart', {dataTransfer:data});
+  await panel.dispatchEvent('dragover', {dataTransfer:data});
+  await expect(panel.locator('.drop-hint')).toHaveCount(0);
+  await field.dispatchEvent('drop', {dataTransfer:data});
+  await field.dispatchEvent('dragend', {dataTransfer:data});
+  await expect(field).toHaveAttribute('data-current-code', previous!);
+  await expect(page.getByText('Unapplied import', {exact:true})).toBeVisible();
+});

@@ -47,7 +47,7 @@ export function encode(s: Settings): string {
   b[0]=checksum(b);
   return 'CS'+pack(b,44);
 }
-export type Decoded = {settings: Settings; legacy: boolean; note?: string};
+export type Decoded = {settings: Settings; legacy: boolean; note?: string; /** Converter notes for an old version-1 code. */ warnings?: string[]};
 export function decode(input: string, legacyHeight=1080, base: Settings=defaults): Decoded {
   const text=input.trim();
   if(/^https?:\/\//i.test(text)) {
@@ -62,7 +62,7 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
       try{ raw=JSON.parse(complete); }catch{ throw Error("The link's settings are not valid JSON."); }
       const settings=validateSettings(raw);
       if(parsed&&!sameCodeSettings(settings,parsed.settings))throw Error('The link contains conflicting crosshair settings.');
-      return {settings,legacy:parsed?.legacy??false,note:parsed?.note};
+      return {settings,legacy:parsed?.legacy??false,note:parsed?.note,warnings:parsed?.warnings};
     }
     return parsed!;
   }
@@ -87,7 +87,7 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
     if(![1,3,4].includes(b[1]!)) throw Error('This is not a supported crosshair code. Match codes cannot be imported.');
     if(b[1]===1){
       const converted=convertLegacy(code,legacyHeight,legacyHeight,base);
-      return {settings:converted.settings,legacy:true,note:`Converted with the ${COMMUNITY_MODEL_VERSION} reconstruction. Pixel matching is approximate; check it in CS2. Use the converter panel to review warnings.`};
+      return {settings:converted.settings,legacy:true,warnings:converted.warnings,note:`Converted with the ${COMMUNITY_MODEL_VERSION} reconstruction. Pixel matching is approximate; check it in CS2.`};
     }
     const bits=view.getUint32(10,true);
     s.cl_crosshairstyle=b[2]!&15;s.cl_crosshair_recoil=(b[2]!>>4)&1;s.cl_crosshairdot=(b[2]!>>6)&1;s.cl_crosshair_t=b[2]!>>7;

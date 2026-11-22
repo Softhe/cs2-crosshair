@@ -27,6 +27,8 @@ export function useImport({ s, code, apply, onBackup, setModal, notify }: {
   const [importDraft, setImportText] = useState<string | null>(null);
   const [importError, setImportError] = useState('');
   const [legacyHeight, setLegacyHeight] = useState(1080);
+  /** Notes from the last old-settings conversion, shown under the import box until the next import or dismissal. */
+  const [conversionNotes, setConversionNotes] = useState<string[] | null>(null);
   // Bumped whenever the box changes, so a slow clipboard read cannot overwrite a newer edit.
   const clipboardRequest = useRef(0);
   const importText = importDraft ?? code;
@@ -35,6 +37,7 @@ export function useImport({ s, code, apply, onBackup, setModal, notify }: {
     try {
       const detected = detectImport(text);
       let result: Settings;
+      let notes: string[] | null = null;
       if (detected.kind === 'backup') {
         onBackup(detected.text);
         setImportText(null);
@@ -44,6 +47,7 @@ export function useImport({ s, code, apply, onBackup, setModal, notify }: {
       if (detected.kind === 'code' || detected.kind === 'link') {
         const complete = detected.kind === 'link' && new URL(detected.text).searchParams.has('settings');
         const parsed = decode(detected.text, legacyHeight);
+        if (parsed.warnings?.length) notes = parsed.warnings;
         notify(
           parsed.note ??
             (complete
@@ -56,8 +60,13 @@ export function useImport({ s, code, apply, onBackup, setModal, notify }: {
           ? parsed.settings
           : { ...s, ...Object.fromEntries(codeSettingKeys.map((k) => [k, parsed.settings[k]!])) };
       } else if (detected.kind === 'legacy') {
-        result = convertLegacy(detected.text, legacyHeight, legacyHeight, s).settings;
-        notify('Old settings converted. Check the result in CS2. Use the converter panel to review warnings.', 'warning');
+        const converted = convertLegacy(detected.text, legacyHeight, legacyHeight, s);
+        result = converted.settings;
+        notes = converted.warnings;
+        notify(
+          `Old settings converted${notes.length ? ` with ${notes.length} note${notes.length === 1 ? '' : 's'} below the import box` : ''}. Check the result in CS2.`,
+          'warning',
+        );
       } else if (detected.kind === 'config') {
         const imported = importConfig(detected.text, s);
         result = imported.settings;
@@ -67,6 +76,7 @@ export function useImport({ s, code, apply, onBackup, setModal, notify }: {
         throw Error('No crosshair code, share link or crosshair settings found. Paste a CS code, a link, or cl_crosshair lines from a config.');
       }
       apply(result);
+      setConversionNotes(notes?.length ? notes : null);
       setImportText(null);
       setImportError('');
       setModal(null);
@@ -101,6 +111,7 @@ export function useImport({ s, code, apply, onBackup, setModal, notify }: {
 
   return {
     importText, importDraft, setImportText, importError, setImportError, legacyHeight, setLegacyHeight,
+    conversionNotes, setConversionNotes,
     clipboardRequest, doImport, pasteCode, importFile,
   };
 }
