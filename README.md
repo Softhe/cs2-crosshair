@@ -23,7 +23,8 @@ The import box names the format it detected next to an unapplied draft:
 | `CS…` share code | ✓ | ✓ | Crosshair and scope dot |
 | Old `CSGO-…` code | ✓ (version 1 converted approximately, assuming a 1080p reference unless changed) | — | Crosshair |
 | Website link | ✓ (with or without `https://`) | ✓ | All settings |
-| `.cfg`, `.vcfg`, `.txt`, console output | ✓ | ✓ | All settings |
+| `.cfg` | ✓ | ✓ | All settings |
+| `.vcfg`, `.txt`, console output | ✓ | — | All settings |
 | Pre-update config (`cl_crosshairsize`, …) | ✓ (converted) | — | Crosshair |
 | Settings JSON (`{"cl_crosshair_gap": -2}`) | ✓ | — | The listed settings |
 | Library backup `.json` | ✓ (merged into the library) | ✓ | All saved crosshairs |

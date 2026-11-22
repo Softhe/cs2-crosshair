@@ -180,3 +180,21 @@ test('detection stays fast on a large file of one long word', () => {
     assert.ok(performance.now() - start < 1000, `${text.slice(0, 4)}… took ${Math.round(performance.now() - start)} ms`);
   }
 });
+
+test('an alias body with escaped quotes is read whole', () => {
+  const [alias] = aliasCrosshairs('alias a "cl_crosshair_gap \\"-2\\"; cl_crosshair_length 3"');
+  assert.equal(alias?.count, 2);
+  const s = importConfig(alias!.body, studioStart).settings;
+  assert.deepEqual([s.cl_crosshair_gap, s.cl_crosshair_length], [-2, 3]);
+});
+
+test('a link with a lowercase or dashless code imports', () => {
+  const lower = 'cs' + code.slice(2);
+  for (const link of [`delli.cc/?code=${lower}`, `https://delli.cc/${lower}`]) {
+    const detected = detectImport(link);
+    assert.equal(detected.kind, 'link', link);
+    assert.equal(decode(detected.text).settings.cl_crosshair_gap, -2);
+  }
+  const dashless = 'csgo' + legacyCode.slice(5).replace(/-/g, '');
+  assert.equal(decode(`https://delli.cc/?code=${dashless}`).legacy, decode(legacyCode).legacy);
+});

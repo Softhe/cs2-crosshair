@@ -47,6 +47,18 @@ export type Detected =
 
 /** `alias name "body"` or `alias name body`, as one console statement. */
 const ALIAS = /^alias\s+"?([^\s"]+)"?\s+([\s\S]+)$/i;
+/** The text inside a leading quoted value, up to its closing quote. The statement splitter keeps `\"` and `\\` inside
+ * quotes, so they are unescaped here. */
+function quotedBody(raw: string): string {
+  let body = '';
+  for (let i = 1; i < raw.length; i++) {
+    const char = raw[i]!, next = raw[i + 1];
+    if (char === '\\' && (next === '"' || next === '\\')) { body += next; i++; }
+    else if (char === '"') break;
+    else body += char;
+  }
+  return body;
+}
 /** Aliases whose body assigns crosshair settings, in file order; a later definition replaces an earlier one. */
 export function aliasCrosshairs(text: string): AliasCrosshair[] {
   const found = new Map<string, AliasCrosshair>();
@@ -54,7 +66,7 @@ export function aliasCrosshairs(text: string): AliasCrosshair[] {
     const match = ALIAS.exec(statement);
     if (!match) continue;
     const name = match[1]!, raw = match[2]!.trim();
-    const body = raw.startsWith('"') ? raw.slice(1, raw.indexOf('"', 1) < 0 ? undefined : raw.indexOf('"', 1)) : raw;
+    const body = raw.startsWith('"') ? quotedBody(raw) : raw;
     const count = statements(body).map(assignedName)
       .filter((key) => key !== undefined && (Object.hasOwn(defaults, key) || LEGACY_ONLY_CVARS.has(key))).length;
     found.delete(name);
@@ -83,7 +95,7 @@ export function normalizeCode(code: string): string {
 const codesIn = (text: string) => [...(text.match(CS_CODE) ?? []), ...(text.match(CSGO_CODE) ?? []),
   ...(text.match(DASHLESS_CSGO_CODE) ?? [])].map(normalizeCode);
 const carriesCrosshair = (link: string) =>
-  /[?&](?:code|crosshair|settings)=/i.test(link) || /\/CS(?:GO-|[A-Za-z0-9]{44})/.test(link);
+  /[?&](?:code|crosshair|settings)=/i.test(link) || /\/cs(?:go-?|[a-z0-9]{44})/i.test(link);
 
 /** Whether the text is a library backup file (`{"version":…,"entries":[…]}`). */
 function isBackup(text: string): boolean {

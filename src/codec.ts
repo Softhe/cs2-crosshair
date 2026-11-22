@@ -1,6 +1,6 @@
 import { convertLegacy, COMMUNITY_MODEL_VERSION } from './converter';
 import { defaults, fitSetting, validateSettings, sameCodeSettings, type Settings } from './model';
-import { assignedName, LEGACY_ONLY_CVARS, statements } from './import-detect';
+import { assignedName, LEGACY_ONLY_CVARS, normalizeCode, statements } from './import-detect';
 
 // CS2 1.41.8.8. Byte layout verified against codes exported by the game.
 const alphabet='ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
@@ -52,7 +52,9 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
   const text=input.trim();
   if(/^https?:\/\//i.test(text)) {
     const url=new URL(text);
-    const shared=url.searchParams.get('code')??url.searchParams.get('crosshair')??(url.pathname.startsWith('/CS')?url.pathname.slice(1):null);
+    // Chat and phones lower-case the prefix; the code body stays case-sensitive.
+    const raw=url.searchParams.get('code')??url.searchParams.get('crosshair')??(/^\/cs/i.test(url.pathname)?url.pathname.slice(1):null);
+    const shared=raw===null?null:normalizeCode(raw.trim());
     const complete=url.searchParams.get('settings');
     if(!shared&&!complete)throw Error('This link does not contain crosshair settings.');
     if(shared&&!shared.startsWith('CS'))throw Error('This link does not contain a supported crosshair code.');
