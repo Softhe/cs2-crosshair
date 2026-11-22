@@ -1,4 +1,4 @@
-import {useState,type DragEvent,type RefObject} from 'react';
+import {useEffect,useRef,useState,type DragEvent,type RefObject} from 'react';
 import {ArrowUpRight,Copy,FileCode2,Upload,X} from 'lucide-react';
 import {LegacyConverter} from '../LegacyConverter';
 import type {Settings} from '../model';
@@ -29,13 +29,16 @@ export type ImportBarProps = ExportCardProps & {
 
 export function ImportBar(p:ImportBarProps){
   const [dragging,setDragging]=useState(false);
+  /** Set while text dragged from inside the panel (moving lines in the draft) is in flight; that keeps native editing. */
+  const internalDrag=useRef(false);
+  const field=useRef<HTMLTextAreaElement>(null);
   function resetImport(){
     p.clipboardRequest.current++;
     p.setImportText(null);
     p.setImportError('');
   }
   /** Files and dragged text (a link or code from another page) can be dropped anywhere on the panel. */
-  const accepts=(e:DragEvent)=>[...e.dataTransfer.types].some(type=>type==='Files'||type==='text/plain'||type==='text/uri-list');
+  const accepts=(e:DragEvent)=>!internalDrag.current&&[...e.dataTransfer.types].some(type=>type==='Files'||type==='text/plain'||type==='text/uri-list');
   function onDrop(e:DragEvent){
     if(!accepts(e))return;
     e.preventDefault();setDragging(false);
@@ -45,10 +48,13 @@ export function ImportBar(p:ImportBarProps){
     if(text)p.pasteCode(text);
   }
   const multiline=p.importDraft!==null&&p.importText.includes('\n');
+  // A height the user dragged the resize handle to must not keep the one-line field tall afterwards.
+  useEffect(()=>{if(!multiline&&field.current)field.current.style.height='';},[multiline]);
   return <section className={`inline-import transfer-panel${dragging?' is-dragging':''}`} aria-label="Import, share and export"
     onDragOver={e=>{if(!accepts(e))return;e.preventDefault();e.dataTransfer.dropEffect='copy';setDragging(true);}}
     onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setDragging(false);}}
-    onDrop={onDrop}>
+    onDrop={onDrop}
+    onDragStart={()=>{internalDrag.current=true;}} onDragEnd={()=>{internalDrag.current=false;}}>
     {dragging&&<div className="drop-hint" aria-hidden="true"><Upload size={18}/>Drop a code, link, config or library backup to import</div>}
     <div className="transfer-heading"><FileCode2 size={18}/><h2>Import, share and export</h2></div>
     <div className="import-label-row">
@@ -58,7 +64,7 @@ export function ImportBar(p:ImportBarProps){
       </span>
     </div>
     <div className="inline-import-entry">
-      <textarea rows={1} id="import-text" className={`import-area${multiline?' is-multiline':''}`} data-current-code={p.code} value={p.importText}
+      <textarea ref={field} rows={1} id="import-text" className={`import-area${multiline?' is-multiline':''}`} data-current-code={p.code} value={p.importText}
         aria-describedby="code-selection-hint"
         onPointerDown={e=>{if(p.importDraft===null){e.preventDefault();e.currentTarget.focus();e.currentTarget.select();}}}
         onFocus={e=>{if(p.importDraft===null)e.currentTarget.select();}}

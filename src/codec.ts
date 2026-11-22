@@ -62,7 +62,7 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
       try{ raw=JSON.parse(complete); }catch{ throw Error("The link's settings are not valid JSON."); }
       const settings=validateSettings(raw);
       if(parsed&&!sameCodeSettings(settings,parsed.settings))throw Error('The link contains conflicting crosshair settings.');
-      return {settings,legacy:parsed?.legacy??false,note:parsed?.note};
+      return {settings,legacy:parsed?.legacy??false,note:parsed?.note,warnings:parsed?.warnings};
     }
     return parsed!;
   }

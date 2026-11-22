@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {encode, importConfig, describeConfigImport} from '../src/codec';
+import {decode, encode, importConfig, describeConfigImport} from '../src/codec';
 import {convertLegacy} from '../src/converter';
 import {detectImport} from '../src/import-detect';
 import {defaults, studioStart, cfg} from '../src/model';
@@ -116,4 +116,12 @@ test('finds a code a line wrap broke inside surrounding text', () => {
   assert.deepEqual(detectImport(`my crosshair: ${code.slice(0, 25)}\n${code.slice(25)}`), {kind: 'code', text: code});
   assert.deepEqual(detectImport(`"${code.slice(0, 30)}\n  ${code.slice(30)}" gl`), {kind: 'code', text: code});
   assert.deepEqual(detectImport(`old one: ${legacyCode.slice(0, 17)}\n${legacyCode.slice(17)}`), {kind: 'code', text: legacyCode});
+});
+
+test('a complete link keeps the conversion notes of its old code', () => {
+  const old = decode(legacyCode);
+  const link = `https://delli.cc/?code=${legacyCode}&settings=${encodeURIComponent(JSON.stringify(old.settings))}`;
+  const parsed = decode(link);
+  assert.ok(old.warnings?.length);
+  assert.deepEqual(parsed.warnings, old.warnings);
 });

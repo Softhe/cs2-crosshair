@@ -159,6 +159,29 @@ test('a multi-line config draft gets a taller box', async ({page}) => {
   await field.fill('cl_crosshair_gap 2\ncl_crosshair_length 4\ncl_crosshairdot 1');
   await expect(field).toHaveClass(/is-multiline/);
   expect((await field.boundingBox())!.height).toBeGreaterThan(before * 2);
+  // A height set with the resize handle must not outlive the draft.
+  await field.evaluate((element) => { element.style.height = '320px'; });
   await page.getByRole('button', {name:'Import crosshair', exact:true}).click();
   await expect(field).not.toHaveClass(/is-multiline/);
+  await expect.poll(async () => (await field.boundingBox())!.height).toBeLessThanOrEqual(before + 1);
+});
+
+test('moving text inside the draft does not import it', async ({page}) => {
+  await page.goto('/');
+  const panel = page.getByRole('region', {name:'Import, share and export', exact:true});
+  const field = page.getByLabel('Crosshair code or config', {exact:true});
+  const previous = await field.getAttribute('data-current-code');
+  await field.fill('cl_crosshair_gap 2\ncl_crosshair_length 4');
+  const data = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.setData('text/plain', 'cl_crosshair_gap 2');
+    return transfer;
+  });
+  await field.dispatchEvent('dragstart', {dataTransfer:data});
+  await panel.dispatchEvent('dragover', {dataTransfer:data});
+  await expect(panel.locator('.drop-hint')).toHaveCount(0);
+  await field.dispatchEvent('drop', {dataTransfer:data});
+  await field.dispatchEvent('dragend', {dataTransfer:data});
+  await expect(field).toHaveAttribute('data-current-code', previous!);
+  await expect(page.getByText('Unapplied import', {exact:true})).toBeVisible();
 });
