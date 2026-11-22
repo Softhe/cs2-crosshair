@@ -75,3 +75,22 @@ test('invalid uploads preserve the applied crosshair and show an error', async (
 });
 
 
+
+test('a current CS2 .vcfg with hidden old values imports as current settings', async ({page}) => {
+  await page.goto('/');
+  const vcfg = '"config"\n{\n\t"convars"\n\t{\n\t\t"cl_crosshairstyle"\t\t"4"\n\t\t"cl_crosshair_gap"\t\t"-2"\n\t\t"cl_crosshair_length"\t\t"5"\n\t\t"cl_crosshairsize"\t\t"3.9"\n\t\t"bind_f1"\t\t"1"\n\t}\n}';
+  await page.getByLabel('Crosshair config file', {exact:true}).setInputFiles({name:'cs2_user_convars_0_slot0.vcfg', mimeType:'text/plain', buffer:Buffer.from(vcfg)});
+  await expect(page.getByRole('spinbutton', {name:'Gap', exact:true})).toHaveValue('-2');
+  await expect(page.getByRole('spinbutton', {name:'Length', exact:true})).toHaveValue('5');
+  await expect(page.getByText(/Imported 3 crosshair settings from the config\..*Ignored hidden old values .*cl_crosshairsize/)).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+test('a library backup chosen as a config is merged into the library', async ({page}) => {
+  await page.goto('/');
+  const entry = {id:'backup-1', name:'From backup', favorite:true, settings:{cl_crosshairstyle:4}, updatedAt:1};
+  await page.getByLabel('Crosshair config file', {exact:true}).setInputFiles({name:'delli-crosshair-library.json', mimeType:'application/json', buffer:Buffer.from(JSON.stringify({version:1, entries:[entry]}))});
+  await expect(page.getByText(/Backup merged/)).toBeVisible();
+  await page.getByRole('button', {name:'Library', exact:true}).click();
+  await expect(page.getByRole('button', {name:'Preview From backup', exact:true})).toBeVisible();
+});

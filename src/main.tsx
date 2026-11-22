@@ -135,6 +135,7 @@ function App() {
       favorites.setEditingId(null);
       favorites.remember(settings);
     },
+    onBackup: (text) => restoreBackupText(text),
     setModal,
     notify,
   });
@@ -187,7 +188,14 @@ function App() {
   async function restoreBackup(file: File) {
     try {
       if (file.size > BACKUP_MAX_BYTES) throw Error("Backup is too large.");
-      const entries = parseBackup(await file.text());
+      restoreBackupText(await file.text());
+    } catch (error) {
+      notify(message(error), "error");
+    }
+  }
+  function restoreBackupText(text: string) {
+    try {
+      const entries = parseBackup(text);
       if (setLibrary((prev) => mergeBackup(prev, entries)))
         notify("Backup merged. Existing entries were retained within library limits.", "success");
       else notify("Backup could not be saved. Free browser storage and try again.", "error");
@@ -398,7 +406,7 @@ function App() {
         ref={cfgInput}
         className="sr-only"
         type="file"
-        accept=".cfg,.txt,.vcfg"
+        accept=".cfg,.txt,.vcfg,.json"
         aria-label="Crosshair config file"
         onChange={(e) => {
           const file = e.target.files?.[0];
