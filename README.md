@@ -14,7 +14,7 @@ The editor has Style Settings and Crosshair Settings. Gap controls accept values
 
 The preview draws the crosshair at the resolution it was made for, where one unit is one game pixel. If you play at another resolution, turn on **Match my in-game size** under Preview options to see how CS2 rounds and stretches it on your monitor. A crosshair too large for the preview is drawn smaller to fit, with a note giving the magnification shown. Use fullscreen to place the crosshair at the screen center. The detail view helps inspect arm and outline symmetry at 4×. A short intro plays at 1.25× speed on a browser's first visit (not with reduced motion) and fades into the editor. Later visits open the editor directly; add `?intro=preview` to the address to replay it.
 
-Current `CS` codes carry crosshair and scope dot settings. Older `CSGO-` codes are supported with an approximation notice when conversion is needed. Config files and website links preserve additional settings. Imported console commands are parsed as data; the website does not execute them.
+Current `CS` codes carry crosshair and scope dot settings. Older `CSGO-` codes are supported with an approximation notice when conversion is needed. Config files and website links preserve additional settings. The import box finds a code or link inside other text, such as a chat message or a link without `https://`. It reads `.cfg` and `.txt` files, the game's `.vcfg` settings files, console `find crosshair` output and old CS:GO configs, and a library backup `.json` is merged into the library. Imported console commands are parsed as data; the website does not execute them, and settings inside `bind` or `alias` commands are skipped.
 
 An optional alias such as `team_green` produces `crosshair_team_green.cfg` and this autoexec shortcut:
 
@@ -75,7 +75,7 @@ The project's source code is released under the [MIT License](LICENSE). Vendored
 
 ## Steam sign-in and private library sync
 
-The editor works without an account. Native CS2 codes apply immediately when pasted; config and legacy imports remain explicit. Library is a main view with names or player nicknames, selected previews, direct code copying, backup and restore. Editing a saved crosshair creates a draft; use Update saved crosshair or Save as new explicitly.
+The editor works without an account. Pasted or chosen codes, links and configs apply immediately; the notice says what was imported, adjusted or skipped. Library is a main view with names or player nicknames, selected previews, direct code copying, backup and restore. Editing a saved crosshair creates a draft; use Update saved crosshair or Save as new explicitly.
 
 For the complete local application, use Node.js 24 or newer:
 

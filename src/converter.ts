@@ -1,4 +1,5 @@
 import { defaults, validateSettings, HEIGHT_MIN, HEIGHT_MAX, type Settings } from './model';
+import { assignedName, statements } from './import-detect';
 // @ts-expect-error Vendored upstream JavaScript has no TypeScript declarations.
 import { parseLegacyTextWithNotes } from './vendor/sicc/settings/import.js';
 // @ts-expect-error Vendored upstream JavaScript has no TypeScript declarations.
@@ -13,13 +14,26 @@ export const COMMUNITY_MODEL_VERSION: string = typeof COMMUNITY_MODEL?.version =
 
 export type Conversion = { settings: Settings; warnings: string[]; report: Record<string, unknown> };
 
+/** The legacy parser reads at most 32 KiB. */
+const LEGACY_PARSER_MAX=32768;
+/**
+ * A whole old config.cfg (binds, every other setting) can exceed the legacy parser's limit. Keep only the cl_
+ * assignments then; the parser would skip everything else anyway.
+ */
+function crosshairLines(text: string): string {
+  if(text.length<=LEGACY_PARSER_MAX) return text;
+  const kept=statements(text).filter(statement=>assignedName(statement)!==undefined).join('\n');
+  if(kept.length>LEGACY_PARSER_MAX) throw Error('This config has too many crosshair settings to convert. Paste only the crosshair lines.');
+  return kept;
+}
+
 /** Convert an old version-1 code or old cvars with the pinned community reconstruction. */
 export function convertLegacy(text: string, oldHeight=1080, newHeight=oldHeight, base=defaults): Conversion {
   if(text.length>200000) throw Error('Config is too large.');
   for(const height of [oldHeight,newHeight]) {
     if(!Number.isInteger(height)||height<HEIGHT_MIN||height>HEIGHT_MAX) throw Error(`Game height must be an integer between ${HEIGHT_MIN} and ${HEIGHT_MAX}.`);
   }
-  const parsed=parseLegacyTextWithNotes(text);
+  const parsed=parseLegacyTextWithNotes(crosshairLines(text));
   const blocker=styleBlocker(parsed.config.style);
   if(blocker) throw Error(blocker);
   const report=inferCommunity({settings:parsed.config, options:{oldHeight,currentHeight:newHeight,authoredHeight:newHeight,goal:'pixels'},records:[],measurements:[]});

@@ -135,6 +135,7 @@ function App() {
       favorites.setEditingId(null);
       favorites.remember(settings);
     },
+    onBackup: (text) => restoreBackupText(text),
     setModal,
     notify,
   });
@@ -187,13 +188,22 @@ function App() {
   async function restoreBackup(file: File) {
     try {
       if (file.size > BACKUP_MAX_BYTES) throw Error("Backup is too large.");
-      const entries = parseBackup(await file.text());
-      if (setLibrary((prev) => mergeBackup(prev, entries)))
-        notify("Backup merged. Existing entries were retained within library limits.", "success");
-      else notify("Backup could not be saved. Free browser storage and try again.", "error");
+      restoreBackupText(await file.text());
     } catch (error) {
       notify(message(error), "error");
     }
+  }
+  /** Merge a backup into the library. Throws a message fit to show when the backup is invalid or cannot be saved. */
+  function restoreBackupText(text: string) {
+    let entries;
+    try {
+      entries = parseBackup(text);
+    } catch (error) {
+      throw Error(error instanceof SyntaxError ? "This backup is not valid JSON." : message(error));
+    }
+    if (!setLibrary((prev) => mergeBackup(prev, entries)))
+      throw Error("Backup could not be saved. Free browser storage and try again.");
+    notify("Backup merged. Existing entries were retained within library limits.", "success");
   }
 
   useEffect(() => {
@@ -398,7 +408,7 @@ function App() {
         ref={cfgInput}
         className="sr-only"
         type="file"
-        accept=".cfg,.txt,.vcfg"
+        accept=".cfg,.txt,.vcfg,.json"
         aria-label="Crosshair config file"
         onChange={(e) => {
           const file = e.target.files?.[0];

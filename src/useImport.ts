@@ -1,22 +1,26 @@
 import { useRef, useState } from 'react';
-import { decode, describeAdjustments, importConfig } from './codec';
+import { decode, describeConfigImport, importConfig } from './codec';
 import { convertLegacy } from './converter';
+import { detectImport } from './import-detect';
+import { BACKUP_MAX_BYTES } from './library-backup';
 import { codeSettingKeys, type Settings } from './model';
 import { message } from './startup';
 import type { Notify } from './useToast';
 
-const isLink = (text: string) => /^https?:\/\//i.test(text.trim());
-const isCompleteLink = (text: string) => isLink(text) && new URL(text.trim()).searchParams.has('settings');
+/** Largest config the importer reads (codec importConfig); library backups may be larger. */
+const CONFIG_MAX_BYTES = 200000;
 
 /**
  * The import box: an unapplied draft (null while it shows the applied code), its error, and applying
- * a share code, link, current config or pre-2023 config to the editor.
+ * a share code, link, current config or pre-2023 config to the editor. A library backup is handed to `onBackup`.
  */
-export function useImport({ s, code, apply, setModal, notify }: {
+export function useImport({ s, code, apply, onBackup, setModal, notify }: {
   s: Settings;
   code: string;
   /** Load imported settings into the editor and record them. */
   apply: (settings: Settings) => void;
+  /** Merge a library backup that was pasted or chosen instead of a config. */
+  onBackup: (text: string) => void;
   setModal: (value: null) => void;
   notify: Notify;
 }) {
@@ -29,28 +33,38 @@ export function useImport({ s, code, apply, setModal, notify }: {
 
   function doImport(text = importText) {
     try {
+      const detected = detectImport(text);
       let result: Settings;
-      if (text.trim().startsWith('CS') || isLink(text)) {
-        const parsed = decode(text, legacyHeight);
+      if (detected.kind === 'backup') {
+        onBackup(detected.text);
+        setImportText(null);
+        setImportError('');
+        return;
+      }
+      if (detected.kind === 'code' || detected.kind === 'link') {
+        const complete = detected.kind === 'link' && new URL(detected.text).searchParams.has('settings');
+        const parsed = decode(detected.text, legacyHeight);
         notify(
           parsed.note ??
-            (isCompleteLink(text)
+            (complete
               ? 'Crosshair and complete settings imported from link.'
               : 'Crosshair imported. Extra menu settings keep their current values.'),
           parsed.note ? 'warning' : 'success',
         );
         // A bare code carries only crosshair settings; the rest of the menu keeps its values.
-        result = isCompleteLink(text)
+        result = complete
           ? parsed.settings
           : { ...s, ...Object.fromEntries(codeSettingKeys.map((k) => [k, parsed.settings[k]!])) };
-      } else if (/\bcl_crosshair(?:size|thickness|gap|alpha|usealpha|color)\b/i.test(text)) {
-        result = convertLegacy(text, legacyHeight, legacyHeight, s).settings;
+      } else if (detected.kind === 'legacy') {
+        result = convertLegacy(detected.text, legacyHeight, legacyHeight, s).settings;
         notify('Old settings converted. Check the result in CS2. Use the converter panel to review warnings.', 'warning');
-      } else {
-        const imported = importConfig(text, s);
+      } else if (detected.kind === 'config') {
+        const imported = importConfig(detected.text, s);
         result = imported.settings;
-        if (imported.adjusted.length) notify(describeAdjustments(imported.adjusted), 'warning');
-        else notify('Current CS2 config settings imported.', 'success');
+        const summary = describeConfigImport(imported);
+        notify(summary.text, summary.tone);
+      } else {
+        throw Error('No crosshair code, share link or crosshair settings found. Paste a CS code, a link, or cl_crosshair lines from a config.');
       }
       apply(result);
       setImportText(null);
@@ -69,12 +83,17 @@ export function useImport({ s, code, apply, setModal, notify }: {
   }
 
   async function importFile(file: File) {
-    if (file.size > 200000) {
-      setImportError('Config is too large.');
+    if (file.size > BACKUP_MAX_BYTES) {
+      setImportError('This file is too large to be a config or library backup.');
       return;
     }
     try {
-      pasteCode(await file.text());
+      const text = await file.text();
+      if (file.size > CONFIG_MAX_BYTES && detectImport(text).kind !== 'backup') {
+        setImportError('Config is too large.');
+        return;
+      }
+      pasteCode(text);
     } catch (error) {
       setImportError(message(error));
     }

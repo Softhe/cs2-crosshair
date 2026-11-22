@@ -11,7 +11,8 @@ The site is a static React and TypeScript application built with Vite. The edito
 | `useToast.ts` | The single notification toast and its auto-dismiss timing |
 | `usePreviewState.ts` | Preview controls (map, zoom, motion, game-view matching) and fullscreen |
 | `useFavorites.ts` | Saving, updating and loading library entries; save-panel sync wording |
-| `useImport.ts` | Share-code, link, legacy-command and config imports |
+| `useImport.ts` | Share-code, link, legacy-command, config and backup imports |
+| `import-detect.ts` | Recognizes what pasted or dropped text is and pulls a code or link out of surrounding text |
 | `useUndo.ts` | Grouped undo history for crosshair edits |
 | `components/` | Header, toast, save panel, import bar, map preview, settings list, dialogs, export card, game-view options |
 | `LibraryView.tsx`, `SteamAccount.tsx`, `LegacyConverter.tsx` | Library view, Steam account menu, legacy converter panel |
