@@ -1,5 +1,5 @@
-import type {RefObject} from 'react';
-import {ArrowUpRight,Copy,FileCode2,Upload} from 'lucide-react';
+import {useState,type DragEvent,type RefObject} from 'react';
+import {ArrowUpRight,Copy,FileCode2,Upload,X} from 'lucide-react';
 import {LegacyConverter} from '../LegacyConverter';
 import type {Settings} from '../model';
 import {ExportCard,type ExportCardProps} from './ExportCard';
@@ -17,6 +17,9 @@ export type ImportBarProps = ExportCardProps & {
   setLegacyHeight:(value:number)=>void;
   setModal:(value:null)=>void;
   pasteCode:(text:string)=>void;
+  importFile:(file:File)=>void;
+  conversionNotes:string[]|null;
+  setConversionNotes:(value:null)=>void;
   doImport:(text?:string)=>void;
   load:(settings:Settings)=>void;
   remember:(settings?:Settings)=>void;
@@ -25,12 +28,28 @@ export type ImportBarProps = ExportCardProps & {
 };
 
 export function ImportBar(p:ImportBarProps){
+  const [dragging,setDragging]=useState(false);
   function resetImport(){
     p.clipboardRequest.current++;
     p.setImportText(null);
     p.setImportError('');
   }
-  return <section className="inline-import transfer-panel" aria-label="Import, share and export">
+  /** Files and dragged text (a link or code from another page) can be dropped anywhere on the panel. */
+  const accepts=(e:DragEvent)=>[...e.dataTransfer.types].some(type=>type==='Files'||type==='text/plain'||type==='text/uri-list');
+  function onDrop(e:DragEvent){
+    if(!accepts(e))return;
+    e.preventDefault();setDragging(false);
+    const file=e.dataTransfer.files[0];
+    if(file){p.importFile(file);return;}
+    const text=e.dataTransfer.getData('text/plain')||e.dataTransfer.getData('text/uri-list');
+    if(text)p.pasteCode(text);
+  }
+  const multiline=p.importDraft!==null&&p.importText.includes('\n');
+  return <section className={`inline-import transfer-panel${dragging?' is-dragging':''}`} aria-label="Import, share and export"
+    onDragOver={e=>{if(!accepts(e))return;e.preventDefault();e.dataTransfer.dropEffect='copy';setDragging(true);}}
+    onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setDragging(false);}}
+    onDrop={onDrop}>
+    {dragging&&<div className="drop-hint" aria-hidden="true"><Upload size={18}/>Drop a code, link, config or library backup to import</div>}
     <div className="transfer-heading"><FileCode2 size={18}/><h2>Import, share and export</h2></div>
     <div className="import-label-row">
       <label className="field-label" htmlFor="import-text">Crosshair code or config</label>
@@ -39,7 +58,7 @@ export function ImportBar(p:ImportBarProps){
       </span>
     </div>
     <div className="inline-import-entry">
-      <textarea rows={1} id="import-text" className="import-area" data-current-code={p.code} value={p.importText}
+      <textarea rows={1} id="import-text" className={`import-area${multiline?' is-multiline':''}`} data-current-code={p.code} value={p.importText}
         aria-describedby="code-selection-hint"
         onPointerDown={e=>{if(p.importDraft===null){e.preventDefault();e.currentTarget.focus();e.currentTarget.select();}}}
         onFocus={e=>{if(p.importDraft===null)e.currentTarget.select();}}
@@ -47,7 +66,7 @@ export function ImportBar(p:ImportBarProps){
         onSelect={e=>{if(p.importDraft===null)e.currentTarget.select();}}
         onChange={e=>{p.clipboardRequest.current++;p.setImportText(e.target.value);p.setImportError('');}}
         onPaste={e=>{e.preventDefault();p.pasteCode(e.clipboardData.getData('text'));}}
-        placeholder="Paste a CS2 crosshair code"/>
+        placeholder="Paste a code, link or config, or drop a file"/>
       {/* Copying the applied code is the main job; Import takes the lead only while an import is pending. */}
       <button className={`primary-button${p.importDraft===null?'':' is-primary'}`} aria-label="Import crosshair" onClick={()=>p.doImport()}>
         <span>Import<span className="import-button-extra"> crosshair</span></span><ArrowUpRight size={15}/>
@@ -74,12 +93,10 @@ export function ImportBar(p:ImportBarProps){
             if(request===p.clipboardRequest.current)p.setImportError('Clipboard access is unavailable. Paste into the box manually.');
           }
         }}><Copy size={14}/>Paste clipboard</button>
+        <button onClick={()=>p.cfgInput.current?.click()} title="A .cfg, .vcfg or .txt config, or a library backup .json"><Upload size={14}/>Choose file</button>
         <button onClick={resetImport} disabled={p.importDraft===null}>Use current code</button>
       </div>
-      <details className="config-import">
-        <summary>Import a .cfg file</summary>
-        <button onClick={()=>p.cfgInput.current?.click()}><Upload size={14}/>Choose .cfg file</button>
-      </details>
+      <p className="code-hint">Accepts CS and CSGO codes, share links, .cfg, .vcfg and .txt configs, console output and library backups. You can also drop a file on this panel.</p>
       <LegacyConverter text={p.importText} oldHeight={p.legacyHeight} onOldHeightChange={p.setLegacyHeight} base={p.s}
         onApply={settings=>{
           p.load(settings);p.remember(settings);resetImport();p.setModal(null);
@@ -87,5 +104,10 @@ export function ImportBar(p:ImportBarProps){
         }}/>
     </details>
     {p.importError&&<p className="error-text" role="alert">{p.importError}</p>}
+    {p.conversionNotes&&<details className="conversion-notes" open>
+      <summary>Conversion notes ({p.conversionNotes.length})</summary>
+      <ul>{p.conversionNotes.map((note,i)=><li key={i}>{note}</li>)}</ul>
+      <button className="quiet-button" onClick={()=>p.setConversionNotes(null)}><X size={14}/>Dismiss notes</button>
+    </details>}
   </section>;
 }

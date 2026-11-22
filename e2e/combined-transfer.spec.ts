@@ -26,7 +26,7 @@ test('combined advanced actions and responsive layout remain usable',async({page
  await panel.locator('.export-advanced>summary').click();await panel.getByRole('textbox',{name:/Alias name/i}).fill('team_green');
  const download=page.waitForEvent('download');await panel.getByRole('button',{name:'Download .cfg',exact:true}).click();expect((await download).suggestedFilename()).toBe('crosshair_team_green.cfg');
  await panel.locator('.export-advanced>summary').click();await panel.locator('.import-options>summary').click();await expect(panel.getByRole('button',{name:'Paste clipboard',exact:true})).toBeVisible();
- await panel.locator('.config-import>summary').click();await expect(panel.getByRole('button',{name:'Choose .cfg file',exact:true})).toBeVisible();
+ await expect(panel.getByRole('button',{name:'Choose file',exact:true})).toBeVisible();
  await panel.locator('.import-options>summary').click();
  for(const width of [320,390,820,1462,2464]){await page.setViewportSize({width,height:1184});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`overflow ${width}`).toBe(true);}
 });

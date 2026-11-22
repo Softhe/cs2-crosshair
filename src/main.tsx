@@ -280,6 +280,9 @@ function App() {
             setLegacyHeight={imports.setLegacyHeight}
             setModal={setModal}
             pasteCode={imports.pasteCode}
+            importFile={(file) => void imports.importFile(file)}
+            conversionNotes={imports.conversionNotes}
+            setConversionNotes={imports.setConversionNotes}
             doImport={imports.doImport}
             load={load}
             remember={favorites.remember}
