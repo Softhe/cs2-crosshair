@@ -193,15 +193,17 @@ function App() {
       notify(message(error), "error");
     }
   }
+  /** Merge a backup into the library. Throws a message fit to show when the backup is invalid or cannot be saved. */
   function restoreBackupText(text: string) {
+    let entries;
     try {
-      const entries = parseBackup(text);
-      if (setLibrary((prev) => mergeBackup(prev, entries)))
-        notify("Backup merged. Existing entries were retained within library limits.", "success");
-      else notify("Backup could not be saved. Free browser storage and try again.", "error");
+      entries = parseBackup(text);
     } catch (error) {
-      notify(message(error), "error");
+      throw Error(error instanceof SyntaxError ? "This backup is not valid JSON." : message(error));
     }
+    if (!setLibrary((prev) => mergeBackup(prev, entries)))
+      throw Error("Backup could not be saved. Free browser storage and try again.");
+    notify("Backup merged. Existing entries were retained within library limits.", "success");
   }
 
   useEffect(() => {

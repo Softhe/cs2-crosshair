@@ -42,7 +42,11 @@ export type Detected =
 const CS_CODE = /(?<![A-Za-z0-9])CS[A-Za-z0-9]{44}(?![A-Za-z0-9-])/g;
 const CSGO_CODE = /(?<![A-Za-z0-9])CSGO(?:-[A-Za-z0-9]{5}){5}(?![A-Za-z0-9-])/g;
 /** A web address carrying a crosshair: a code or settings parameter, or a code as the path. */
-const LINK = /(?:https?:\/\/[^\s/"'<>`]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?)\/[^\s"'<>`]*/gi;
+const LINK = /(?:https?:\/\/[^\s/?"'<>`]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?)[/?][^\s"'<>`]*/gi;
+/** A code a line wrap broke apart: `CS…` fragments joined by line breaks (and the spaces around them). */
+const WRAPPED_CODE = /(?<![A-Za-z0-9])CS[A-Za-z0-9-]*(?:[ \t]*\r?\n[ \t]*[A-Za-z0-9-]+)+/g;
+const WHOLE_CODE = /^(?:CS[A-Za-z0-9]{44}|CSGO(?:-[A-Za-z0-9]{5}){5})$/;
+const codesIn = (text: string) => [...(text.match(CS_CODE) ?? []), ...(text.match(CSGO_CODE) ?? [])];
 const carriesCrosshair = (link: string) =>
   /[?&](?:code|crosshair|settings)=/i.test(link) || /\/CS(?:GO-|[A-Za-z0-9]{44})/.test(link);
 
@@ -72,17 +76,25 @@ export function detectImport(input: string): Detected {
   if (names.length) return { kind: 'config', text };
 
   const links = [...new Set((text.match(LINK) ?? []).filter(carriesCrosshair))];
+  if (links.length > 1) throw Error(`This text contains ${links.length} different crosshair links. Paste one at a time.`);
   if (links.length === 1) {
     const link = links[0]!.replace(/[.,;:!?)\]]+$/, '');
+    // A different code beside the link (a chat message offering two crosshairs) is a choice for the user.
+    const inLink = new Set(codesIn(link));
+    let outside = text;
+    for (const found of text.match(LINK) ?? []) outside = outside.replace(found, ' ');
+    if (codesIn(outside).some((code) => !inLink.has(code)))
+      throw Error('This text contains a crosshair link and a different code. Paste one at a time.');
     return { kind: 'link', text: /^https?:\/\//i.test(link) ? link : `https://${link}` };
   }
-  if (links.length > 1) throw Error(`This text contains ${links.length} different crosshair links. Paste one at a time.`);
 
-  const compact = text.replace(/\s+/g, '');
-  const codes = [...new Set([...(text.match(CS_CODE) ?? []), ...(text.match(CSGO_CODE) ?? [])])];
+  let codes = [...new Set(codesIn(text))];
+  if (!codes.length)
+    codes = [...new Set((text.match(WRAPPED_CODE) ?? []).map((part) => part.replace(/\s+/g, '')).filter((part) => WHOLE_CODE.test(part)))];
   if (codes.length === 1) return { kind: 'code', text: codes[0]! };
   if (codes.length > 1) throw Error(`This text contains ${codes.length} different crosshair codes. Paste one at a time.`);
-  if (/^CS[A-Za-z0-9]{44}$|^CSGO(?:-[A-Za-z0-9]{5}){5}$/.test(compact)) return { kind: 'code', text: compact };
+  const compact = text.replace(/\s+/g, '');
+  if (WHOLE_CODE.test(compact)) return { kind: 'code', text: compact };
   // Keep the decoder's specific message (checksum, version) for something that is clearly meant as a code.
   if (/^CS/.test(text)) return { kind: 'code', text };
   return { kind: 'unknown', text };

@@ -98,3 +98,22 @@ test('a full old config.cfg over 32 KiB converts from its crosshair lines', () =
   const small = convertLegacy('cl_crosshairstyle 4; cl_crosshairsize 2; cl_crosshairthickness 0.5; cl_crosshairgap -2');
   assert.deepEqual(convertLegacy(text).settings, small.settings);
 });
+
+test('a link with its query right after the host keeps every setting', () => {
+  const settings = encodeURIComponent(JSON.stringify(studioStart));
+  assert.deepEqual(detectImport(`https://delli.cc?code=${code}&settings=${settings}`),
+    {kind: 'link', text: `https://delli.cc?code=${code}&settings=${settings}`});
+  assert.deepEqual(detectImport(`delli.cc?code=${code}`), {kind: 'link', text: `https://delli.cc?code=${code}`});
+});
+
+test('a link beside a different code asks for one', () => {
+  const other = encode({...studioStart, cl_crosshair_gap: 3});
+  assert.throws(() => detectImport(`link https://delli.cc/?code=${code} or just ${other}`), /link and a different code/);
+  assert.equal(kind(`https://delli.cc/?code=${code} (${code})`), 'link', 'the same code repeated is one crosshair');
+});
+
+test('finds a code a line wrap broke inside surrounding text', () => {
+  assert.deepEqual(detectImport(`my crosshair: ${code.slice(0, 25)}\n${code.slice(25)}`), {kind: 'code', text: code});
+  assert.deepEqual(detectImport(`"${code.slice(0, 30)}\n  ${code.slice(30)}" gl`), {kind: 'code', text: code});
+  assert.deepEqual(detectImport(`old one: ${legacyCode.slice(0, 17)}\n${legacyCode.slice(17)}`), {kind: 'code', text: legacyCode});
+});

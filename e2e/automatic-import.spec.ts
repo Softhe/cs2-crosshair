@@ -94,3 +94,16 @@ test('a library backup chosen as a config is merged into the library', async ({p
   await page.getByRole('button', {name:'Library', exact:true}).click();
   await expect(page.getByRole('button', {name:'Preview From backup', exact:true})).toBeVisible();
 });
+
+test('a backup that cannot be restored keeps the pasted text and explains why', async ({page}) => {
+  await page.goto('/');
+  const field = page.getByLabel('Crosshair code or config', {exact:true});
+  const text = JSON.stringify({version:2, entries:[]});
+  await field.evaluate((element, text) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', text);
+    element.dispatchEvent(new ClipboardEvent('paste', {bubbles:true, cancelable:true, clipboardData}));
+  }, text);
+  await expect(page.getByRole('alert')).toContainText('Unsupported backup version');
+  await expect(field).toHaveValue(text);
+});
