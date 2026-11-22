@@ -296,3 +296,28 @@
 .conversion-notes ul{margin:8px 0;padding-left:18px;font-size:13px;line-height:1.6;color:var(--muted)}
 .conversion-notes li{margin-bottom:4px;overflow-wrap:anywhere}
 .conversion-notes .quiet-button{width:auto}
+/* Import feedback sits directly under the import box; later rows move down only while it is shown. */
+.transfer-panel>.import-feedback{grid-column:1/-1;grid-row:3;display:flex;flex-direction:column;gap:8px}
+.import-feedback>.error-text{margin:0;font-size:13px}
+.transfer-panel:has(>.import-feedback)>.split-actions,.transfer-panel:has(>.import-feedback)>.import-options,.transfer-panel:has(>.import-feedback)>.export-advanced{grid-row:4}
+.transfer-panel:has(>.import-feedback)>#code-selection-hint{grid-row:5}
+.transfer-panel:has(>.import-feedback)>.import-options[open],.transfer-panel:has(>.import-feedback)>.export-advanced[open]{grid-row:auto}
+.alias-choices{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.alias-choices button{border:1px solid var(--accent);color:var(--accent);font-size:12px;padding:5px 10px}
+.alias-count{color:var(--muted);font-size:11px}
+.import-state{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+.import-state>.code-state{margin-left:0}
+.detected-format{font-size:12px;color:var(--muted)}
+.format-note{font-size:12px;line-height:1.5;color:var(--muted);align-self:center}
+@media(max-width:820px){
+ .transfer-panel>.import-feedback{grid-row:4}
+ .transfer-panel:has(>.import-feedback)>.split-actions{grid-row:5}
+ .transfer-panel:has(>.import-feedback)>.import-options,.transfer-panel:has(>.import-feedback)>.export-advanced{grid-row:6}
+ .transfer-panel:has(>.import-feedback)>#code-selection-hint{grid-row:7}
+ .transfer-panel:has(>.import-feedback)>.import-options[open],.transfer-panel:has(>.import-feedback)>.export-advanced[open]{grid-row:auto}
+ .import-state{margin-left:0}
+ .format-note{grid-column:1/-1}
+}
+.private-note{margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}
+.private-note>.section-note{margin:0 0 12px}
+.selected-exports{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}

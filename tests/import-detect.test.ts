@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {decode, encode, importConfig, describeConfigImport} from '../src/codec';
 import {convertLegacy} from '../src/converter';
-import {detectImport} from '../src/import-detect';
+import {aliasCrosshairs, describeDetected, detectImport} from '../src/import-detect';
 import {defaults, studioStart, cfg} from '../src/model';
 import {downloadConfig} from '../src/config-export';
 
@@ -124,4 +124,59 @@ test('a complete link keeps the conversion notes of its old code', () => {
   const parsed = decode(link);
   assert.ok(old.warnings?.length);
   assert.deepEqual(parsed.warnings, old.warnings);
+});
+
+test('fixes lowercase prefixes and restores the dashes of an old code', () => {
+  assert.deepEqual(detectImport('cs' + code.slice(2)), {kind: 'code', text: code});
+  assert.deepEqual(detectImport(`mine: cs${code.slice(2)}`), {kind: 'code', text: code});
+  assert.deepEqual(detectImport(legacyCode.replace('CSGO', 'csgo')), {kind: 'code', text: legacyCode});
+  assert.deepEqual(detectImport(legacyCode.replaceAll('-', '')), {kind: 'code', text: legacyCode});
+  assert.deepEqual(detectImport(`${code.slice(0, 20)} ${code.slice(20)}`), {kind: 'code', text: code});
+});
+
+test('an incomplete share code reports its length', () => {
+  assert.throws(() => decode(detectImport('CSabc').text), /5 characters instead of 46/);
+});
+
+test('settings JSON is detected, and invalid JSON says so', () => {
+  const json = detectImport(JSON.stringify({cl_crosshair_length: 2}));
+  assert.equal(json.kind, 'json');
+  assert.equal(describeDetected(json), 'Settings JSON · 1 settings');
+  const broken = detectImport('{"cl_crosshair_gap":');
+  assert.equal(broken.kind, 'unknown');
+  assert.match(broken.kind === 'unknown' ? broken.reason ?? '' : '', /not valid JSON/);
+});
+
+test('crosshairs kept in aliases are listed as choices and only applied when chosen', () => {
+  const text = 'alias a "cl_crosshair_gap 1; cl_crosshair_length 2"\nalias b "cl_crosshair_gap -3; cl_crosshair_length 9"\nalias jump "+jump"';
+  assert.equal(detectImport(text).kind, 'aliases');
+  assert.deepEqual(aliasCrosshairs(text).map(a => [a.name, a.count]), [['a', 2], ['b', 2]]);
+  const s = importConfig(aliasCrosshairs(text)[1]!.body, studioStart).settings;
+  assert.deepEqual([s.cl_crosshair_gap, s.cl_crosshair_length], [-3, 9]);
+  const both = detectImport(`cl_crosshair_gap 5\n${text}`);
+  assert.equal(both.kind, 'config');
+  assert.deepEqual(both.kind === 'config' && both.aliases?.map(a => a.name), ['a', 'b']);
+  assert.equal(importConfig(`cl_crosshair_gap 5\n${text}`, studioStart).settings.cl_crosshair_length, studioStart.cl_crosshair_length);
+});
+
+test('names the detected format', () => {
+  assert.equal(describeDetected(detectImport(code)), 'CS2 share code');
+  assert.equal(describeDetected(detectImport(legacyCode)), 'Old CSGO share code');
+  assert.equal(describeDetected(detectImport(`delli.cc/?code=${code}`)), 'Crosshair link');
+  assert.equal(describeDetected(detectImport('cl_crosshair_gap -2; cl_crosshair_length 3; cl_crosshair_gap 1')), 'CS2 config · 2 settings');
+  assert.equal(describeDetected(detectImport('cl_crosshairsize 2; cl_crosshairgap -3')), 'Pre-update config · will be converted');
+  assert.equal(describeDetected(detectImport('hello')), 'Not recognized');
+});
+
+test('the old-code note names the assumed reference height', () => {
+  assert.match(decode(legacyCode, 1440).note ?? '', /assuming it was made for 1440p/);
+  assert.match(decode(legacyCode).note ?? '', /assuming it was made for 1080p/);
+});
+
+test('detection stays fast on a large file of one long word', () => {
+  for (const text of ['a'.repeat(200000), 'a.'.repeat(100000), 'CS' + 'a'.repeat(199998)]) {
+    const start = performance.now();
+    detectImport(text);
+    assert.ok(performance.now() - start < 1000, `${text.slice(0, 4)}… took ${Math.round(performance.now() - start)} ms`);
+  }
 });

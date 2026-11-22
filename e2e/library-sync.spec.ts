@@ -182,13 +182,13 @@ test('mock API: resetting to current code cancels an outstanding clipboard paste
   await page.locator('.import-options > summary').click();
   await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();
   await expect.poll(()=>page.evaluate(()=>typeof Reflect.get(window,'resolveResetClipboard'))).toBe('function');
-  await page.getByRole('button',{name:'Use current code',exact:true}).click();
+  await page.getByRole('button',{name:'Discard import',exact:true}).click();
   await expect(field).toHaveValue(applied!);
   await page.evaluate(code=>Reflect.get(window,'resolveResetClipboard')(code),nativeCode);
   await expect(field).toHaveValue(applied!);
   await expect(field).toHaveAttribute('data-current-code',applied!);
   await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue(String(defaults.cl_crosshair_length));
-  await expect(page.getByRole('button',{name:'Use current code',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Discard import',exact:true})).toHaveCount(0);
 });
 
 test('mock API: a sync requested while another is running runs afterwards instead of being dropped',async({page})=>{

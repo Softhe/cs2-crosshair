@@ -120,7 +120,7 @@ test('integrated code field updates live and preserves pending imports',async({p
   expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(original);
   await expect(field).toHaveValue('CSinvalid');
   await expect(field).toHaveAttribute('data-current-code',original);
-  if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByRole('button',{name:'Use current code',exact:true}).click();
+  await page.getByRole('button',{name:'Discard import',exact:true}).click();
   await expect(field).toHaveValue(original);
   await expect(page.getByRole('alert')).toHaveCount(0);
   await field.fill(updated);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();

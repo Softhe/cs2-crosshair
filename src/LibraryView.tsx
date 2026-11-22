@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { UpdateLibrary } from './library-sync';
-import { Bookmark, Copy, Download, Pencil, Search, Star, Trash2, Upload } from 'lucide-react';
+import { Bookmark, Copy, Download, Link, Pencil, Search, Star, Trash2, Upload } from 'lucide-react';
 import { Preview } from './Preview';
 import { encode } from './codec';
 import { limitLibrary, type Saved } from './storage';
@@ -10,6 +10,10 @@ type Props = {
   setLibrary: UpdateLibrary;
   onLoad: (item: Saved) => void;
   onCopy: (text: string, label: string) => void;
+  /** Copy a link that carries every setting of one saved crosshair. */
+  onCopyLink: (item: Saved) => void;
+  /** Download one saved crosshair as a config. */
+  onDownload: (item: Saved) => void;
   onBackup: () => void;
   onRestore: () => void;
   notify: (text: string, tone?: 'success' | 'warning' | 'error' | 'info') => void;
@@ -348,6 +352,16 @@ export function LibraryView(p: Props) {
                 <Copy size={16} />
                 Copy selected crosshair code
               </button>
+              <div className="split-actions selected-exports">
+                <button onClick={() => p.onCopyLink(selected)}>
+                  <Link size={15} />
+                  Copy link
+                </button>
+                <button onClick={() => p.onDownload(selected)}>
+                  <Download size={15} />
+                  Download .cfg
+                </button>
+              </div>
               <button className="quiet-button full" onClick={() => p.onLoad(selected)}>
                 Edit crosshair
               </button>

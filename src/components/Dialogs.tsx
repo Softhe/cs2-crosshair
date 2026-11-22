@@ -80,35 +80,7 @@ export function Dialogs({
             does not model weapon inaccuracy, spread or the game's 64-pixel
             baseline. Verify the final crosshair in CS2.
           </p>
-          <h3>Give yourself a note</h3>
-          <p>Feedback stays on this device.</p>
-          <div className="rating">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                aria-label={`Rate ease of use ${n} out of 5`}
-                aria-pressed={rating === n}
-                className={n === rating ? "active" : ""}
-                key={n}
-                onClick={() => {
-                  setRating(n);
-                  write("rating", n);
-                }}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          <textarea
-            aria-label="Local feedback note"
-            className="import-area"
-            placeholder="A note for next time…"
-            maxLength={1000}
-            value={note}
-            onChange={(e) => {
-              setNote(e.target.value);
-              write("feedback-note", e.target.value);
-            }}
-          />
+          <h3>Send feedback</h3>
           <a
             className="issue-link"
             href={`https://github.com/Softhe/cs2-crosshair/issues/new?title=${encodeURIComponent("Crosshair studio feedback")}&body=${encodeURIComponent("Feedback about the new crosshair studio.\n\nDescribe the issue here. No settings or local data have been attached.")}`}
@@ -122,6 +94,40 @@ export function Dialogs({
             The issue draft contains no crosshair, alias, library or feedback
             data. Review it before submitting.
           </p>
+          <section className="private-note" aria-labelledby="private-note-title">
+            <h3 id="private-note-title">Private note</h3>
+            <p className="section-note">
+              For yourself only. The rating and note stay in this browser and
+              are never sent, including with the issue draft.
+            </p>
+            <div className="rating">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  aria-label={`Rate ease of use ${n} out of 5`}
+                  aria-pressed={rating === n}
+                  className={n === rating ? "active" : ""}
+                  key={n}
+                  onClick={() => {
+                    setRating(n);
+                    write("rating", n);
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <textarea
+              aria-label="Local feedback note"
+              className="import-area"
+              placeholder="A note for next time…"
+              maxLength={1000}
+              value={note}
+              onChange={(e) => {
+                setNote(e.target.value);
+                write("feedback-note", e.target.value);
+              }}
+            />
+          </section>
         </div>
       )}
     </dialog>
