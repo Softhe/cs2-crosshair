@@ -27,12 +27,16 @@ export function ExportCard(p: ExportCardProps) {
           <Download size={15} />
           Download .cfg
         </button>
+        <span className="format-note">
+          Code: crosshair and scope dot. Link and .cfg: all {Object.keys(p.s).length} settings.
+        </span>
       </div>
       <details className="export-advanced">
         <summary>Advanced export</summary>
         <div className="advanced-export-content">
           <p className="code-hint">
-            Links and config files include every setting. The share code carries crosshair and scope dot settings.
+            The share code is what CS2 imports, and it carries only crosshair and scope dot settings. Links and config
+            files also keep the other menu settings, such as sniper and friendly-crosshair options.
           </p>
           <label className="field-label" htmlFor="alias">
             ALIAS NAME<span>OPTIONAL</span>

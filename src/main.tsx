@@ -179,11 +179,24 @@ function App() {
     download(downloadConfig(s, alias), alias.trim() ? `crosshair_${alias.trim()}.cfg` : "crosshair.cfg");
     notify("Config downloaded.", "success");
   }
-  function shareLink() {
+  function shareLinkFor(settings: Settings) {
     const url = new URL("/", location.origin);
-    url.searchParams.set("code", code);
-    url.searchParams.set("settings", JSON.stringify(s));
+    url.searchParams.set("code", encode(settings));
+    url.searchParams.set("settings", JSON.stringify(settings));
     return url.toString();
+  }
+  const shareLink = () => shareLinkFor(s);
+  /** Download one library entry as a config named after it, with a matching alias when the name allows one. */
+  function exportSaved(item: Saved) {
+    let itemAlias = item.name.trim().replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48);
+    if (/^[0-9]/.test(itemAlias)) itemAlias = ("_" + itemAlias).slice(0, 48);
+    try {
+      safeAlias(itemAlias);
+    } catch {
+      itemAlias = "";
+    }
+    download(downloadConfig(item.settings, itemAlias), itemAlias ? `crosshair_${itemAlias}.cfg` : "crosshair.cfg");
+    notify(itemAlias ? `Config downloaded as crosshair_${itemAlias}.cfg.` : "Config downloaded.", "success");
   }
   async function restoreBackup(file: File) {
     try {
@@ -281,6 +294,8 @@ function App() {
             setModal={setModal}
             pasteCode={imports.pasteCode}
             importFile={(file) => void imports.importFile(file)}
+            aliasChoices={imports.aliasChoices}
+            chooseAlias={imports.chooseAlias}
             conversionNotes={imports.conversionNotes}
             setConversionNotes={imports.setConversionNotes}
             doImport={imports.doImport}
@@ -333,6 +348,8 @@ function App() {
           setLibrary={setLibrary}
           onLoad={favorites.editSaved}
           onCopy={(text, label) => void copy(text, label)}
+          onCopyLink={(item) => void copy(shareLinkFor(item.settings), "Share link")}
+          onDownload={exportSaved}
           onBackup={() => download(backupFile(library), "delli-crosshair-library.json", "application/json")}
           onRestore={() => backupInput.current?.click()}
           notify={notify}

@@ -1,8 +1,9 @@
-import {useEffect,useRef,useState,type DragEvent,type RefObject} from 'react';
+import {useEffect,useMemo,useRef,useState,type DragEvent,type RefObject} from 'react';
 import {ArrowUpRight,Copy,FileCode2,Upload,X} from 'lucide-react';
 import {LegacyConverter} from '../LegacyConverter';
 import type {Settings} from '../model';
 import {ExportCard,type ExportCardProps} from './ExportCard';
+import {describeDetected,detectImport,type AliasCrosshair} from '../import-detect';
 
 export type ImportBarProps = ExportCardProps & {
   code:string;
@@ -18,6 +19,8 @@ export type ImportBarProps = ExportCardProps & {
   setModal:(value:null)=>void;
   pasteCode:(text:string)=>void;
   importFile:(file:File)=>void;
+  aliasChoices:AliasCrosshair[];
+  chooseAlias:(alias:AliasCrosshair)=>void;
   conversionNotes:string[]|null;
   setConversionNotes:(value:null)=>void;
   doImport:(text?:string)=>void;
@@ -47,6 +50,11 @@ export function ImportBar(p:ImportBarProps){
     const text=e.dataTransfer.getData('text/plain')||e.dataTransfer.getData('text/uri-list');
     if(text)p.pasteCode(text);
   }
+  // Named before import so a failure can be read against what the box holds.
+  const detected=useMemo(()=>{
+    if(p.importDraft===null)return null;
+    try{return describeDetected(detectImport(p.importDraft));}catch{return 'Several crosshairs';}
+  },[p.importDraft]);
   const multiline=p.importDraft!==null&&p.importText.includes('\n');
   // A height the user dragged the resize handle to must not keep the one-line field tall afterwards.
   useEffect(()=>{if(!multiline&&field.current)field.current.style.height='';},[multiline]);
@@ -59,8 +67,11 @@ export function ImportBar(p:ImportBarProps){
     <div className="transfer-heading"><FileCode2 size={18}/><h2>Import, share and export</h2></div>
     <div className="import-label-row">
       <label className="field-label" htmlFor="import-text">Crosshair code or config</label>
-      <span className={`code-state state-chip ${p.importDraft===null?'applied':'pending'}`}>
-        {p.importDraft===null?'Applied crosshair':'Unapplied import'}
+      <span className="import-state">
+        {detected&&<span className="detected-format" data-testid="detected-format" aria-live="polite">{detected}</span>}
+        <span className={`code-state state-chip ${p.importDraft===null?'applied':'pending'}`}>
+          {p.importDraft===null?'Applied crosshair':'Unapplied import'}
+        </span>
       </span>
     </div>
     <div className="inline-import-entry">
@@ -81,6 +92,14 @@ export function ImportBar(p:ImportBarProps){
         <Copy size={16}/><span>Copy applied code</span>
       </button>
     </div>
+    {/* Directly under the box, so a failure is read next to the text that caused it. */}
+    {(p.importError||p.aliasChoices.length>0)&&<div className="import-feedback">
+      {p.importError&&<p className="error-text" role="alert">{p.importError}</p>}
+      {p.aliasChoices.length>0&&<div className="alias-choices" role="group" aria-label="Crosshairs stored in aliases">
+        <span>Crosshairs in this config's aliases:</span>
+        {p.aliasChoices.map(alias=><button key={alias.name} onClick={()=>p.chooseAlias(alias)} title={alias.body}>Load {alias.name}<span className="alias-count">{alias.count} {alias.count===1?'setting':'settings'}</span></button>)}
+      </div>}
+    </div>}
     <p id="code-selection-hint" className={p.importDraft===null?'sr-only':'code-hint'}>{p.importDraft===null?'Click or tap to select the whole code. Paste to replace it.':'Edit your config draft, or paste to replace it.'}</p>
     {p.importDraft!==null&&<p className="transfer-pending-note">
       Copy, share and downloads use the applied crosshair until you import.
@@ -100,16 +119,14 @@ export function ImportBar(p:ImportBarProps){
           }
         }}><Copy size={14}/>Paste clipboard</button>
         <button onClick={()=>p.cfgInput.current?.click()} title="A .cfg, .vcfg or .txt config, or a library backup .json"><Upload size={14}/>Choose file</button>
-        <button onClick={resetImport} disabled={p.importDraft===null}>Use current code</button>
       </div>
-      <p className="code-hint">Accepts CS and CSGO codes, share links, .cfg, .vcfg and .txt configs, console output and library backups. You can also drop a file on this panel.</p>
+      <p className="code-hint">Accepts CS and CSGO codes, share links, .cfg, .vcfg and .txt configs, console output, settings JSON and library backups. You can also drop a file on this panel.</p>
       <LegacyConverter text={p.importText} oldHeight={p.legacyHeight} onOldHeightChange={p.setLegacyHeight} base={p.s}
         onApply={settings=>{
           p.load(settings);p.remember(settings);resetImport();p.setModal(null);
           p.notify('Converted crosshair loaded. Check the result in CS2.','warning');
         }}/>
     </details>
-    {p.importError&&<p className="error-text" role="alert">{p.importError}</p>}
     {p.conversionNotes&&<details className="conversion-notes" open>
       <summary>Conversion notes ({p.conversionNotes.length})</summary>
       <ul>{p.conversionNotes.map((note,i)=><li key={i}>{note}</li>)}</ul>

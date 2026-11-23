@@ -1,6 +1,6 @@
 import { convertLegacy, COMMUNITY_MODEL_VERSION } from './converter';
 import { defaults, fitSetting, validateSettings, sameCodeSettings, type Settings } from './model';
-import { assignedName, LEGACY_ONLY_CVARS, statements } from './import-detect';
+import { assignedName, LEGACY_ONLY_CVARS, normalizeCode, statements } from './import-detect';
 
 // CS2 1.41.8.8. Byte layout verified against codes exported by the game.
 const alphabet='ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789';
@@ -52,7 +52,9 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
   const text=input.trim();
   if(/^https?:\/\//i.test(text)) {
     const url=new URL(text);
-    const shared=url.searchParams.get('code')??url.searchParams.get('crosshair')??(url.pathname.startsWith('/CS')?url.pathname.slice(1):null);
+    // Chat and phones lower-case the prefix; the code body stays case-sensitive.
+    const raw=url.searchParams.get('code')??url.searchParams.get('crosshair')??(/^\/cs/i.test(url.pathname)?url.pathname.slice(1):null);
+    const shared=raw===null?null:normalizeCode(raw.trim());
     const complete=url.searchParams.get('settings');
     if(!shared&&!complete)throw Error('This link does not contain crosshair settings.');
     if(shared&&!shared.startsWith('CS'))throw Error('This link does not contain a supported crosshair code.');
@@ -87,7 +89,7 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
     if(![1,3,4].includes(b[1]!)) throw Error('This is not a supported crosshair code. Match codes cannot be imported.');
     if(b[1]===1){
       const converted=convertLegacy(code,legacyHeight,legacyHeight,base);
-      return {settings:converted.settings,legacy:true,warnings:converted.warnings,note:`Converted with the ${COMMUNITY_MODEL_VERSION} reconstruction. Pixel matching is approximate; check it in CS2.`};
+      return {settings:converted.settings,legacy:true,warnings:converted.warnings,note:`Converted an old CSGO code, assuming it was made for ${legacyHeight}p, with the ${COMMUNITY_MODEL_VERSION} reconstruction. Pixel matching is approximate; check it in CS2. To change the assumed height, open Import options → Convert old settings.`};
     }
     const bits=view.getUint32(10,true);
     s.cl_crosshairstyle=b[2]!&15;s.cl_crosshair_recoil=(b[2]!>>4)&1;s.cl_crosshairdot=(b[2]!>>6)&1;s.cl_crosshair_t=b[2]!>>7;
@@ -98,6 +100,7 @@ export function decode(input: string, legacyHeight=1080, base: Settings=defaults
     s.cl_crosshair_thickness=(bits>>>23)&31;s.cl_crosshair_drawoutline=b[1]===4?(b[13]!>>4)&3:(b[2]!>>5)&1;s.cl_crosshair_screen_height=view.getUint16(14,true);
     return {settings:validateSettings(s),legacy:true,note:'Imported a September CSGO code. Outline color and scope dot settings were absent and use defaults.'};
   }
+  if(/^CS[A-Za-z0-9]+$/.test(code)&&!code.startsWith('CSGO')) throw Error(`This looks like a CS2 share code, but it has ${code.length} characters instead of 46. Check that the whole code was copied.`);
   throw Error('Paste a complete CS crosshair code or a supported CSGO crosshair code.');
 }
 /** A config value the importer changed: fitted into range, or not supported and left as it was. */
