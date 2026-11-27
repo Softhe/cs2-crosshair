@@ -1,11 +1,13 @@
 import {test,expect,type Page} from '@playwright/test';
+import {closeTransfer,openTransfer} from './transfer-helper';
 
 test.beforeEach(async ({ page }) => { await page.route('**/entrance.js*', route => route.fulfill({ contentType: 'text/javascript', body: '' })); });
 import {styles,styleFields,defaults} from '../src/model';
 
-async function number(page:Page,label:string,value:number){const input=page.getByRole('spinbutton',{name:label,exact:true});await input.fill(String(value));await input.press('Enter');await expect(input).toHaveValue(value%1?value.toFixed(2):String(value));}
-async function consoleText(page:Page){if(await page.locator('.export-advanced').getAttribute('open')===null)await page.locator('.export-advanced > summary').click();await page.locator('.console-details').evaluate((element)=>{(element as HTMLDetailsElement).open=true;});return page.getByLabel('Generated console commands').inputValue();}
-async function importText(page:Page,text:string){await page.getByLabel('Crosshair code or config').focus();await page.getByLabel('Crosshair code or config').fill(text);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByRole('dialog')).not.toBeVisible();}
+// On a phone the settings sit under the import sheet and the transfer actions inside it; the helpers open or close it as needed.
+async function number(page:Page,label:string,value:number){await closeTransfer(page);const input=page.getByRole('spinbutton',{name:label,exact:true});await input.fill(String(value));await input.press('Enter');await expect(input).toHaveValue(value%1?value.toFixed(2):String(value));}
+async function consoleText(page:Page){await openTransfer(page);if(await page.locator('.export-advanced').getAttribute('open')===null)await page.locator('.export-advanced > summary').click();await page.locator('.console-details').evaluate((element)=>{(element as HTMLDetailsElement).open=true;});return page.getByLabel('Generated console commands').inputValue();}
+async function importText(page:Page,text:string){await openTransfer(page);await page.getByLabel('Crosshair code or config').focus();await page.getByLabel('Crosshair code or config').fill(text);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByRole('dialog')).not.toBeVisible();}
 async function clipboard(page:Page){return page.evaluate(()=>navigator.clipboard.readText());}
 
 for(const [style,name] of styles){test(`matrix: ${name} edits, clipboard code, config file and full link round trips`,async({page,context})=>{
@@ -30,9 +32,9 @@ for(const [style,name] of styles){test(`matrix: ${name} edits, clipboard code, c
   const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download .cfg',exact:true}).click();const file=await pending;expect(file.suggestedFilename()).toBe(`crosshair_matrix_${style}.cfg`);
   const stream=await file.createReadStream();let content='';for await(const chunk of stream!)content+=chunk;
   expect(content.split('\n').filter(line=>line.startsWith('cl_')).join('\n')).toBe(commands);
-  await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();await page.getByLabel('Crosshair code or config').focus();
+  await closeTransfer(page);await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair config file').setInputFiles((await file.path())!);await expect(page.getByLabel('Crosshair code or config')).toHaveValue(displayed);
-  await expect(page.getByText('Applied crosshair',{exact:true})).toBeVisible();expect(await consoleText(page)).toBe(commands);
+  await expect(page.locator('.code-state')).toHaveText('Applied crosshair');expect(await consoleText(page)).toBe(commands);
   await page.getByRole('button',{name:'Copy link',exact:true}).click();const link=await clipboard(page);await page.goto(link);expect(await consoleText(page)).toBe(commands);await expect(page.getByLabel('Style',{exact:true})).toHaveValue(String(style));
   expect(errors).toEqual([]);
 });}
@@ -41,11 +43,11 @@ test('matrix: undo, reset, settings visibility without starting presets',async({
   await context.grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/');const initial=await consoleText(page);
   await expect(page.getByRole('button',{name:'Undo Changes',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'Reset crosshair',exact:true})).toHaveCount(1);
   await expect(page.locator('.starting-presets')).toHaveCount(0);
-  await number(page,'Length',12);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);
+  await number(page,'Length',12);await closeTransfer(page);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);
   await expect(page.locator('html')).not.toHaveAttribute('data-theme');await expect(page.getByRole('group',{name:'Appearance',exact:true})).toHaveCount(0);
   await number(page,'Thickness',6);const changed=await consoleText(page);
   await page.getByRole('button',{name:'Copy link',exact:true}).click();await page.goto(await clipboard(page));expect(await consoleText(page)).toBe(changed);
-  await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();expect(await consoleText(page)).toBe(initial);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(changed);
+  await closeTransfer(page);await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();expect(await consoleText(page)).toBe(initial);await closeTransfer(page);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(changed);
 });
 
 test('matrix: numeric bounds, slider synchronization, clipboard paste, code rejects',async({page,context})=>{
@@ -54,11 +56,11 @@ test('matrix: numeric bounds, slider synchronization, clipboard paste, code reje
   await gap.fill('999');await gap.press('Enter');await expect(gap).toHaveValue('128');await expect(page.getByLabel('Gap slider',{exact:true})).toHaveValue('128');
   await gap.fill('');await gap.press('Enter');await expect(gap).toHaveValue('128');
   await page.getByLabel('Gap slider',{exact:true}).fill('31');await expect(gap).toHaveValue('31');
-  const code=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);await page.getByRole('button',{name:'Copy crosshair code',exact:true}).click();await page.getByLabel('Crosshair code or config').focus();
+  await openTransfer(page);const code=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);await page.getByRole('button',{name:'Copy crosshair code',exact:true}).click();await page.getByLabel('Crosshair code or config').focus();
   if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();await expect(page.locator('.toast')).toContainText('Crosshair imported');await expect(page.getByLabel('Crosshair code or config')).toHaveValue(code);await expect(page.getByRole('button',{name:'Discard import',exact:true})).toHaveCount(0);await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);
-  for(const invalid of ['CSINVALID','quit']){await page.getByLabel('Crosshair code or config').fill(invalid);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);}
+  for(const invalid of ['CSINVALID','quit']){await openTransfer(page);await page.getByLabel('Crosshair code or config').fill(invalid);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',code);}
   // Values the game accepts but a share code cannot carry are fitted and reported, not rejected.
-  for(const [text,label,value] of [['cl_crosshair_length 999','Length','255'],['cl_crosshair_thickness 1.5','Thickness','2']] as const){await page.getByLabel('Crosshair code or config').fill(text);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.locator('.toast')).toContainText('Adjusted to supported values');await expect(page.getByRole('spinbutton',{name:label,exact:true})).toHaveValue(value);}
+  for(const [text,label,value] of [['cl_crosshair_length 999','Length','255'],['cl_crosshair_thickness 1.5','Thickness','2']] as const){await openTransfer(page);await page.getByLabel('Crosshair code or config').fill(text);await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.locator('.toast')).toContainText('Adjusted to supported values');await expect(page.getByRole('spinbutton',{name:label,exact:true})).toHaveValue(value);}
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
   await importText(page,'cl_crosshair_thickness 1; quit');await expect(page.getByRole('spinbutton',{name:'Thickness',exact:true})).toHaveValue('1');
 });

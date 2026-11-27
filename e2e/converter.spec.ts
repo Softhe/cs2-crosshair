@@ -1,8 +1,9 @@
 import {test,expect} from '@playwright/test';
+import {closeTransfer,openTransfer} from './transfer-helper';
 test.beforeEach(async({page})=>{await page.route('**/entrance.js*',route=>route.fulfill({contentType:'text/javascript',body:''}));});
 test('convert old config, copy new code, invalidate stale output and apply',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);
-  await page.goto('/');
+  await page.goto('/');await openTransfer(page);
   const previous=await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!);
   await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 4; cl_crosshairsize 2; cl_crosshairthickness 0.5; cl_crosshairgap -2');
@@ -23,7 +24,7 @@ test('convert old config, copy new code, invalidate stale output and apply',asyn
   await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',updated);
 });
 test('blocked legacy styles show an error without offering a new code',async({page})=>{
-  await page.goto('/');await page.getByLabel('Crosshair code or config').focus();
+  await page.goto('/');await openTransfer(page);await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 0; cl_crosshairsize 2');
   if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
   await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
@@ -31,9 +32,11 @@ test('blocked legacy styles show an error without offering a new code',async({pa
   await expect(page.getByLabel('NEW CS CODE',{exact:true})).toHaveCount(0);
 });
 test('regular import converts old config rather than silently ignoring old geometry',async({page})=>{
-  await page.goto('/');await page.getByLabel('Crosshair code or config').focus();
+  await page.goto('/');await openTransfer(page);await page.getByLabel('Crosshair code or config').focus();
   await page.getByLabel('Crosshair code or config').fill('cl_crosshairstyle 4; cl_crosshairsize 2; cl_crosshairthickness 0.5; cl_crosshairgap -2');
   await page.getByRole('button',{name:'Import crosshair',exact:true}).click();
+  // The conversion notes keep the phone sheet open; close it to read the settings under it.
+  await closeTransfer(page);
   await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue('4');
   await expect(page.getByRole('spinbutton',{name:'Thickness',exact:true})).toHaveValue('1');
   await expect(page.getByRole('spinbutton',{name:'Gap',exact:true})).toHaveValue('3');

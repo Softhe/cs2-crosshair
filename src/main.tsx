@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Crosshair, Copy, Download, Upload } from "lucide-react";
+import { ArrowUpDown, Crosshair, Copy, Download } from "lucide-react";
 import { studioStart, commands, safeAlias, type Settings } from "./model";
 import { encode } from "./codec";
 import { downloadConfig } from "./config-export";
@@ -16,6 +16,7 @@ import { useToast } from "./useToast";
 import { usePreviewState } from "./usePreviewState";
 import { useFavorites } from "./useFavorites";
 import { useImport } from "./useImport";
+import { SHEET_QUERY, useTransferSheet } from "./useTransferSheet";
 import { Header, type View } from "./components/Header";
 import { ImportBar } from "./components/ImportBar";
 import { MapPreview } from "./components/MapPreview";
@@ -127,13 +128,17 @@ function App() {
   const favorites = useFavorites({
     s, alias, aliasError, setAlias, sync, notify, load, openEditor: () => setView("editor"),
   });
+  const sheet = useTransferSheet();
   const imports = useImport({
     s,
     code,
-    apply: (settings) => {
+    apply: (settings, review) => {
       load(settings);
       favorites.setEditingId(null);
       favorites.remember(settings);
+      // Show the imported crosshair in the preview instead of keeping the sheet over it,
+      // unless the sheet still holds conversion notes or alias choices to read.
+      if (!review) sheet.hide();
     },
     onBackup: (text) => restoreBackupText(text),
     setModal,
@@ -167,11 +172,24 @@ function App() {
     if (await copyText(text)) notify(`${label} copied.`, "success");
     else notify("Clipboard access failed. Select and copy the text manually.", "error");
   }
+  function showAliasField() {
+    const panel = document.querySelector<HTMLDetailsElement>(".export-advanced");
+    if (panel) panel.open = true;
+    document.getElementById("alias")?.focus();
+  }
+  // In the sheet layout the alias field is hidden until the sheet opens; focus it once it has.
+  const aliasFocusPending = useRef(false);
+  useEffect(() => {
+    if (!sheet.open || !aliasFocusPending.current) return;
+    aliasFocusPending.current = false;
+    showAliasField();
+  }, [sheet.open]);
   function exportCfg() {
     if (aliasError) {
-      const panel = document.querySelector<HTMLDetailsElement>(".export-advanced");
-      if (panel) panel.open = true;
-      document.getElementById("alias")?.focus();
+      if (matchMedia(SHEET_QUERY).matches && !sheet.open) {
+        aliasFocusPending.current = true;
+        sheet.show();
+      } else showAliasField();
       notify(aliasError, "error");
       return;
     }
@@ -308,6 +326,8 @@ function App() {
             setAlias={setAlias}
             shareLink={shareLink}
             exportCfg={exportCfg}
+            sheetOpen={sheet.open}
+            closeSheet={sheet.hide}
           />
           <MapPreview
             s={s}
@@ -391,13 +411,13 @@ function App() {
             .cfg
           </button>
           <button
-            onClick={() => {
-              document.getElementById("import-text")?.focus();
-              document.querySelector(".inline-import")?.scrollIntoView({ block: "start" });
-            }}
+            aria-haspopup="dialog"
+            aria-expanded={sheet.open}
+            aria-controls="transfer-panel"
+            onClick={(event) => sheet.show(event.currentTarget)}
           >
-            <Upload size={15} />
-            Import
+            <ArrowUpDown size={15} />
+            Import &amp; share
           </button>
         </div>
       )}

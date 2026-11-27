@@ -1,17 +1,18 @@
 import {test,expect} from '@playwright/test';
+import {openTransfer,transferPanel} from './transfer-helper';
 const original='CSxkMfFVRUG6fRehdb2CvLNuajHopsuAQ5O38aVLPTTPHj';
 test.beforeEach(async({page})=>{await page.route('**/entrance.js*',r=>r.fulfill({contentType:'text/javascript',body:''}));await page.route('**/api/session',r=>r.fulfill({json:{user:null,available:false}}));});
 
 test('default editor has one field and all transfer actions in one panel',async({page})=>{
- await page.goto('/');const panel=page.getByRole('region',{name:'Import, share and export',exact:true});
+ await page.goto('/');await openTransfer(page);const panel=transferPanel(page);
  await expect(panel).toBeVisible();await expect(page.locator('.export-card')).toHaveCount(0);await expect(panel.getByRole('textbox')).toHaveCount(1);
  for(const name of ['Import crosshair','Copy crosshair code','Copy link','Download .cfg'])await expect(panel.getByRole('button',{name,exact:true})).toBeVisible();
- await page.goto('/?layout=combined');await expect(panel).toBeVisible();await expect(page.locator('.export-card')).toHaveCount(0);
+ await page.goto('/?layout=combined');await openTransfer(page);await expect(panel).toBeVisible();await expect(page.locator('.export-card')).toHaveCount(0);
 });
 
 test('pending input never changes copied or downloaded settings until applied',async({page,context})=>{
- await context.grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/');
- const panel=page.getByRole('region',{name:'Import, share and export',exact:true}),field=panel.getByLabel('Crosshair code or config',{exact:true}),applied=await field.inputValue();
+ await context.grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/');await openTransfer(page);
+ const panel=transferPanel(page),field=panel.getByLabel('Crosshair code or config',{exact:true}),applied=await field.inputValue();
  await field.fill('CSinvalid');await expect(panel.getByText('Unapplied import',{exact:true})).toBeVisible();
  await panel.getByRole('button',{name:'Copy crosshair code',exact:true}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(applied);
  await panel.getByRole('button',{name:'Copy link',exact:true}).click();expect(new URL(await page.evaluate(()=>navigator.clipboard.readText())).searchParams.get('code')).toBe(applied);
@@ -22,7 +23,7 @@ test('pending input never changes copied or downloaded settings until applied',a
 });
 
 test('combined advanced actions and responsive layout remain usable',async({page})=>{
- await page.goto('/');const panel=page.getByRole('region',{name:'Import, share and export',exact:true});
+ await page.goto('/');await openTransfer(page);const panel=transferPanel(page);
  await panel.locator('.export-advanced>summary').click();await panel.getByRole('textbox',{name:/Alias name/i}).fill('team_green');
  const download=page.waitForEvent('download');await panel.getByRole('button',{name:'Download .cfg',exact:true}).click();expect((await download).suggestedFilename()).toBe('crosshair_team_green.cfg');
  await panel.locator('.export-advanced>summary').click();await panel.locator('.import-options>summary').click();await expect(panel.getByRole('button',{name:'Paste clipboard',exact:true})).toBeVisible();
@@ -33,10 +34,11 @@ test('combined advanced actions and responsive layout remain usable',async({page
 
 
 test('transfer helper text appears only while an import is pending and clears the actions',async({page})=>{
- await page.goto('/');
- const panel=page.getByRole('region',{name:'Import, share and export',exact:true});
+ await page.goto('/');await openTransfer(page);
+ const panel=transferPanel(page);
  for(const width of [320,390,820,1440,2560]){
   await page.setViewportSize({width,height:1392});
+  await openTransfer(page);
   // Applied state stays compact: the selection hint is for assistive technology only and the export note sits in Advanced export.
   await expect(panel.locator(':scope > .code-hint')).toHaveCount(0);
   await expect(panel.locator('#code-selection-hint')).toHaveClass('sr-only');

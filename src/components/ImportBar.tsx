@@ -28,6 +28,9 @@ export type ImportBarProps = ExportCardProps & {
   remember:(settings?:Settings)=>void;
   notify:(text:string,tone?:'success'|'warning'|'error'|'info')=>void;
   setToast:(value:string)=>void;
+  /** Single-column layout: the panel is a bottom sheet, shown only while open. */
+  sheetOpen:boolean;
+  closeSheet:()=>void;
 };
 
 export function ImportBar(p:ImportBarProps){
@@ -35,6 +38,9 @@ export function ImportBar(p:ImportBarProps){
   /** Set while text dragged from inside the panel (moving lines in the draft) is in flight; that keeps native editing. */
   const internalDrag=useRef(false);
   const field=useRef<HTMLTextAreaElement>(null);
+  const closeButton=useRef<HTMLButtonElement>(null);
+  // Focus the close button, not the field: focusing the field would raise the phone keyboard over the sheet.
+  useEffect(()=>{if(p.sheetOpen)closeButton.current?.focus();},[p.sheetOpen]);
   function resetImport(){
     p.clipboardRequest.current++;
     p.setImportText(null);
@@ -58,13 +64,16 @@ export function ImportBar(p:ImportBarProps){
   const multiline=p.importDraft!==null&&p.importText.includes('\n');
   // A height the user dragged the resize handle to must not keep the one-line field tall afterwards.
   useEffect(()=>{if(!multiline&&field.current)field.current.style.height='';},[multiline]);
-  return <section className={`inline-import transfer-panel${dragging?' is-dragging':''}`} aria-label="Import, share and export"
+  return <>{p.sheetOpen&&<div className="sheet-backdrop" aria-hidden="true" onClick={p.closeSheet}/>}
+  <section id="transfer-panel" className={`inline-import transfer-panel${dragging?' is-dragging':''}${p.sheetOpen?' is-sheet-open':''}`} aria-label="Import, share and export"
+    role={p.sheetOpen?'dialog':undefined} aria-modal={p.sheetOpen||undefined}
     onDragOver={e=>{if(!accepts(e))return;e.preventDefault();e.dataTransfer.dropEffect='copy';setDragging(true);}}
     onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setDragging(false);}}
     onDrop={onDrop}
     onDragStart={()=>{internalDrag.current=true;}} onDragEnd={()=>{internalDrag.current=false;}}>
     {dragging&&<div className="drop-hint" aria-hidden="true"><Upload size={18}/>Drop a code, link, config or library backup to import</div>}
-    <div className="transfer-heading"><FileCode2 size={18}/><h2>Import, share and export</h2></div>
+    <div className="transfer-heading"><FileCode2 size={18}/><h2>Import, share and export</h2>
+      <button ref={closeButton} type="button" className="icon-button sheet-close" aria-label="Close import, share and export" onClick={p.closeSheet}><X size={18}/></button></div>
     <div className="import-label-row">
       <label className="field-label" htmlFor="import-text">Crosshair code or config</label>
       <span className="import-state">
@@ -123,7 +132,7 @@ export function ImportBar(p:ImportBarProps){
       <p className="code-hint">Accepts CS and CSGO codes, share links, .cfg, .vcfg and .txt configs, console output, settings JSON and library backups. You can also drop a file on this panel.</p>
       <LegacyConverter text={p.importText} oldHeight={p.legacyHeight} onOldHeightChange={p.setLegacyHeight} base={p.s}
         onApply={settings=>{
-          p.load(settings);p.remember(settings);resetImport();p.setModal(null);
+          p.load(settings);p.remember(settings);resetImport();p.setModal(null);p.closeSheet();
           p.notify('Converted crosshair loaded. Check the result in CS2.','warning');
         }}/>
     </details>
@@ -132,5 +141,5 @@ export function ImportBar(p:ImportBarProps){
       <ul>{p.conversionNotes.map((note,i)=><li key={i}>{note}</li>)}</ul>
       <button className="quiet-button" onClick={()=>p.setConversionNotes(null)}><X size={14}/>Dismiss notes</button>
     </details>}
-  </section>;
+  </section></>;
 }
