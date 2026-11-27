@@ -31,7 +31,8 @@ The site is a static React and TypeScript application built with Vite. The edito
 | `preferences.ts`, `preference-sync.ts` | Account-synced preview preferences (validated on both client and server) |
 | `clipboard.ts` | Clipboard writes, readback when already permitted, and copy fallback |
 | `ids.ts` | Random entry ids |
-| `*.css` | Theme, layout, editor and account styles |
+| `tokens.css` | Design tokens: palette, six type sizes, radii, and the page frame (gutter and content width) |
+| `style.css`, `layout.css`, `steam-account.css` | Base and component styles, editor and library layout, account controls. Colors, type sizes and radii come from the tokens |
 
 ### Server (`server/`, `api/`)
 

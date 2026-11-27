@@ -33,7 +33,7 @@ test('one consistent appearance keeps readable text without an extra heading',as
  await page.goto('/');
  await expect(page.locator('.page-heading')).toHaveCount(0);
  await expect(page.getByRole('group',{name:'Appearance',exact:true})).toHaveCount(0);
- await expect(page.locator('html')).toHaveAttribute('data-theme','cs2');
+ await expect(page.locator('html')).not.toHaveAttribute('data-theme');
   const result=await page.evaluate(()=>{
    const root=getComputedStyle(document.documentElement),panel=document.querySelector('.preview-section')!,input=document.querySelector('#import-text')!;
    const rgb=(v:string)=>{const m=v.match(/[\d.]+/g)!;return m.slice(0,3).map(Number);};
@@ -43,7 +43,7 @@ test('one consistent appearance keeps readable text without an extra heading',as
    return {panel:getComputedStyle(panel).backgroundColor,input:getComputedStyle(input).backgroundColor,token:root.getPropertyValue('--panel'),textContrast:contrast(getComputedStyle(helper).color,getComputedStyle(document.body).backgroundColor),buttonContrast:contrast(getComputedStyle(button).color,getComputedStyle(button).backgroundColor)};
   });
   expect(result.input).not.toBe(result.panel);expect(result.textContrast).toBeGreaterThanOrEqual(4.5);expect(result.buttonContrast).toBeGreaterThanOrEqual(4.5);
- await page.reload();await expect(page.locator('html')).toHaveAttribute('data-theme','cs2');
+ await page.reload();await expect(page.locator('html')).not.toHaveAttribute('data-theme');
 });
 
 test('mobile compact preview expands and controls have comfortable targets',async({page},info)=>{

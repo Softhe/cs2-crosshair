@@ -1,0 +1,68 @@
+/* Design tokens. Every color, type size, radius and page width in the stylesheets comes from here. */
+:root {
+  /* Palette */
+  --back: #10131e;
+  --panel: #191e2c;
+  --raised: #222a3b;
+  --input: #121824;
+  --line: #3b4961;
+  --border: var(--line);
+  --muted: #aab7cc;
+  --heading: #e7edf7;
+  --text: #e7edf7;
+  --accent: #9dcce7;
+  --accent-dark: #80b6d6;
+  --accent-ink: #101d28;
+  --secondary: #b4a5e8;
+  --success: #91d7ad;
+  --warning: #e6bd76;
+  --error: #f29b9b;
+  --hover: #283448;
+  --selected: #263a50;
+  --track: #45536b;
+  --veil: #090d18bc;
+  --glow: #2599c514;
+  --glow-secondary: #8981d512;
+  /* Over the map photos, where panel colors would not read. */
+  --scrim: #0a0e18a6;
+  --shadow: #00000080;
+
+  /* Type: six sizes. Nothing smaller than 12px. */
+  --font-sans: 'Inter', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+
+  /* Page frame: the header, editor, library and footer share one content width and gutter. */
+  --gutter: 32px;
+  --content-max: 2256px;
+
+  color: var(--text);
+  background: var(--back);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+@media (max-width: 1100px) {
+  :root {
+    --gutter: 24px;
+  }
+}
+@media (max-width: 820px) {
+  :root {
+    --gutter: 16px;
+  }
+}
+@media (max-width: 380px) {
+  :root {
+    --gutter: 12px;
+  }
+}
