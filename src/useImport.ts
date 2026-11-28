@@ -101,7 +101,8 @@ export function useImport({ s, code, apply, onBackup, setModal, notify }: {
       } else {
         throw Error(detected.reason ?? 'No crosshair code, share link, crosshair settings or settings JSON found. Paste a CS code, a link, or cl_crosshair lines from a config.');
       }
-      apply(result, Boolean(notes?.length) || aliases.length > 0);
+      // An alias chosen from the list keeps the other choices on show, so the panel still has something to read.
+      apply(result, Boolean(notes?.length) || aliases.length > 0 || (options.alias !== undefined && aliasChoices.length > 0));
       setConversionNotes(notes?.length ? notes : null);
       setDraft(null);
       setImportError('');
