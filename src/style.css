@@ -311,9 +311,6 @@ h1 {
   padding: 2px;
   cursor: pointer;
 }
-.color-top code {
-  color: var(--muted);
-}
 .color-presets {
   display: flex;
   margin-left: auto;
@@ -1389,6 +1386,12 @@ body {
   font-size: var(--text-xs);
   letter-spacing: 1.2px;
 }
+/* Small labels above headings are set in capitals by style; their text stays in sentence case for screen readers. */
+.eyebrow,
+.brand-subtitle,
+.map-label small {
+  text-transform: uppercase;
+}
 button {
   font-size: var(--text-md);
   line-height: 1.4;
@@ -1708,8 +1711,14 @@ details code,
   color: var(--accent-ink);
   background: var(--accent);
 }
-.color-top code {
-  color: var(--muted);
+.color-top .hex-input {
+  width: 10ch;
+  height: 30px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  cursor: text;
 }
 .color-presets {
   gap: 8px;

@@ -136,7 +136,7 @@ export function LibraryView(p: Props) {
     <main className="collection-page" aria-label="Crosshair library">
       <div className="collection-heading">
         <div>
-          <p className="eyebrow">YOUR COLLECTION</p>
+          <p className="eyebrow">Your collection</p>
           <h1>Your crosshair library</h1>
           <p className="intro">Save a name or player nickname. Preview, copy, or edit any saved crosshair.</p>
         </div>

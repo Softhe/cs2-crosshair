@@ -45,7 +45,7 @@ The site is a static React and TypeScript application built with Vite. The edito
 | `server/index.ts` | Local Node server entry point |
 | `api/` | Vercel Function entry points that reuse `server/app.ts` |
 
-Settings use convar names as keys. The model validates imported values before the editor loads them. The current share-code protocol carries 24 fields. Configs and full website links preserve 42 settings, including compatibility fields for grenade and sniper preferences. Those preferences have no editor sections.
+Settings use convar names as keys. The model validates imported values before the editor loads them. The current share-code protocol carries 24 fields. Configs and full website links preserve 42 settings, including the spectating, sniper rifle and grenade preferences. The editor shows those in a collapsed "Other CS2 settings" section (`OtherSettings` in `src/components/SettingsList.tsx`); the preview does not draw them.
 
 Current codes are checksummed 32-byte payloads encoded with a `CS` prefix. Unknown versions and reserved bits are rejected. See [the protocol](PROTOCOL.md) for the byte layout and game probes.
 

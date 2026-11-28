@@ -184,6 +184,21 @@ function App() {
     aliasFocusPending.current = false;
     showAliasField();
   }, [sheet.open]);
+  /** Save sits under the settings; this opens it from the export row and puts the cursor in the name field. */
+  function openSave() {
+    sheet.hide();
+    // After the sheet has closed and handed focus back, so the name field keeps it.
+    requestAnimationFrame(() => {
+      const disclosure = document.querySelector<HTMLDetailsElement>(".save-disclosure");
+      if (!disclosure) return;
+      disclosure.open = true;
+      const name = document.getElementById("saved-name") as HTMLInputElement | null;
+      name?.focus({ preventScroll: true });
+      // The suggested name is selected, so typing replaces it.
+      name?.select();
+      name?.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    });
+  }
   function exportCfg() {
     if (aliasError) {
       if (matchMedia(SHEET_QUERY).matches && !sheet.open) {
@@ -326,6 +341,7 @@ function App() {
             setAlias={setAlias}
             shareLink={shareLink}
             exportCfg={exportCfg}
+            onSave={openSave}
             sheetOpen={sheet.open}
             closeSheet={sheet.hide}
           />

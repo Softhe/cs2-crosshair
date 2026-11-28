@@ -209,7 +209,7 @@ export function MapPreview({
               onClick={() => setDynamic(!dynamic)}
             >
               {dynamic ? <Pause size={14} /> : <Play size={14} />}{" "}
-              {dynamic ? "Stop" : "Start"} Dynamic Preview
+              {dynamic ? "Stop" : "Start"} dynamic preview
             </button>
 
             <div className="preview-caption">
@@ -231,7 +231,7 @@ export function MapPreview({
       >
         <div className="map-label">
           <span>{mapNames[map]}</span>
-          <small>CROSSHAIR PREVIEW</small>
+          <small>Crosshair preview</small>
         </div>
         <Preview
           settings={s}
@@ -286,12 +286,12 @@ export function MapPreview({
         <div className="preview-actions">
           <div>
             <button
-              aria-label="Undo Changes"
+              aria-label="Undo changes"
               onClick={goBack}
               disabled={!canUndo}
             >
               <Undo2 size={14} />
-              <span>Undo Changes</span>
+              <span>Undo changes</span>
             </button>
             <button aria-label="Reset crosshair" onClick={reset}>
               <RotateCcw size={14} />

@@ -1,4 +1,4 @@
-import { Copy, Download, Link } from 'lucide-react';
+import { Copy, Download, Link, Star } from 'lucide-react';
 import { autoexec, commands, type Settings } from '../model';
 
 export type ExportCardProps = {
@@ -9,6 +9,8 @@ export type ExportCardProps = {
   copy: (text: string, label: string) => void;
   shareLink: () => string;
   exportCfg: () => void;
+  /** Open the save form under the settings. */
+  onSave: () => void;
 };
 
 export function ExportCard(p: ExportCardProps) {
@@ -27,6 +29,10 @@ export function ExportCard(p: ExportCardProps) {
           <Download size={15} />
           Download .cfg
         </button>
+        <button onClick={p.onSave}>
+          <Star size={15} />
+          Save to library
+        </button>
         <span className="format-note">
           Code: crosshair and scope dot. Link and .cfg: all {Object.keys(p.s).length} settings.
         </span>
@@ -39,7 +45,7 @@ export function ExportCard(p: ExportCardProps) {
             files also keep the other menu settings, such as sniper and friendly-crosshair options.
           </p>
           <label className="field-label" htmlFor="alias">
-            ALIAS NAME<span>OPTIONAL</span>
+            Alias name<span>Optional</span>
           </label>
           <input
             id="alias"

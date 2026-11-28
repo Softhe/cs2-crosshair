@@ -101,20 +101,23 @@ export function ImportBar(p:ImportBarProps){
         <Copy size={16}/><span>Copy applied code</span>
       </button>
     </div>
-    {/* Directly under the box, so a failure is read next to the text that caused it. */}
-    {(p.importError||p.aliasChoices.length>0)&&<div className="import-feedback">
+    {/* Directly under the box: a failure, alias choices and the pending draft's note and Discard read next to the text they are about. */}
+    {(p.importError||p.aliasChoices.length>0||p.importDraft!==null)&&<div className="import-feedback">
       {p.importError&&<p className="error-text" role="alert">{p.importError}</p>}
       {p.aliasChoices.length>0&&<div className="alias-choices" role="group" aria-label="Crosshairs stored in aliases">
         <span>Crosshairs in this config's aliases:</span>
         {p.aliasChoices.map(alias=><button key={alias.name} onClick={()=>p.chooseAlias(alias)} title={alias.body}>Load {alias.name}<span className="alias-count">{alias.count} {alias.count===1?'setting':'settings'}</span></button>)}
       </div>}
+      {p.importDraft!==null&&<>
+        <p id="code-selection-hint" className="code-hint">Edit your config draft, or paste to replace it.</p>
+        <p className="transfer-pending-note">
+          Copy, share and downloads use the applied crosshair until you import.
+          <button onClick={resetImport}>Discard import</button>
+        </p>
+      </>}
     </div>}
-    <p id="code-selection-hint" className={p.importDraft===null?'sr-only':'code-hint'}>{p.importDraft===null?'Click or tap to select the whole code. Paste to replace it.':'Edit your config draft, or paste to replace it.'}</p>
-    {p.importDraft!==null&&<p className="transfer-pending-note">
-      Copy, share and downloads use the applied crosshair until you import.
-      <button onClick={resetImport}>Discard import</button>
-    </p>}
-    <ExportCard s={p.s} alias={p.alias} aliasError={p.aliasError} setAlias={p.setAlias} copy={p.copy} shareLink={p.shareLink} exportCfg={p.exportCfg}/>
+    {p.importDraft===null&&<p id="code-selection-hint" className="sr-only">Click or tap to select the whole code. Paste to replace it.</p>}
+    <ExportCard s={p.s} alias={p.alias} aliasError={p.aliasError} setAlias={p.setAlias} copy={p.copy} shareLink={p.shareLink} exportCfg={p.exportCfg} onSave={p.onSave}/>
     <details className="import-options">
       <summary>Import options</summary>
       <div className="import-tools">
