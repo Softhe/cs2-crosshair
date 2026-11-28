@@ -33,3 +33,25 @@ test('preview tools collapse while zoom remains visible at every viewport',async
   await expect(page.locator('.preview-caption')).toBeHidden();
  }
 });
+
+test('two-column tablets keep the toolbar, options panel and map arrows inside the preview',async({page},info)=>{
+ test.skip(info.project.name!=='desktop');
+ await page.route('**/entrance.js*',route=>route.fulfill({contentType:'text/javascript',body:''}));
+ await page.route('**/api/session',route=>route.fulfill({json:{user:null}}));
+ for(const width of [821,900,1000,1100]){
+  await page.setViewportSize({width,height:1000});await page.goto('/');
+  const section=(await page.locator('.preview-section').boundingBox())!;
+  // The Previous map arrow ends above the 4x detail inset.
+  const arrow=(await page.getByRole('button',{name:'Previous map',exact:true}).boundingBox())!,inset=(await page.locator('.detail-preview').boundingBox())!;
+  expect(arrow.y+arrow.height,`arrow over inset at ${width}`).toBeLessThanOrEqual(inset.y);
+  // The in-game size label is the widest toolbar state; nothing may leave the preview column.
+  await page.getByLabel('Preview options',{exact:true}).click();
+  await page.getByLabel('Match my in-game size').check();
+  const panel=(await page.locator('.preview-options-panel').boundingBox())!;
+  expect(panel.x,`options panel left at ${width}`).toBeGreaterThanOrEqual(section.x-0.5);
+  expect(panel.x+panel.width,`options panel right at ${width}`).toBeLessThanOrEqual(section.x+section.width+0.5);
+  await page.keyboard.press('Escape');
+  const outside=await page.locator('.preview-toolbar > :is(span,div,button,details)').evaluateAll((es,{left,right})=>es.filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.left<left-0.5||r.right>right+0.5);}).map(e=>e.className),{left:section.x,right:section.x+section.width});
+  expect(outside,`toolbar spill at ${width}`).toEqual([]);
+ }
+});

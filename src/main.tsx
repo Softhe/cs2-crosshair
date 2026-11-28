@@ -24,8 +24,8 @@ import { SettingsList } from "./components/SettingsList";
 import { Dialogs } from "./components/Dialogs";
 import { Toast } from "./components/Toast";
 
+import "./tokens.css";
 import "./style.css";
-import "./theme.css";
 import "./layout.css";
 import "./steam-account.css";
 import "@fontsource/inter/latin-400.css";
@@ -158,7 +158,6 @@ function App() {
     write("alias", alias);
   }, [alias]);
   useEffect(() => {
-    document.documentElement.dataset.theme = "cs2";
     document
       .querySelector("meta[name=theme-color]")
       ?.setAttribute("content", getComputedStyle(document.documentElement).getPropertyValue("--back").trim());

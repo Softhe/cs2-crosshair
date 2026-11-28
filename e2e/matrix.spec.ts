@@ -42,7 +42,7 @@ test('matrix: undo, reset, settings visibility without starting presets',async({
   await expect(page.getByRole('button',{name:'Undo Changes',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'Reset crosshair',exact:true})).toHaveCount(1);
   await expect(page.locator('.starting-presets')).toHaveCount(0);
   await number(page,'Length',12);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);
-  await expect(page.locator('html')).toHaveAttribute('data-theme','cs2');await expect(page.getByRole('group',{name:'Appearance',exact:true})).toHaveCount(0);
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme');await expect(page.getByRole('group',{name:'Appearance',exact:true})).toHaveCount(0);
   await number(page,'Thickness',6);const changed=await consoleText(page);
   await page.getByRole('button',{name:'Copy link',exact:true}).click();await page.goto(await clipboard(page));expect(await consoleText(page)).toBe(changed);
   await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();expect(await consoleText(page)).toBe(initial);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(changed);
