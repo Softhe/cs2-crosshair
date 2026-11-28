@@ -16,7 +16,7 @@ Unit tests exercise exact game fixtures, every representable share-code field va
 
 Browser tests run at desktop and mobile viewport sizes. They cover all ten styles, visible fields, RGBA colors, negative gap input and slider synchronization, clipboard operations and fallback, named config downloads and file re-imports, full links, presets, undo, reset, themes, observer controls, map switching, zoom, and library actions.
 
-Canvas tests compare dot and outer-shape centers at 1×, 2×, 4×, and 8× with thicknesses 1 and 3. They protect the odd-thickness centering fix. UI tests assert that Grenade Line-up, Sniper Sights, and the sniper preview option are absent.
+Canvas tests compare dot and outer-shape centers at 1×, 2×, 4×, and 8× with thicknesses 1 and 3. They protect the odd-thickness centering fix. UI tests assert that the sniper preview option is absent, and that the collapsed "Other CS2 settings" section edits the spectating, sniper rifle and grenade settings that links and configs carry.
 
 Pixel symmetry tests reject blank canvases and compare reflected RGBA pixels at several thicknesses, positive and negative gaps, fractional display scaling, and 1×/4× zoom. Display tests verify physical-pixel sizes across DPR, fullscreen centering, and normal keyboard edits to the display-height override, including empty and invalid input. Intro tests cover repeated refreshes, original playback speed, the overlapping reveal, layout stability, and failed or stalled video playback.
 

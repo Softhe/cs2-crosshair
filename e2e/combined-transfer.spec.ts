@@ -43,7 +43,9 @@ test('transfer helper text appears only while an import is pending and clears th
   await expect(panel.locator(':scope > .code-hint')).toHaveCount(0);
   await expect(panel.locator('#code-selection-hint')).toHaveClass('sr-only');
   await panel.getByLabel('Crosshair code or config',{exact:true}).fill('CSinvalid');
-  const hint=await panel.locator(':scope > .code-hint').boundingBox(),actions=await panel.locator(':scope > .split-actions').boundingBox();
+  // The draft hint and Discard sit with the import feedback, directly under the box and above the actions.
+  await expect(panel.locator('.import-feedback > .code-hint')).toBeVisible();
+  const hint=await panel.locator('.import-feedback').boundingBox(),actions=await panel.locator(':scope > .split-actions').boundingBox();
   const apart=hint!.y+hint!.height<=actions!.y||actions!.y+actions!.height<=hint!.y;
   expect(apart,'helper overlaps the actions at '+width).toBe(true);
   await panel.getByRole('button',{name:'Discard import',exact:true}).click();

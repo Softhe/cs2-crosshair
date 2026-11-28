@@ -41,13 +41,13 @@ for(const [style,name] of styles){test(`matrix: ${name} edits, clipboard code, c
 
 test('matrix: undo, reset, settings visibility without starting presets',async({page,context})=>{
   await context.grantPermissions(['clipboard-read','clipboard-write']);await page.goto('/');const initial=await consoleText(page);
-  await expect(page.getByRole('button',{name:'Undo Changes',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'Reset crosshair',exact:true})).toHaveCount(1);
+  await expect(page.getByRole('button',{name:'Undo changes',exact:true})).toHaveCount(1);await expect(page.getByRole('button',{name:'Reset crosshair',exact:true})).toHaveCount(1);
   await expect(page.locator('.starting-presets')).toHaveCount(0);
-  await number(page,'Length',12);await closeTransfer(page);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);
+  await number(page,'Length',12);await closeTransfer(page);await page.getByRole('button',{name:'Undo changes',exact:true}).click();expect(await consoleText(page)).toBe(initial);
   await expect(page.locator('html')).not.toHaveAttribute('data-theme');await expect(page.getByRole('group',{name:'Appearance',exact:true})).toHaveCount(0);
   await number(page,'Thickness',6);const changed=await consoleText(page);
   await page.getByRole('button',{name:'Copy link',exact:true}).click();await page.goto(await clipboard(page));expect(await consoleText(page)).toBe(changed);
-  await closeTransfer(page);await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();expect(await consoleText(page)).toBe(initial);await closeTransfer(page);await page.getByRole('button',{name:'Undo Changes',exact:true}).click();expect(await consoleText(page)).toBe(changed);
+  await closeTransfer(page);await page.getByRole('button',{name:'Reset crosshair',exact:true}).click();expect(await consoleText(page)).toBe(initial);await closeTransfer(page);await page.getByRole('button',{name:'Undo changes',exact:true}).click();expect(await consoleText(page)).toBe(changed);
 });
 
 test('matrix: numeric bounds, slider synchronization, clipboard paste, code rejects',async({page,context})=>{

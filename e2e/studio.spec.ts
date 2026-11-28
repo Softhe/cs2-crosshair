@@ -7,6 +7,8 @@ const original='CSxkMfFVRUG6fRehdb2CvLNuajHopsuAQ5O38aVLPTTPHj';
 test('renders all menu sections, changes style, edits and restores draft',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/');if(await page.getByRole('button',{name:'Expand preview',exact:true}).isVisible())await page.getByRole('button',{name:'Expand preview',exact:true}).click();
   await expect(page.getByRole('main',{name:'Crosshair editor',exact:true})).toBeVisible();
+  // Sniper and grenade settings live in the collapsed Other CS2 settings section, not in sections of their own.
+  await expect(page.locator('.other-settings')).not.toHaveAttribute('open');
   await expect(page.getByRole('heading',{name:'Grenade Line-up'})).toHaveCount(0);
   await expect(page.getByRole('heading',{name:'Sniper Sights'})).toHaveCount(0);
   await expect(page.getByLabel('Preview mode').locator('option[value=sniper]')).toHaveCount(0);

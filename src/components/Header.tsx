@@ -19,7 +19,7 @@ export function Header({ view, setView, favorites, onGuide, sync }: {
           delli<span>.cc</span>
         </strong>
         <span className="brand-divider" />
-        <span className="brand-subtitle">CROSSHAIR STUDIO</span>
+        <span className="brand-subtitle">Crosshair studio</span>
       </a>
       <nav className="menu-nav" aria-label="Studio menu">
         <button

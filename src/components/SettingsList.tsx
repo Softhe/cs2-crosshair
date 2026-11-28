@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Minus, Plus } from 'lucide-react';
-import { styleFields, type Field, type Settings } from '../model';
+import { ChevronDown, Minus, Plus } from 'lucide-react';
+import { crosshairFields, grenadeKeep, grenadeTypes, sniperFields, styleFields, type Field, type Settings } from '../model';
 
 const shapeKeys = new Set(['cl_crosshair_thickness', 'cl_crosshairdot', 'cl_crosshair_length', 'cl_crosshair_gap', 'cl_crosshair_t', 'cl_crosshair_dynamic_maxdist_splitratio']);
 
@@ -23,7 +23,8 @@ export function NumberControl({
   const max = field.max ?? 255;
   const normalize = (n: number) => Number((Math.round(Math.max(min, Math.min(max, n)) / step) * step).toFixed(2));
   const commit = () => {
-    const n = Number(draft);
+    // Accept a decimal comma too; the field always shows a dot, as CS2 and the config files do.
+    const n = Number(draft.replace(',', '.'));
     if (draft.trim() && Number.isFinite(n)) {
       const normalized = normalize(n);
       setDraft(format(normalized));
@@ -46,11 +47,15 @@ export function NumberControl({
       <input
         className="numeric"
         id={field.key}
-        type="number"
+        // A text field with the spinbutton role: type=number would show the browser locale's decimal comma.
+        type="text"
+        role="spinbutton"
+        inputMode={min < 0 ? 'text' : step < 1 ? 'decimal' : 'numeric'}
+        autoComplete="off"
         aria-label={field.label}
-        min={field.min}
-        max={field.max}
-        step={field.step ?? 1}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
         value={draft}
         disabled={disabled}
         aria-describedby={field.hint ? `${field.key}-hint` : undefined}
@@ -58,6 +63,15 @@ export function NumberControl({
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            // Step from what is typed, when it is a number, so an uncommitted edit is not thrown away.
+            const typed = Number(draft.replace(',', '.'));
+            const from = draft.trim() && Number.isFinite(typed) ? typed : value;
+            const next = normalize(from + (e.key === 'ArrowUp' ? step : -step));
+            setDraft(format(next));
+            onChange(next);
+          }
         }}
       />
       {/* One-unit steps for touch screens, where a short slider cannot land on an exact value. Shown only in the single-column layout. */}
@@ -87,16 +101,19 @@ export function Row({
   field,
   s,
   set,
+  shortLabel,
 }: {
   field: Field;
   s: Settings;
   set: (key: string, value: number) => void;
+  /** Visible label when the group already names the subject; the controls keep `field.label` as their name. */
+  shortLabel?: string;
 }) {
   return (
     <>
-    <div className="setting-row">
+    <div className={`setting-row${shortLabel ? ' nested' : ''}`}>
       <label htmlFor={field.key}>
-        {field.label}
+        {shortLabel ?? field.label}
       </label>
       {field.options ? (
         <select
@@ -118,6 +135,44 @@ export function Row({
     </div>
     {field.hint && <p id={`${field.key}-hint`} className="code-hint setting-hint">{field.hint}</p>}
     </>
+  );
+}
+
+/** Parse #rgb or #rrggbb, with or without the #, into lower-case #rrggbb. */
+export function parseHex(text: string): string | null {
+  const m = text.trim().replace(/^#/, '').toLowerCase();
+  if (/^[0-9a-f]{6}$/.test(m)) return '#' + m;
+  if (/^[0-9a-f]{3}$/.test(m)) return '#' + [...m].map((c) => c + c).join('');
+  return null;
+}
+
+/** A typed hex color, applied on Enter or blur. Anything that is not a color reverts to the current value. */
+function HexInput({ label, hex, onChange }: { label: string; hex: string; onChange: (hex: string) => void }) {
+  const [draft, setDraft] = useState(hex.toUpperCase());
+  useEffect(() => setDraft(hex.toUpperCase()), [hex]);
+  const commit = () => {
+    const parsed = parseHex(draft);
+    if (parsed && parsed !== hex) onChange(parsed);
+    setDraft((parsed ?? hex).toUpperCase());
+  };
+  return (
+    <input
+      className="text-input hex-input"
+      aria-label={label}
+      value={draft}
+      maxLength={7}
+      spellCheck={false}
+      autoComplete="off"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        if (e.key === 'Escape') {
+          setDraft(hex.toUpperCase());
+          e.stopPropagation();
+        }
+      }}
+    />
   );
 }
 
@@ -159,7 +214,7 @@ export function ColorRow({
               value={hex}
               onChange={(e) => setHex(e.target.value)}
             />
-            <code>{hex.toUpperCase()}</code>
+            <HexInput label={`${outline ? 'Outline' : 'Crosshair'} hex color`} hex={hex} onChange={setHex} />
             <div className="color-presets">
               {['#00ff00', '#00c8ff', '#ffffff', '#ffda22', '#fa3250', '#000000'].map((color) => (
                 <button
@@ -193,6 +248,50 @@ export function ColorRow({
   );
 }
 
+/**
+ * The rest of CS2's crosshair menu: settings the preview does not draw, kept collapsed so the crosshair
+ * itself stays the focus. Links and .cfg files carry them; share codes do not.
+ */
+function OtherSettings({ s, set }: { s: Settings; set: (key: string, value: number) => void }) {
+  return (
+    <details className="settings-section other-settings">
+      <summary className="section-title">
+        <h2 id="other-heading">Other CS2 settings</h2>
+        <span>04</span>
+        <ChevronDown size={18} aria-hidden="true" />
+      </summary>
+      <p className="section-note">
+        Spectating, sniper rifle and grenade options. Links and .cfg files keep them; share codes do not.
+      </p>
+      <div className="other-settings-groups">
+        <section aria-labelledby="other-spectating">
+          <h3 id="other-spectating">Spectating and teammates</h3>
+          {crosshairFields.map((field) => <Row key={field.key} field={field} s={s} set={set} />)}
+        </section>
+        <section aria-labelledby="other-sniper">
+          <h3 id="other-sniper">Sniper rifles</h3>
+          {sniperFields.map((field) => <Row key={field.key} field={field} s={s} set={set} />)}
+        </section>
+        <section aria-labelledby="other-grenades">
+          <h3 id="other-grenades">Grenades</h3>
+          <Row field={grenadeKeep} s={s} set={set} />
+          {grenadeTypes.map(([type, name]) => {
+            const shown = s[`cl_grenadecrosshair_${type}`] !== 0;
+            return (
+              <div key={type} className="grenade-group">
+                <Row field={{ key: `cl_grenadecrosshair_${type}`, label: name, options: [[1, 'Yes'], [0, 'No']] }} s={s} set={set} />
+                {shown && (
+                  <Row field={{ key: `cl_grenadecrosshairdelay_${type}`, label: `${name} delay (seconds)`, min: 0, max: 5, step: 0.01 }} s={s} set={set} shortLabel="Delay (seconds)" />
+                )}
+              </div>
+            );
+          })}
+        </section>
+      </div>
+    </details>
+  );
+}
+
 export function SettingsList({ s, set, load, draftSaved }: {
   s: Settings;
   set: (key: string, value: number) => void;
@@ -222,6 +321,7 @@ export function SettingsList({ s, set, load, draftSaved }: {
         <div className="section-title"><h2 id="behavior-heading">Behavior and scope</h2><span>03</span></div>
         {rest.filter(field => !isShapeField(field)).map(field => <Row key={field.key} field={field} s={s} set={set} />)}
       </section>
+      <OtherSettings s={s} set={set} />
       {!draftSaved && <p className="draft-state error-text" role="alert">Draft could not be saved. Export a config to keep your changes.</p>}
     </div>
   );

@@ -815,11 +815,13 @@
   line-height: 1.6;
   margin: 0;
 }
-.transfer-panel > #code-selection-hint {
-  grid-row: 4;
+.import-feedback > .code-hint {
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  margin: 0;
 }
-.transfer-panel > .transfer-pending-note {
-  grid-column: 1/-1;
+.import-feedback > .transfer-pending-note {
+  margin: 0;
   color: var(--warning);
   font-size: var(--text-xs);
   line-height: 1.6;
@@ -870,6 +872,9 @@
   .transfer-panel > .split-actions button {
     min-height: 44px;
   }
+  .transfer-panel > .split-actions > button:nth-child(3) {
+    grid-column: 1/-1;
+  }
   .transfer-panel > .import-options {
     grid-column: 1;
     grid-row: 5;
@@ -883,11 +888,8 @@
     min-height: 44px;
     font-size: var(--text-xs);
   }
-  .transfer-panel > #code-selection-hint {
-    grid-row: 6;
-  }
 }
-.transfer-panel > .transfer-pending-note {
+.import-feedback > .transfer-pending-note {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1398,9 +1400,6 @@
 .transfer-panel:has(> .import-feedback) > .export-advanced {
   grid-row: 4;
 }
-.transfer-panel:has(> .import-feedback) > #code-selection-hint {
-  grid-row: 5;
-}
 .transfer-panel:has(> .import-feedback) > .import-options[open],
 .transfer-panel:has(> .import-feedback) > .export-advanced[open] {
   grid-row: auto;
@@ -1449,9 +1448,6 @@
   .transfer-panel:has(> .import-feedback) > .import-options,
   .transfer-panel:has(> .import-feedback) > .export-advanced {
     grid-row: 6;
-  }
-  .transfer-panel:has(> .import-feedback) > #code-selection-hint {
-    grid-row: 7;
   }
   .transfer-panel:has(> .import-feedback) > .import-options[open],
   .transfer-panel:has(> .import-feedback) > .export-advanced[open] {
@@ -1613,6 +1609,62 @@
   .menu-nav .wide-label {
     display: none;
   }
+}
+
+/* Other CS2 settings: a collapsed fourth section across the full editor width. */
+.editor > .other-settings {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+}
+.other-settings > summary {
+  cursor: pointer;
+  list-style: none;
+  gap: 12px;
+  min-height: 44px;
+}
+.other-settings > summary::-webkit-details-marker {
+  display: none;
+}
+.other-settings > summary > span {
+  margin-left: auto;
+}
+.other-settings > summary > svg {
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.other-settings[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.other-settings > summary:hover h2 {
+  color: var(--accent);
+}
+.other-settings > .section-note {
+  margin: 0 0 8px;
+}
+.other-settings-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  column-gap: 20px;
+}
+.other-settings-groups h3 {
+  margin: 14px 0 4px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--heading);
+}
+@media (prefers-reduced-motion: reduce) {
+  .other-settings > summary > svg {
+    transition: none;
+  }
+}
+
+/* The open preview options cover part of the map; hide the map arrows so neither peeks out from behind them. */
+.preview-section:has(.preview-options[open]) .map-arrow {
+  visibility: hidden;
+}
+.setting-row.nested > label {
+  padding-left: 14px;
+  color: var(--muted);
 }
 /* Two-column tablets: let the toolbar wrap. This comes after the shared toolbar rule, which sets nowrap
   and would otherwise win, so the in-game size label cannot push Options out of the preview column. */

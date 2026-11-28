@@ -85,7 +85,7 @@ test('wide editor shows every conditional control without scrolling',async({page
   await page.setViewportSize(viewport);await page.goto('/');
   for(const style of ['0','1','2','3','4','5','6','7','8','9']){
    await page.getByLabel('Style',{exact:true}).selectOption(style);
-   const outside=await page.locator('.editor .setting-row input,.editor .setting-row select,.editor .swatch').evaluateAll(es=>es.filter(e=>{const r=e.getBoundingClientRect();return r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth;}).map(e=>e.getAttribute('aria-label')||e.id));
+   const outside=await page.locator(':is(.editor > .settings-section:not(.other-settings)) :is(.setting-row input,.setting-row select,.swatch)').evaluateAll(es=>es.filter(e=>{const r=e.getBoundingClientRect();return r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth;}).map(e=>e.getAttribute('aria-label')||e.id));
    expect(outside,`style ${style} at ${viewport.width}x${viewport.height}`).toEqual([]);
   }
  }

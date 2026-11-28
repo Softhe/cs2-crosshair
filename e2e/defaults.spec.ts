@@ -5,8 +5,10 @@ test('removed section stays absent and recoil starts off, survives a reload and 
   await page.locator('#entrance').waitFor({state:'hidden'});
   await expect(page.getByRole('heading',{name:'Crosshair Settings',exact:true})).toHaveCount(0);
   await expect(page.getByRole('navigation',{name:'Crosshair sections'})).toHaveCount(0);
-  await expect(page.getByLabel('Friendly Fire Reticle Warning',{exact:true})).toHaveCount(0);
-  await expect(page.locator('.settings-section')).toHaveCount(3);
+  // Menu settings the preview does not draw stay in the collapsed fourth section.
+  await expect(page.getByLabel('Friendly Fire Reticle Warning',{exact:true})).toBeHidden();
+  await expect(page.locator('.settings-section')).toHaveCount(4);
+  await expect(page.locator('.other-settings')).not.toHaveAttribute('open');
   const recoil=page.getByLabel('Follow Recoil',{exact:true});
   await expect(recoil).toHaveValue('0');
   await recoil.selectOption('1');

@@ -10,15 +10,15 @@ test('convert old config, copy new code, invalidate stale output and apply',asyn
   if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
   await page.getByLabel('New game height').selectOption('1440');
   await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
-  const code=await page.getByLabel('NEW CS CODE',{exact:true}).inputValue();
+  const code=await page.getByLabel('New CS code',{exact:true}).inputValue();
   expect(code).toMatch(/^CS[A-Za-z0-9]{44}$/);
   await page.getByRole('button',{name:'Copy converted code',exact:true}).click();
   expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(code);
   expect(await page.getByLabel('Crosshair code or config').getAttribute('data-current-code').then(value=>value!)).toBe(previous);
   await page.getByLabel('New game height').selectOption('1080');
-  await expect(page.getByLabel('NEW CS CODE',{exact:true})).toHaveCount(0);
+  await expect(page.getByLabel('New CS code',{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
-  const updated=await page.getByLabel('NEW CS CODE',{exact:true}).inputValue();
+  const updated=await page.getByLabel('New CS code',{exact:true}).inputValue();
   await page.getByRole('button',{name:'Use converted crosshair',exact:true}).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await expect(page.getByLabel('Crosshair code or config')).toHaveAttribute('data-current-code',updated);
@@ -29,7 +29,7 @@ test('blocked legacy styles show an error without offering a new code',async({pa
   if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByText('Convert old settings to a new CS code',{exact:true}).click();
   await page.getByRole('button',{name:'Convert old settings',exact:true}).click();
   await expect(page.getByText(/Old styles 0 and 1 \(the default styles\)/)).toBeVisible();
-  await expect(page.getByLabel('NEW CS CODE',{exact:true})).toHaveCount(0);
+  await expect(page.getByLabel('New CS code',{exact:true})).toHaveCount(0);
 });
 test('regular import converts old config rather than silently ignoring old geometry',async({page})=>{
   await page.goto('/');await openTransfer(page);await page.getByLabel('Crosshair code or config').focus();

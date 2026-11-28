@@ -22,7 +22,7 @@ export function LegacyConverter({text,oldHeight,onOldHeightChange,base,onApply}:
     {current&&<div className="conversion-result"><div className="conversion-preview"><Preview settings={current.settings} zoom={4} decorative fit/></div>
       <p>Converted preview, up to 4× magnification</p>
       <dl>{([['Length','cl_crosshair_length'],['Thickness','cl_crosshair_thickness'],['Gap','cl_crosshair_gap'],['Reference height','cl_crosshair_screen_height']] as Array<[string, string]>).map(([label,key])=><div key={key}><dt>{label}</dt><dd>{current.settings[key]}</dd></div>)}</dl>
-      <label className="field-label" htmlFor="converted-code">NEW CS CODE</label><input id="converted-code" className="converted-code" readOnly value={encode(current.settings)}/>
+      <label className="field-label" htmlFor="converted-code">New CS code</label><input id="converted-code" className="converted-code" readOnly value={encode(current.settings)}/>
       <div className="modal-buttons"><button onClick={async()=>{const copied=await copyText(encode(current.settings));setStatus(copied?'Converted code copied.':'Copy failed. Select and copy the code manually.');}}>Copy converted code</button><button className="primary-button" onClick={()=>onApply(current.settings)}>Use converted crosshair</button></div>
       <details><summary>Conversion warnings ({current.warnings.length})</summary><ul>{current.warnings.map((warning,i)=><li key={i}>{warning}</li>)}</ul></details>
       <a href="https://github.com/sebastianspicker/small-indie-crosshair-company" target="_blank" rel="noreferrer">Converter source and research</a>
