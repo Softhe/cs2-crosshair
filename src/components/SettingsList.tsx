@@ -65,7 +65,10 @@ export function NumberControl({
           if (e.key === 'Enter') e.currentTarget.blur();
           if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             e.preventDefault();
-            const next = normalize(value + (e.key === 'ArrowUp' ? step : -step));
+            // Step from what is typed, when it is a number, so an uncommitted edit is not thrown away.
+            const typed = Number(draft.replace(',', '.'));
+            const from = draft.trim() && Number.isFinite(typed) ? typed : value;
+            const next = normalize(from + (e.key === 'ArrowUp' ? step : -step));
             setDraft(format(next));
             onChange(next);
           }

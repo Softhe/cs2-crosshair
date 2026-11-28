@@ -59,6 +59,13 @@ test('number fields show a decimal point, accept a comma and step with the arrow
  await expect(scale).toHaveValue('0.50');
  await scale.press('ArrowUp');
  await expect(scale).toHaveValue('0.51');
+ // An arrow press steps from a typed value that has not been committed yet.
+ await scale.fill('0.8');
+ await scale.press('ArrowUp');
+ await expect(scale).toHaveValue('0.81');
+ await scale.fill('nonsense');
+ await scale.press('ArrowDown');
+ await expect(scale).toHaveValue('0.80');
  const gap=page.getByRole('spinbutton',{name:'Gap',exact:true});
  await gap.press('ArrowDown');
  await expect(gap).toHaveValue('3');
