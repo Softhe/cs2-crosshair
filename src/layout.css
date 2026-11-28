@@ -1273,10 +1273,14 @@
     padding-left: 140px;
   }
 }
-/* Two-column tablets: the map is short, so the arrows sit higher to stay clear of the 4× inset. */
-@media (min-width: 821px) and (max-width: 1100px) {
+/* Two-column tablets: the map is short, so the arrows sit higher to stay clear of the 4× inset.
+  A 300px floor keeps the inset below the arrow at the narrowest width; at 1100px the map is unchanged. */
+@media (max-width: 1100px) and (min-width: 821px) {
   .map-arrow {
     top: calc(50% - 72px);
+  }
+  .workspace > .preview-section .map-preview {
+    height: clamp(300px, 29vw, 400px);
   }
 }
 .settings-section > .setting-hint {
@@ -1661,4 +1665,16 @@
 .setting-row.nested > label {
   padding-left: 14px;
   color: var(--muted);
+}
+/* Two-column tablets: let the toolbar wrap. This comes after the shared toolbar rule, which sets nowrap
+  and would otherwise win, so the in-game size label cannot push Options out of the preview column. */
+@media (max-width: 1100px) and (min-width: 821px) {
+  .preview-toolbar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  /* When Options wraps to its own row, keep it at the right so its panel opens inside the preview. */
+  .preview-toolbar > .preview-options {
+    margin-left: auto;
+  }
 }
