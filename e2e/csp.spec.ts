@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { openPreviewOptions } from './preview-options-helper';
+import { closeTransfer, openTransfer } from './transfer-helper';
 
 // vite preview sends the same enforced policy as production (server/security-headers.ts).
 // Any violation here would break the live site.
@@ -32,9 +33,11 @@ test('the main screens run under the content security policy without violations'
   await page.getByRole('button', { name: 'Guide', exact: true }).click();
   await page.getByRole('button', { name: 'Close dialog' }).click();
 
+  await openTransfer(page);
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download .cfg' }).click();
   await download;
+  await closeTransfer(page);
 
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.goto('/?view=library', { waitUntil: 'domcontentloaded' });

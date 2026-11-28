@@ -3,6 +3,7 @@ import {defaults} from '../src/model';
 import {encode} from '../src/codec';
 import type {Saved} from '../src/storage';
 import type {CloudEntry} from '../src/library-sync';
+import {openTransfer} from './transfer-helper';
 
 const nativeCode=encode({...defaults,cl_crosshair_length:12});
 const favorite=(id:string,name:string,length=8):Saved=>({id,name,settings:{...defaults,cl_crosshair_length:length},alias:'',favorite:true,date:'2026-10-15T12:00:00.000Z'});
@@ -45,11 +46,12 @@ test('mock API: a signed-out session offers Steam sign-in without requiring an A
 });
 
 test('mock API: native code paste applies immediately and invalid paste preserves settings',async({page})=>{
-  await mockApi(page);await page.goto('/');
+  await mockApi(page);await page.goto('/');await openTransfer(page);
   const field=page.getByLabel('Crosshair code or config',{exact:true});
   await field.evaluate((node,code)=>{const event=new Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{getData:()=>code}});node.dispatchEvent(event);},nativeCode);
   await expect(page.getByLabel('Crosshair code or config',{exact:true})).toHaveAttribute('data-current-code',nativeCode!);
   await expect(page.getByRole('spinbutton',{name:'Length',exact:true})).toHaveValue('12');
+  await openTransfer(page);
   await field.evaluate(node=>{const event=new Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{getData:()=> 'CSinvalid'}});node.dispatchEvent(event);});
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByLabel('Crosshair code or config',{exact:true})).toHaveAttribute('data-current-code',nativeCode!);
@@ -57,7 +59,7 @@ test('mock API: native code paste applies immediately and invalid paste preserve
 });
 
 test('mock API: delayed clipboard reads do not overwrite text typed afterward',async({page})=>{
-  await mockApi(page);await page.goto('/');
+  await mockApi(page);await page.goto('/');await openTransfer(page);
   const field=page.getByLabel('Crosshair code or config',{exact:true});const before=await page.getByLabel('Crosshair code or config',{exact:true}).getAttribute('data-current-code');
   await page.evaluate(()=>Object.defineProperty(navigator.clipboard,'readText',{configurable:true,value:()=>new Promise<string>(resolve=>Reflect.set(window,'resolveTestClipboard',resolve))}));
   if(await page.locator('.import-options').getAttribute('open')===null)await page.locator('.import-options > summary').click();await page.getByRole('button',{name:'Paste clipboard',exact:true}).click();
@@ -174,7 +176,7 @@ test('manual sync shows progress, prevents duplicate clicks, and confirms comple
 });
 
 test('mock API: resetting to current code cancels an outstanding clipboard paste',async({page})=>{
-  await mockApi(page);await page.goto('/');
+  await mockApi(page);await page.goto('/');await openTransfer(page);
   const field=page.getByLabel('Crosshair code or config',{exact:true});
   const applied=await field.getAttribute('data-current-code');
   await field.fill('Pending config to discard');
@@ -215,7 +217,7 @@ test('mock API: a sync requested while another is running runs afterwards instea
 
 
 test('current code selects in full on focus, repeated clicks, dragging, and keyboard selection',async({page})=>{
-  await mockApi(page);await page.goto('/');
+  await mockApi(page);await page.goto('/');await openTransfer(page);
   const field=page.getByLabel('Crosshair code or config',{exact:true});
   const allSelected=()=>field.evaluate(node=>node instanceof HTMLTextAreaElement && node.selectionStart===0 && node.selectionEnd===node.value.length);
   await field.focus();await expect.poll(allSelected).toBe(true);
@@ -248,7 +250,7 @@ test('mock API: saving and updating automatically sync with honest progress and 
 
 
 test('config drafts retain caret placement and partial edits after clicks and focus',async({page})=>{
-  await mockApi(page);await page.goto('/');
+  await mockApi(page);await page.goto('/');await openTransfer(page);
   const field=page.getByLabel('Crosshair code or config',{exact:true});
   const draft='cl_crosshair_length 12; cl_crosshair_gap 3';await field.fill(draft);
   await field.blur();await field.focus();

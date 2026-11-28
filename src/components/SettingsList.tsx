@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
+import { Minus, Plus } from 'lucide-react';
 import { styleFields, type Field, type Settings } from '../model';
 
 const shapeKeys = new Set(['cl_crosshair_thickness', 'cl_crosshairdot', 'cl_crosshair_length', 'cl_crosshair_gap', 'cl_crosshair_t', 'cl_crosshair_dynamic_maxdist_splitratio']);
@@ -17,12 +18,14 @@ export function NumberControl({
   const format = (n: number) => ((field.step ?? 1) < 1 ? n.toFixed(2) : String(n));
   const [draft, setDraft] = useState(format(value));
   useEffect(() => setDraft(format(value)), [value, field.step]);
+  const step = field.step ?? 1;
+  const min = field.min ?? 0;
+  const max = field.max ?? 255;
+  const normalize = (n: number) => Number((Math.round(Math.max(min, Math.min(max, n)) / step) * step).toFixed(2));
   const commit = () => {
     const n = Number(draft);
-    const step = field.step ?? 1;
     if (draft.trim() && Number.isFinite(n)) {
-      const clamped = Math.max(field.min ?? 0, Math.min(field.max ?? 255, n));
-      const normalized = Number((Math.round(clamped / step) * step).toFixed(2));
+      const normalized = normalize(n);
       setDraft(format(normalized));
       onChange(normalized);
     } else setDraft(format(value));
@@ -57,6 +60,25 @@ export function NumberControl({
           if (e.key === 'Enter') e.currentTarget.blur();
         }}
       />
+      {/* One-unit steps for touch screens, where a short slider cannot land on an exact value. Shown only in the single-column layout. */}
+      <button
+        type="button"
+        className="step-button step-down"
+        aria-label={`Decrease ${field.label}`}
+        disabled={disabled || value <= min}
+        onClick={() => onChange(normalize(value - step))}
+      >
+        <Minus size={16} />
+      </button>
+      <button
+        type="button"
+        className="step-button step-up"
+        aria-label={`Increase ${field.label}`}
+        disabled={disabled || value >= max}
+        onClick={() => onChange(normalize(value + step))}
+      >
+        <Plus size={16} />
+      </button>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import {openPreviewOptions} from './preview-options-helper';
 import {test,expect} from '@playwright/test';
+import {openTransfer} from './transfer-helper';
 
 test.beforeEach(async({page})=>{
  await page.route('**/entrance.js*',route=>route.fulfill({contentType:'text/javascript',body:''}));
@@ -66,7 +67,7 @@ test('mobile compact preview expands and controls have comfortable targets',asyn
 
 test('pending import, failed clipboard and draft persistence have clear state',async({page})=>{
  await page.addInitScript(()=>{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:()=>Promise.reject(new Error('Denied')),readText:()=>Promise.reject(new Error('Denied'))}});document.execCommand=()=>false;});
- await page.goto('/');const field=page.getByLabel('Crosshair code or config',{exact:true}),code=await field.getAttribute('data-current-code');
+ await page.goto('/');await openTransfer(page);const field=page.getByLabel('Crosshair code or config',{exact:true}),code=await field.getAttribute('data-current-code');
  await field.fill('CSinvalid');await expect(page.getByText('Unapplied import',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Import crosshair',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();
  await expect(field).toHaveAttribute('data-current-code',code!);

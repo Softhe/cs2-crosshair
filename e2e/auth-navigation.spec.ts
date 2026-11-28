@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {closeTransfer,openTransfer} from './transfer-helper';
 
 // Simulated same-origin handoff: these tests do not contact Steam or authenticate an account.
 for(const outcome of ['success','cancelled'] as const)test(`Steam ${outcome} returns to the starting view and preserves the working draft`,async({page})=>{
@@ -24,8 +25,10 @@ for(const outcome of ['success','cancelled'] as const)test(`Steam ${outcome} ret
  await page.goto('/');
  const length=page.getByRole('spinbutton',{name:'Length',exact:true});
  await length.fill('14');await length.blur();
+ await openTransfer(page);
  await page.locator('.export-advanced > summary').click();
  await page.getByRole('textbox',{name:'Alias name'}).fill('returning_player');
+ await closeTransfer(page);
  const applied=await page.getByLabel('Crosshair code or config',{exact:true}).getAttribute('data-current-code');
  await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('delli.v3.draft')!).cl_crosshair_length)).toBe(14);
  if(outcome==='cancelled')await page.getByRole('button',{name:'Library',exact:true}).click();
@@ -41,6 +44,7 @@ for(const outcome of ['success','cancelled'] as const)test(`Steam ${outcome} ret
  }
  await expect(length).toHaveValue('14');
  await expect(page.getByLabel('Crosshair code or config',{exact:true})).toHaveAttribute('data-current-code',applied!);
+ await openTransfer(page);
  await page.locator('.export-advanced > summary').click();
  await expect(page.getByRole('textbox',{name:'Alias name'})).toHaveValue('returning_player');
 });

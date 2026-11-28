@@ -23,6 +23,7 @@ export function Header({ view, setView, favorites, onGuide, sync }: {
       </a>
       <nav className="menu-nav" aria-label="Studio menu">
         <button
+          aria-label="Crosshair / Scopes"
           className={view === 'editor' ? 'active' : ''}
           aria-current={view === 'editor' ? 'page' : undefined}
           onClick={() => {
@@ -33,7 +34,7 @@ export function Header({ view, setView, favorites, onGuide, sync }: {
             });
           }}
         >
-          Crosshair / Scopes
+          Crosshair<span className="wide-label"> / Scopes</span>
         </button>
         <button
           aria-label="Library"

@@ -1,6 +1,7 @@
 import {test, expect, type Page} from '@playwright/test';
 import {defaults} from '../src/model';
 import {encode} from '../src/codec';
+import {openTransfer, transferPanel} from './transfer-helper';
 
 const settings = {...defaults, cl_crosshair_gap: -2, cl_crosshair_length: 3};
 const code = encode(settings);
@@ -20,6 +21,7 @@ const value = (page: Page, name: string) => page.getByRole('spinbutton', {name, 
 
 test('a code wrapped in quotes and chat text imports', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   await paste(page, `my crosshair: "${code}".`);
   await expect(field(page)).toHaveAttribute('data-current-code', code);
   await expect(page.getByRole('alert')).toHaveCount(0);
@@ -27,6 +29,7 @@ test('a code wrapped in quotes and chat text imports', async ({page}) => {
 
 test('crosshairs kept in aliases are offered as choices under the box', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   await paste(page, 'alias a "cl_crosshair_gap 1; cl_crosshair_length 2"\nalias b "cl_crosshair_gap -3; cl_crosshair_length 9"');
   const alert = page.getByRole('alert');
   await expect(alert).toContainText('aliases a, b');
@@ -44,6 +47,7 @@ test('crosshairs kept in aliases are offered as choices under the box', async ({
 
 test('a config with pre-update names imports its current settings and lists the old ones', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   await paste(page, 'cl_crosshaircolor 1\ncl_crosshair_length 2\ncl_crosshair_gap -2');
   await expect(value(page, 'Length')).toHaveValue('2');
   await expect(value(page, 'Gap')).toHaveValue('-2');
@@ -52,6 +56,7 @@ test('a config with pre-update names imports its current settings and lists the 
 
 test('an error names the format and stays next to the box with the options open', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   await page.evaluate(() => document.querySelectorAll('.transfer-panel details').forEach(d => (d as HTMLDetailsElement).open = true));
   await field(page).fill('CSabc');
   await expect(page.getByTestId('detected-format')).toHaveText('CS2 share code');
@@ -64,6 +69,7 @@ test('an error names the format and stays next to the box with the options open'
 
 test('a typed draft shows the detected format before it is imported', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   await field(page).fill('cl_crosshair_gap -2; cl_crosshair_length 3');
   await expect(page.getByTestId('detected-format')).toHaveText('CS2 config · 2 settings');
   await field(page).fill(`delli.cc/?code=${code}`);
@@ -74,6 +80,7 @@ test('a typed draft shows the detected format before it is imported', async ({pa
 
 test('settings JSON pasted into the box imports', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   await paste(page, JSON.stringify({cl_crosshair_length: 6}));
   await expect(value(page, 'Length')).toHaveValue('6');
   await expect(page.locator('.toast')).toContainText('Settings JSON imported');
@@ -81,7 +88,8 @@ test('settings JSON pasted into the box imports', async ({page}) => {
 
 test('a file dropped on the import panel imports', async ({page}) => {
   await page.goto('/');
-  const panel = page.getByRole('region', {name: 'Import, share and export', exact: true});
+  await openTransfer(page);
+  const panel = transferPanel(page);
   const data = await page.evaluateHandle(() => {
     const transfer = new DataTransfer();
     transfer.items.add(new File(['"config"\n{\n\t"cl_crosshair_gap"\t"-4.000000"\n}'], 'cs2_user_convars_0_slot0.vcfg', {type: 'text/plain'}));
@@ -96,6 +104,7 @@ test('a file dropped on the import panel imports', async ({page}) => {
 
 test('an oversized file reports its size and the limit', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   await page.getByLabel('Crosshair config file', {exact: true}).setInputFiles({name: 'huge.cfg', mimeType: 'text/plain', buffer: Buffer.alloc(210000, 'a')});
   await expect(page.getByRole('alert')).toContainText('huge.cfg is too large (210 KB). Crosshair configs can be up to 200 KB.');
 });

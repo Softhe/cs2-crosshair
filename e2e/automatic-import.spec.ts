@@ -1,4 +1,5 @@
 import {test, expect} from '@playwright/test';
+import {openTransfer, transferPanel} from './transfer-helper';
 
 const legacy = 'CSGO-xrtNo-O5jwh-YRB3C-upokE-j698F';
 const current = 'CSxkMfFVRUG6fRehdb2CvLNuajHopsuAQ5O38aVLPTTPHj';
@@ -12,6 +13,7 @@ test.beforeEach(async ({page}) => {
 for (const [name, text] of [['current code', current], ['legacy code', legacy], ['share link', `https://delli.cc/?code=${current}`], ['legacy config', config]] as const) {
   test(`pasting ${name} applies it immediately`, async ({page}) => {
     await page.goto('/');
+    await openTransfer(page);
     const field = page.getByLabel('Crosshair code or config', {exact:true});
     const previous = await field.getAttribute('data-current-code');
     await field.evaluate((element, text) => {
@@ -20,7 +22,7 @@ for (const [name, text] of [['current code', current], ['legacy code', legacy], 
       element.dispatchEvent(new ClipboardEvent('paste', {bubbles:true, cancelable:true, clipboardData}));
     }, text);
     await expect(field).not.toHaveAttribute('data-current-code', previous!);
-    await expect(page.getByText('Applied crosshair', {exact:true})).toBeVisible();
+    await expect(page.locator('.code-state')).toHaveText('Applied crosshair');
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 }
@@ -33,7 +35,7 @@ test('choosing a legacy config imports immediately and allows choosing the same 
     await expect(page.getByRole('spinbutton', {name:'Length', exact:true})).toHaveValue('4');
     await expect(page.getByRole('spinbutton', {name:'Thickness', exact:true})).toHaveValue('1');
     await expect(page.getByRole('spinbutton', {name:'Gap', exact:true})).toHaveValue('3');
-    await expect(page.getByText('Applied crosshair', {exact:true})).toBeVisible();
+    await expect(page.locator('.code-state')).toHaveText('Applied crosshair');
     if (attempt === 0) {
       await page.getByRole('spinbutton', {name:'Length', exact:true}).fill('8');
       await page.getByRole('spinbutton', {name:'Length', exact:true}).blur();
@@ -49,7 +51,7 @@ test('a config with values a share code cannot carry is fitted and the changes a
   await expect(page.getByRole('spinbutton', {name:'Thickness', exact:true})).toHaveValue('2');
   await expect(page.getByRole('spinbutton', {name:'Length', exact:true})).toHaveValue('3');
   await expect(page.getByText(/Adjusted to supported values: cl_crosshair_gap -15 → -10; cl_crosshair_thickness 1.5 → 2\./)).toBeVisible();
-  await expect(page.getByText('Applied crosshair', {exact:true})).toBeVisible();
+  await expect(page.locator('.code-state')).toHaveText('Applied crosshair');
 });
 
 test('thickness 0 explains why the preview is empty', async ({page}) => {
@@ -67,6 +69,7 @@ test('thickness 0 explains why the preview is empty', async ({page}) => {
 
 test('invalid uploads preserve the applied crosshair and show an error', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   const field = page.getByLabel('Crosshair code or config', {exact:true});
   const previous = await field.getAttribute('data-current-code');
   await page.getByLabel('Crosshair config file', {exact:true}).setInputFiles({name:'invalid.cfg', mimeType:'text/plain', buffer:Buffer.from('not a crosshair')});
@@ -97,6 +100,7 @@ test('a library backup chosen as a config is merged into the library', async ({p
 
 test('a backup that cannot be restored keeps the pasted text and explains why', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   const field = page.getByLabel('Crosshair code or config', {exact:true});
   const text = JSON.stringify({version:2, entries:[]});
   await field.evaluate((element, text) => {
@@ -110,7 +114,8 @@ test('a backup that cannot be restored keeps the pasted text and explains why', 
 
 test('dropping a config file on the panel imports it', async ({page}) => {
   await page.goto('/');
-  const panel = page.getByRole('region', {name:'Import, share and export', exact:true});
+  await openTransfer(page);
+  const panel = transferPanel(page);
   const data = await page.evaluateHandle(() => {
     const transfer = new DataTransfer();
     transfer.items.add(new File(['cl_crosshairstyle 4\ncl_crosshair_gap "-3"\ncl_crosshair_length "7"'], 'drop.cfg', {type:'text/plain'}));
@@ -126,7 +131,8 @@ test('dropping a config file on the panel imports it', async ({page}) => {
 
 test('dropping link text on the panel imports the crosshair', async ({page}) => {
   await page.goto('/');
-  const panel = page.getByRole('region', {name:'Import, share and export', exact:true});
+  await openTransfer(page);
+  const panel = transferPanel(page);
   const field = page.getByLabel('Crosshair code or config', {exact:true});
   const data = await page.evaluateHandle((text) => {
     const transfer = new DataTransfer();
@@ -139,6 +145,7 @@ test('dropping link text on the panel imports the crosshair', async ({page}) => 
 
 test('an old config shows its conversion notes under the import box', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   const field = page.getByLabel('Crosshair code or config', {exact:true});
   await field.evaluate((element, text) => {
     const clipboardData = new DataTransfer();
@@ -154,6 +161,7 @@ test('an old config shows its conversion notes under the import box', async ({pa
 
 test('a multi-line config draft gets a taller box', async ({page}) => {
   await page.goto('/');
+  await openTransfer(page);
   const field = page.getByLabel('Crosshair code or config', {exact:true});
   const before = (await field.boundingBox())!.height;
   await field.fill('cl_crosshair_gap 2\ncl_crosshair_length 4\ncl_crosshairdot 1');
@@ -163,12 +171,15 @@ test('a multi-line config draft gets a taller box', async ({page}) => {
   await field.evaluate((element) => { element.style.height = '320px'; });
   await page.getByRole('button', {name:'Import crosshair', exact:true}).click();
   await expect(field).not.toHaveClass(/is-multiline/);
+  // On a phone a successful import closes the sheet; reopen it to measure the box.
+  await openTransfer(page);
   await expect.poll(async () => (await field.boundingBox())!.height).toBeLessThanOrEqual(before + 1);
 });
 
 test('moving text inside the draft does not import it', async ({page}) => {
   await page.goto('/');
-  const panel = page.getByRole('region', {name:'Import, share and export', exact:true});
+  await openTransfer(page);
+  const panel = transferPanel(page);
   const field = page.getByLabel('Crosshair code or config', {exact:true});
   const previous = await field.getAttribute('data-current-code');
   await field.fill('cl_crosshair_gap 2\ncl_crosshair_length 4');
