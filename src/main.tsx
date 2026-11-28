@@ -129,6 +129,11 @@ function App() {
     s, alias, aliasError, setAlias, sync, notify, load, openEditor: () => setView("editor"),
   });
   const sheet = useTransferSheet();
+  // The sheet belongs to the editor. Leaving it (a header tab or browser Back) closes the sheet,
+  // which also lifts the inert it put on the header and footer.
+  useEffect(() => {
+    if (view !== "editor") sheet.hide();
+  }, [view]);
   const imports = useImport({
     s,
     code,
@@ -451,6 +456,8 @@ function App() {
         ref={backupInput}
         className="sr-only"
         type="file"
+        // Opened by its button; never a Tab stop of its own.
+        tabIndex={-1}
         accept=".json,application/json"
         aria-label="Library backup file"
         onChange={(e) => {
@@ -463,6 +470,8 @@ function App() {
         ref={cfgInput}
         className="sr-only"
         type="file"
+        // Opened by its button; never a Tab stop of its own.
+        tabIndex={-1}
         accept=".cfg,.txt,.vcfg,.json"
         aria-label="Crosshair config file"
         onChange={(e) => {
