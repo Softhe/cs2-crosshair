@@ -104,7 +104,7 @@ test('mock API: guest history stays separate from permanent favorites and the na
 test('mock API: updating a loaded favorite and saving as new preserve distinct records',async({page})=>{
   await seedGuests(page,[favorite('original','Original',8)]);await mockApi(page);await page.goto('/');
   await page.getByRole('button',{name:'Library',exact:true}).click();
-  await page.getByRole('button',{name:'Load',exact:true}).click();
+  await page.getByRole('button',{name:'Edit Original',exact:true}).click();
   const length=page.getByRole('spinbutton',{name:'Length',exact:true});await length.fill('10');await length.blur();
   if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();await page.getByRole('button',{name:'Update saved crosshair',exact:true}).click();
   await length.fill('12');await length.blur();if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();await page.getByLabel('Crosshair name',{exact:true}).fill('Separate copy');
@@ -263,7 +263,7 @@ test('config drafts retain caret placement and partial edits after clicks and fo
 
 test('signed-out update failure reports local save failure for an existing favorite',async({page})=>{
   await seedGuests(page,[favorite('original','Original',8)]);await mockApi(page);
-  await page.goto('/?view=library');await page.getByRole('button',{name:'Load',exact:true}).click();
+  await page.goto('/?view=library');await page.getByRole('button',{name:'Edit Original',exact:true}).click();
   await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='delli.v3.library')throw new DOMException('Storage full','QuotaExceededError');return original.call(this,key,value);};});
   if(await page.locator('.save-disclosure').getAttribute('open')===null)await page.locator('.save-disclosure > summary').click();
   await page.getByLabel('Crosshair name',{exact:true}).fill('Rename failed');

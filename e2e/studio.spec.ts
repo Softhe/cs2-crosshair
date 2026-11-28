@@ -60,7 +60,7 @@ test('library favorite, rename, search, load, remove and backup',async({page})=>
   await expect(page.getByRole('button',{name:'Preview Test green',exact:true})).toBeVisible();await page.getByRole('button',{name:'Rename Test green'}).click();await page.getByLabel('Rename crosshair').fill('Team reticle');await page.getByLabel('Rename crosshair').press('Enter');
   await page.getByLabel('Search crosshairs').fill('Team');await expect(page.getByRole('button',{name:'Preview Team reticle',exact:true})).toBeVisible();
   const promise=page.waitForEvent('download');await page.getByRole('button',{name:'Export library'}).click();const download=await promise;expect(download.suggestedFilename()).toBe('delli-crosshair-library.json');
-  await page.getByRole('button',{name:'Load',exact:true}).click();await expect(page.getByRole('main',{name:'Crosshair library',exact:true})).not.toBeVisible();await expect(page.getByLabel('Crosshair name',{exact:true})).toHaveValue('Team reticle');
+  await page.getByRole('button',{name:'Edit Team reticle',exact:true}).click();await expect(page.getByRole('main',{name:'Crosshair library',exact:true})).not.toBeVisible();await expect(page.getByLabel('Crosshair name',{exact:true})).toHaveValue('Team reticle');
   await page.getByRole('button',{name:'Library',exact:true}).click();await page.getByRole('button',{name:'Remove Team reticle'}).click();await expect(page.getByText('Your collection starts here.')).toBeVisible();
 });
 test('full links preserve extra settings, compatibility routes and missing routes',async({page})=>{
@@ -91,7 +91,7 @@ test('save disclosure persists a favorite without overwriting it while editing',
   await expect(bar).not.toContainText('Saved as Match crosshair');
   await page.getByRole('button',{name:'Library',exact:true}).click();
   await expect(page.getByRole('button',{name:'Preview Match crosshair',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Load',exact:true}).click();
+  await page.getByRole('button',{name:'Edit Match crosshair',exact:true}).click();
   await expect(bar).toContainText('Saved as Match crosshair');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
 });

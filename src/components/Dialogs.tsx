@@ -65,21 +65,35 @@ export function Dialogs({
           </p>
           <h3>Preview accuracy</h3>
           <p>
-            The preview uses real game backgrounds and draws the crosshair
-            at the resolution it was made for, where every unit is one game
-            pixel. If you play at another resolution, turn on Match my in-game
-            size under Preview options to see how CS2 rounds and stretches it
-            on your monitor; the browser cannot detect your game resolution, so
-            you choose it. A crosshair too large for the preview is shown
-            smaller to fit. Static Cross with a nonnegative gap matches
-            measured game captures; other styles are approximate. GPU
-            sharpening and game post-processing can change colors and edges.
-            Dynamic motion, recoil, quadrant geometry and scope rendering are
-            browser approximations. The animation travels a short fixed
-            distance, or the configured spread limit if that is smaller; it
-            does not model weapon inaccuracy, spread or the game's 64-pixel
-            baseline. Verify the final crosshair in CS2.
+            The preview uses real game backgrounds and draws the crosshair at
+            the resolution it was made for, where every unit is one game pixel.
+            Verify the final crosshair in CS2.
           </p>
+          <ul className="help-list">
+            <li>
+              <strong>Your resolution.</strong> The browser cannot detect your
+              game resolution. Turn on Match my in-game size under Preview
+              options and choose it to see how CS2 rounds and stretches the
+              crosshair on your monitor.
+            </li>
+            <li>
+              <strong>Exact and approximate styles.</strong> Static Cross with a
+              nonnegative gap matches measured game captures. Other styles are
+              approximate, and a crosshair too large for the preview is shown
+              smaller to fit.
+            </li>
+            <li>
+              <strong>Motion and scopes.</strong> Dynamic motion, recoil,
+              quadrant geometry and scope rendering are browser approximations.
+              The animation travels a short fixed distance, or the configured
+              spread limit if that is smaller. It does not model weapon
+              inaccuracy, spread or the game's 64-pixel baseline.
+            </li>
+            <li>
+              <strong>Your display.</strong> GPU sharpening and game
+              post-processing can change colors and edges.
+            </li>
+          </ul>
           <h3>Send feedback</h3>
           <a
             className="issue-link"

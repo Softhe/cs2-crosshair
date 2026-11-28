@@ -164,12 +164,6 @@
 .steam-account-panel > .account-sync.needs-attention > svg {
   color: var(--warning);
 }
-.library-sign-in-hint {
-  font-size: var(--text-sm);
-  color: var(--accent);
-  line-height: 1.7;
-  max-width: 240px;
-}
 .account-spinner {
   animation: account-spin 1s linear infinite;
 }

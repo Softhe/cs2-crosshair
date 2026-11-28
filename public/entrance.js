@@ -2,7 +2,11 @@
   // The intro greets a first visit only. Refreshes and return visits open the editor directly;
   // ?intro=preview replays it on demand. Without storage it cannot be remembered, so it is skipped
   // rather than shown on every load. A browser asking for reduced motion skips it unless replayed.
-  const replay = new URLSearchParams(location.search).get('intro') === 'preview';
+  // A shared crosshair link opens straight on that crosshair and leaves the intro for a later plain visit.
+  const params = new URLSearchParams(location.search);
+  const replay = params.get('intro') === 'preview';
+  const shared = ['code', 'crosshair', 'settings'].some((key) => params.has(key)) || location.pathname.startsWith('/CS');
+  if (shared && !replay) return;
   try {
     const seen = localStorage.getItem('delli.v3.intro-seen');
     localStorage.setItem('delli.v3.intro-seen', '1');

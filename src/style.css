@@ -515,12 +515,21 @@ details p {
   margin: 9px 0 10px;
 }
 .help-content p,
-.help-content ol {
+.help-content ol,
+.help-content ul {
   color: var(--muted);
   margin-bottom: 20px;
 }
-.help-content ol {
+.help-content ol,
+.help-content ul {
   padding-left: 19px;
+}
+.help-list li + li {
+  margin-top: 6px;
+}
+.help-list strong {
+  color: var(--text);
+  font-weight: 600;
 }
 .rating {
   display: flex;
@@ -1561,6 +1570,7 @@ details p,
 details code,
 .help-content p,
 .help-content ol,
+.help-content ul,
 .modal-content > p,
 .empty-library p {
   font-size: var(--text-sm);

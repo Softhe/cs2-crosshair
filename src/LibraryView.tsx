@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { UpdateLibrary } from './library-sync';
 import { Bookmark, Copy, Download, Link, Pencil, Search, Star, Trash2, Upload } from 'lucide-react';
 import { Preview } from './Preview';
+import { SteamMark } from './SteamAccount';
 import { encode } from './codec';
 import { limitLibrary, type Saved } from './storage';
 
@@ -163,7 +164,12 @@ export function LibraryView(p: Props) {
               <button onClick={p.onSignOut}>Sign out</button>
             </>
           ) : p.available ? (
-            <span className="library-sign-in-hint">Sign in with Steam using the button in the header.</span>
+            <a className="steam-sign-in" href={`${p.signIn}?returnTo=${encodeURIComponent('/?view=library')}`}>
+              <SteamMark />
+              <span>
+                Sign in with Steam<span className="sr-only"> to sync your library</span>
+              </span>
+            </a>
           ) : (
             <span className="section-note">
               Steam sign-in is unavailable on this host. Local saving and backups still work.
@@ -236,11 +242,13 @@ export function LibraryView(p: Props) {
                   </span>
                 </div>
                 <div className="library-item-actions">
-                  <button onClick={() => p.onLoad(item)}>Load</button>
+                  <button aria-label={`Edit ${item.name}`} title="Open in the editor" onClick={() => p.onLoad(item)}>
+                    Edit
+                  </button>
                   <button
                     className="icon-button"
                     aria-label={`Copy ${item.name}`}
-                    title="Copy crosshair code"
+                    title="Copy code"
                     onClick={() => p.onCopy(encode(item.settings), 'Share code')}
                   >
                     <Copy size={16} />
@@ -332,7 +340,7 @@ export function LibraryView(p: Props) {
                 <Preview settings={selected.settings} zoom={2} fit paused />
               </div>
               <label className="field-label" htmlFor="selected-code">
-                CS2 SHARE CODE
+                CS2 share code
               </label>
               <textarea
                 id="selected-code"
@@ -350,7 +358,7 @@ export function LibraryView(p: Props) {
                 onClick={() => p.onCopy(encode(selected.settings), 'Share code')}
               >
                 <Copy size={16} />
-                Copy selected crosshair code
+                Copy code
               </button>
               <div className="split-actions selected-exports">
                 <button onClick={() => p.onCopyLink(selected)}>
@@ -363,10 +371,11 @@ export function LibraryView(p: Props) {
                 </button>
               </div>
               <button className="quiet-button full" onClick={() => p.onLoad(selected)}>
+                <Pencil size={15} />
                 Edit crosshair
               </button>
               <p className="section-note">
-                Editing creates a working draft. Your saved copy changes only when you choose Update saved
+                Editing opens a working draft. Your saved copy changes only when you choose Update saved
                 crosshair.
               </p>
             </>

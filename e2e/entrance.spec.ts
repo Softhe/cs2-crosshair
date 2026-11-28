@@ -58,6 +58,18 @@ async function expectIntro(page: import('@playwright/test').Page) {
   await expect(page.locator('#root')).not.toHaveAttribute('inert');
 }
 
+test('a shared crosshair link skips the intro and leaves it for a later plain visit', async ({ page }) => {
+  for (const path of ['/?code=CSxkMfFVRUG6fRehdb2CvLNuajHopsuAQ5O38aVLPTTPHj', '/CSxkMfFVRUG6fRehdb2CvLNuajHopsuAQ5O38aVLPTTPHj']) {
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    await page.locator('.header').waitFor();
+    await expect(page.locator('#entrance')).toBeHidden();
+    await expect(page.locator('#root')).not.toHaveAttribute('inert');
+    expect(await page.locator('#entrance video').evaluate(element => (element as HTMLVideoElement).currentSrc)).toBe('');
+  }
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expectIntro(page);
+});
+
 test('shortened intro plays on the first visit only, not on refresh or return', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expectIntro(page);
